@@ -1,0 +1,233 @@
+<script setup>
+import { ref, reactive } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Delete, Plus } from '@element-plus/icons-vue'
+import request from '../../utils/request'
+
+// 容器信息
+const containerInfo = ref({
+  containerId: '',
+  name: '',
+  port: null,
+  token: '',
+  createTime: '',
+  updateTime: ''
+})
+
+// 加载状态
+const loading = ref(false)
+const createLoading = ref(false)
+
+// 对话框状态
+const dialogVisible = ref(false)
+
+// 表单数据
+const dockerForm = reactive({
+  napcatToken: ''
+})
+
+// 表单验证规则
+const rules = {
+  napcatToken: [
+    { required: true, message: '请输入napcat token', trigger: 'blur' },
+    { min: 10, message: 'token长度不能少于10个字符', trigger: 'blur' }
+  ]
+}
+
+// 表单引用
+const dockerFormRef = ref(null)
+
+// 创建容器
+const createContainer = async () => {
+  if (!dockerFormRef.value) return
+  
+  const valid = await dockerFormRef.value.validate()
+  if (!valid) {
+    return
+  }
+  
+  try {
+    createLoading.value = true
+    
+    const response = await request({
+      url: '/docker/create',
+      method: 'get',
+      params: {
+        napcatToken: dockerForm.napcatToken
+      }
+    })
+    
+    // 保存容器信息
+    containerInfo.value.port = response.data
+    containerInfo.value.token = dockerForm.napcatToken
+    containerInfo.value.createTime = new Date().toLocaleString()
+    containerInfo.value.updateTime = new Date().toLocaleString()
+    
+    ElMessage.success(`容器创建成功，端口号：${response.data}`)
+    dialogVisible.value = false
+    // 清空表单
+    dockerForm.napcatToken = ''
+  } catch (error) {
+    ElMessage.error(error.message || '创建容器失败')
+  } finally {
+    createLoading.value = false
+  }
+}
+
+// 删除容器
+const deleteContainer = async () => {
+  try {
+    await ElMessageBox.confirm('确定要删除该容器吗？', '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    
+    await request({
+      url: '/docker/delete',
+      method: 'get'
+    })
+    
+    // 清空容器信息
+    containerInfo.value = {
+      containerId: '',
+      name: '',
+      port: null,
+      token: '',
+      createTime: '',
+      updateTime: ''
+    }
+    
+    ElMessage.success('删除容器成功')
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(error.message || '删除容器失败')
+    }
+  }
+}
+
+// 打开创建对话框
+const openCreateDialog = () => {
+  dialogVisible.value = true
+}
+</script>
+
+<template>
+  <div class="docker-view">
+    <el-card class="docker-card">
+      <template #header>
+        <div class="card-header">
+          <h2>Docker管理</h2>
+          <div class="card-actions">
+            <el-button
+              v-if="!containerInfo.port"
+              type="primary"
+              @click="openCreateDialog"
+              :icon="Plus"
+            >
+              创建容器
+            </el-button>
+            <el-button
+              v-if="containerInfo.port"
+              type="danger"
+              @click="deleteContainer"
+              :icon="Delete"
+            >
+              删除容器
+            </el-button>
+          </div>
+        </div>
+      </template>
+      
+      <!-- 容器信息展示 -->
+      <el-descriptions
+        v-loading="loading"
+        :column="2"
+        border
+        class="container-descriptions"
+      >
+        <template v-if="containerInfo.port">
+          <el-descriptions-item label="容器ID" prop="containerId">{{ containerInfo.containerId || '未获取' }}</el-descriptions-item>
+          <el-descriptions-item label="容器名称" prop="name">{{ containerInfo.name || '未获取' }}</el-descriptions-item>
+          <el-descriptions-item label="访问端口" prop="port">
+            <span style="color: #409eff; font-weight: bold;">{{ containerInfo.port }}</span>
+            <el-tag type="info" style="margin-left: 10px;">
+              <a :href="`http://localhost:${containerInfo.port}`" target="_blank">访问Napcat UI</a>
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="Napcat Token" prop="token">{{ containerInfo.token || '未获取' }}</el-descriptions-item>
+          <el-descriptions-item label="创建时间" prop="createTime">{{ containerInfo.createTime }}</el-descriptions-item>
+          <el-descriptions-item label="更新时间" prop="updateTime">{{ containerInfo.updateTime }}</el-descriptions-item>
+        </template>
+        <template v-else>
+          <el-descriptions-item label="提示" :span="2">
+            <el-empty description="暂无容器信息，请点击创建容器按钮进行创建"></el-empty>
+          </el-descriptions-item>
+        </template>
+      </el-descriptions>
+      
+      <!-- 容器创建对话框 -->
+      <el-dialog
+        v-model="dialogVisible"
+        title="创建容器"
+        width="500px"
+      >
+        <el-form
+          ref="dockerFormRef"
+          :model="dockerForm"
+          :rules="rules"
+          label-width="100px"
+        >
+          <el-form-item label="Napcat Token" prop="napcatToken">
+            <el-input
+              v-model="dockerForm.napcatToken"
+              placeholder="请输入napcat token"
+              type="text"
+              show-password
+            ></el-input>
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <span class="dialog-footer">
+            <el-button @click="dialogVisible = false">取消</el-button>
+            <el-button type="primary" @click="createContainer" :loading="createLoading">
+              确定
+            </el-button>
+          </span>
+        </template>
+      </el-dialog>
+    </el-card>
+  </div>
+</template>
+
+<style scoped>
+.docker-view {
+  width: 100%;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-header h2 {
+  font-size: 20px;
+  margin: 0;
+  color: #303133;
+}
+
+.search-form {
+  margin-bottom: 20px;
+  padding: 10px 0;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+  padding: 15px;
+}
+
+.pagination {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+</style>
