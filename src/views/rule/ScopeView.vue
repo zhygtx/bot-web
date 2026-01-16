@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, onMounted, watch, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Search } from '@element-plus/icons-vue'
 import request from '../../utils/request'
@@ -62,6 +62,10 @@ const scopeTypes = [
 // 监听作用域类型变化
 watch(() => scopeForm.QQScopeType, (newVal) => {
   console.log('QQScopeType变化:', newVal);
+  // 当作用域类型为私聊时，自动设置isAt为false
+  if (newVal === 'privateMsg') {
+    scopeForm.isAt = false;
+  }
 })
 
 const roleOptions = [
@@ -101,10 +105,6 @@ const resetSearch = () => {
 // 打开添加作用域对话框
 const openAddDialog = () => {
   dialogTitle.value = '添加作用域'
-  // 重置表单
-  if (scopeFormRef.value) {
-    scopeFormRef.value.resetFields()
-  }
   // 清空表单数据
   scopeForm.id = ''
   scopeForm.name = ''
@@ -119,14 +119,14 @@ const openAddDialog = () => {
 // 打开编辑作用域对话框
 const openEditDialog = (scope) => {
   dialogTitle.value = '编辑作用域'
-  // 填充表单数据
-  scopeForm.id = scope.id
-  scopeForm.name = scope.name
-  scopeForm.isAt = scope.isAt
-  scopeForm.QQUserRole = scope.QQUserRole
-  scopeForm.QQBotRole = scope.QQBotRole
-  scopeForm.QQScopeType = scope.QQScopeType
-  scopeForm.QQScopeId = scope.QQScopeId
+  // 填充表单数据，同时处理大小写字段名，兼容后端返回的数据格式
+  scopeForm.id = scope.id || scope.id
+  scopeForm.name = scope.name || scope.name
+  scopeForm.isAt = scope.isAt || scope.isAt
+  scopeForm.QQUserRole = scope.QQUserRole || scope.qqUserRole || 'all'
+  scopeForm.QQBotRole = scope.QQBotRole || scope.qqBotRole || 'all'
+  scopeForm.QQScopeType = scope.QQScopeType || scope.qqScopeType || 'all'
+  scopeForm.QQScopeId = scope.QQScopeId || scope.qqScopeId || null
   dialogVisible.value = true
 }
 
@@ -275,17 +275,21 @@ onMounted(() => {
           border
         >
           <el-table-column prop="name" label="作用域名称" min-width="150"></el-table-column>
-          <el-table-column prop="QQScopeType" label="作用域类型" min-width="120" align="center">
+          <el-table-column label="作用域类型" min-width="120" align="center">
             <template #default="scope">
-              {{ scope.row.QQScopeType === 'all' ? '全部' : scope.row.QQScopeType === 'groupMsg' ? '群聊' : '私聊' }}
+              {{ (scope.row.QQScopeType || scope.row.qqScopeType) === 'all' ? '全部' : (scope.row.QQScopeType || scope.row.qqScopeType) === 'groupMsg' ? '群聊' : '私聊' }}
             </template>
           </el-table-column>
-          <el-table-column prop="isAt" label="需要@" min-width="100" align="center">
+          <el-table-column label="需要@" min-width="100" align="center">
             <template #default="scope">
-              <el-switch v-model="scope.row.isAt" disabled></el-switch>
+              <el-switch :model-value="scope.row.isAt || scope.row.isAt" disabled></el-switch>
             </template>
           </el-table-column>
-          <el-table-column prop="QQScopeId" label="作用对象ID" min-width="120" align="center"></el-table-column>
+          <el-table-column label="作用对象ID" min-width="120" align="center">
+            <template #default="scope">
+              {{ scope.row.QQScopeId || scope.row.qqScopeId || '-' }}
+            </template>
+          </el-table-column>
           <el-table-column label="操作" width="200" align="center">
             <template #default="scope">
               <div style="display: flex; justify-content: center; gap: 8px;">
@@ -315,6 +319,11 @@ onMounted(() => {
         v-model="dialogVisible"
         :title="dialogTitle"
         width="600px"
+        @close="() => {
+          if (scopeFormRef.value) {
+            scopeFormRef.value.resetFields()
+          }
+        }"
       >
         <el-form
           ref="scopeFormRef"
@@ -339,7 +348,7 @@ onMounted(() => {
                 </el-select>
               </el-form-item>
             </el-col>
-            <el-col :span="12">
+            <el-col :span="12" v-if="scopeForm.QQScopeType !== 'privateMsg'">
               <el-form-item label="需要@才可触发">
                 <el-switch v-model="scopeForm.isAt"></el-switch>
               </el-form-item>

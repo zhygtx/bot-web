@@ -60,14 +60,21 @@ const actionTypeOptions = [
 // 数据名称选项
 const dataNameOptions = ref([])
 
-// 数据名称加载状态
-const dataNameLoading = ref(false)
+// 数据名称加载状态，改为对象形式，跟踪每种数据类型的加载状态
+const dataNameLoading = ref({
+  text: false,
+  api: false,
+  url: false,
+  image: false,
+  template: false
+})
 
 // 数据缓存，用于存储不同类型的数据列表
 const dataCache = ref({
   text: [],
   api: [],
   url: [],
+  image: [],
   template: []
 })
 
@@ -76,6 +83,7 @@ const dataNameCache = ref({
   text: {},
   api: {},
   url: {},
+  image: {},
   template: {}
 })
 
@@ -115,16 +123,15 @@ const getRoles = async () => {
 const getDataNames = async (type) => {
   if (!type) return
   
-  dataNameLoading.value = true
+  // 避免重复请求
+  if (dataNameLoading.value[type]) return
+  
+  dataNameLoading.value[type] = true
   try {
     const response = await request({
       url: `/api/action-content/${type}/list`,
       method: 'get'
     })
-    dataNameOptions.value = response.data.map(item => ({
-      label: item.name,
-      value: item.id
-    }))
     
     // 更新数据缓存和名称缓存
     dataCache.value[type] = response.data
@@ -133,11 +140,22 @@ const getDataNames = async (type) => {
       nameCache[item.id] = item.name
     })
     dataNameCache.value[type] = nameCache
+    
+    // 只有当当前表单正在编辑或创建该类型时，才更新表单的选项
+    if (actionForm.actionType === type) {
+      dataNameOptions.value = response.data.map(item => ({
+        label: item.name,
+        value: item.id
+      }))
+    }
   } catch (error) {
     ElMessage.error(error.message || '获取数据名称列表失败')
-    dataNameOptions.value = []
+    // 只有当当前表单正在编辑或创建该类型时，才清空表单的选项
+    if (actionForm.actionType === type) {
+      dataNameOptions.value = []
+    }
   } finally {
-    dataNameLoading.value = false
+    dataNameLoading.value[type] = false
   }
 }
 
@@ -160,6 +178,10 @@ const getDataNameById = (dataId, type) => {
     }
   }
   
+  // 如果都没有，触发数据加载，然后返回当前ID
+  // 当数据加载完成后，组件会自动重新渲染，此时会返回正确的数据名称
+  getDataNames(type)
+  
   return dataId
 }
 
@@ -181,6 +203,8 @@ const openAddDialog = () => {
   if (actionFormRef.value) {
     actionFormRef.value.resetFields()
   }
+  // 获取最新的规则列表
+  getRoles()
   // 清空表单数据
   actionForm.id = ''
   actionForm.roleId = ''
@@ -189,27 +213,27 @@ const openAddDialog = () => {
   actionForm.dataId = ''
   actionForm.isConcat = false
   actionForm.seq = 0
-  // 获取最新的规则列表
-  getRoles()
+  // 获取默认类型（text）的数据名称列表
+  getDataNames('text')
   dialogVisible.value = true
 }
 
 // 打开编辑动作对话框
 const openEditDialog = (action) => {
   dialogTitle.value = '编辑动作'
+  // 获取最新的规则列表
+  getRoles()
   // 填充表单数据
   actionForm.id = action.id
   actionForm.roleId = action.roleId
   actionForm.needAt = action.needAt
   actionForm.actionType = action.actionType
-  // 先设置动作类型，然后获取对应的数据名称列表
+  actionForm.isConcat = action.isConcat
+  actionForm.seq = action.seq
+  // 获取最新的数据列表（刷新缓存）
   getDataNames(action.actionType).then(() => {
     // 在数据名称列表加载完成后设置数据ID，确保选项存在
     actionForm.dataId = action.dataId
-    actionForm.isConcat = action.isConcat
-    actionForm.seq = action.seq
-    // 获取最新的规则列表
-    getRoles()
     dialogVisible.value = true
   })
 }
@@ -229,6 +253,7 @@ const deleteAction = async (action) => {
     })
     
     ElMessage.success('删除动作成功')
+    // 重新获取动作列表，确保数据一致性
     getActions()
   } catch (error) {
     if (error !== 'cancel') {
@@ -263,7 +288,11 @@ const submitForm = async () => {
     
     ElMessage.success(response.message || (actionForm.id ? '编辑动作成功' : '添加动作成功'))
     dialogVisible.value = false
+    // 重新获取动作列表，确保数据一致性
     getActions()
+    // 清空当前类型的数据缓存，确保下次获取时是最新数据
+    dataCache.value[actionForm.actionType] = []
+    dataNameCache.value[actionForm.actionType] = {}
   } catch (error) {
     ElMessage.error(error.message || '操作失败')
   }
@@ -280,8 +309,7 @@ watch(() => actionForm.actionType, (newType) => {
 onMounted(() => {
   getActions()
   getRoles()
-  // 初始化数据名称列表
-  getDataNames(actionForm.actionType)
+  // 不再初始化所有数据，改为按需加载
 })
 </script>
 
@@ -417,7 +445,7 @@ onMounted(() => {
             </el-col>
             <el-col :span="12">
               <el-form-item label="数据名称" prop="dataId">
-                <el-select v-model="actionForm.dataId" placeholder="请选择数据名称" :loading="dataNameLoading">
+                <el-select v-model="actionForm.dataId" placeholder="请选择数据名称" :loading="dataNameLoading[actionForm.actionType]">
                   <el-option
                     v-for="option in dataNameOptions"
                     :key="option.value"

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete, Plus } from '@element-plus/icons-vue'
 import request from '../../utils/request'
@@ -67,6 +67,8 @@ const createContainer = async () => {
     dialogVisible.value = false
     // 清空表单
     dockerForm.napcatToken = ''
+    // 更新容器信息
+    await getContainerInfo()
   } catch (error) {
     ElMessage.error(error.message || '创建容器失败')
   } finally {
@@ -88,15 +90,8 @@ const deleteContainer = async () => {
       method: 'get'
     })
     
-    // 清空容器信息
-    containerInfo.value = {
-      containerId: '',
-      name: '',
-      port: null,
-      token: '',
-      createTime: '',
-      updateTime: ''
-    }
+    // 更新容器信息
+    await getContainerInfo()
     
     ElMessage.success('删除容器成功')
   } catch (error) {
@@ -110,6 +105,43 @@ const deleteContainer = async () => {
 const openCreateDialog = () => {
   dialogVisible.value = true
 }
+
+// 获取容器信息
+const getContainerInfo = async () => {
+  try {
+    loading.value = true
+    
+    const response = await request({
+      url: '/docker/info',
+      method: 'get'
+    })
+    
+    // 更新容器信息
+    if (response.data) {
+      containerInfo.value = {
+        containerId: response.data.containerId || '',
+        name: response.data.name || '',
+        port: response.data.port || null,
+        token: response.data.token || '',
+        createTime: response.data.createTime || '',
+        updateTime: response.data.updateTime || ''
+      }
+    }
+  } catch (error) {
+    console.error('获取容器信息失败:', error)
+    // 只在明确错误时显示错误消息，避免干扰用户体验
+    if (error.response && error.response.status !== 404) {
+      ElMessage.error('获取容器信息失败')
+    }
+  } finally {
+    loading.value = false
+  }
+}
+
+// 页面加载时获取容器信息
+onMounted(() => {
+  getContainerInfo()
+})
 </script>
 
 <template>

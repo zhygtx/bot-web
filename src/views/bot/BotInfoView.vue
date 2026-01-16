@@ -10,6 +10,8 @@ const botInfo = ref({
   name: '',
   botQQ: null,
   userId: '',
+  // 兼容后端返回的online字段名
+  online: false,
   isOnline: false
 })
 
@@ -49,7 +51,14 @@ const getBotInfo = async () => {
       url: '/bot/info',
       method: 'get'
     })
-    botInfo.value = response.data || {}
+    const data = response.data || {}
+    // 处理字段名不匹配问题，将后端返回的online字段值赋给isOnline字段
+    botInfo.value = {
+      ...data,
+      // 兼容后端返回的online字段名，同时支持isOnline字段
+      isOnline: data.online || data.isOnline || false,
+      online: data.online || data.isOnline || false
+    }
   } catch (error) {
     console.error('获取机器人信息失败:', error)
     // 如果获取失败，可能是用户还没有绑定机器人，不显示错误提示

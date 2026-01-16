@@ -63,8 +63,7 @@ const handleLogin = async () => {
     console.log('登录请求响应:', response)
     
     // 登录成功，保存用户信息
-    const userInfo = response.data || response
-    userStore.loginSuccess(userInfo)
+    userStore.loginSuccess(response.data)
     
     // 显示成功消息
     console.log('显示成功消息')

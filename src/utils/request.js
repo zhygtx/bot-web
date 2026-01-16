@@ -3,7 +3,7 @@ import { ElMessage } from 'element-plus'
 
 // 创建axios实例
 const service = axios.create({
-  baseURL: 'http://localhost:8080', // 后端API基础URL
+  baseURL: 'http://101.43.170.64:8080', // 使用相对路径，自动适配当前域名和端口
   timeout: 10000 // 请求超时时间
 })
 
@@ -37,11 +37,11 @@ service.interceptors.response.use(
     // 处理后端返回的数据格式
     if (res.code !== undefined) {
       // 成功状态码处理
-      if (res.code === 200 || res.code === 20000 || res.code === 0 || res.message === '登录成功') {
+      if (res.code === 200 || res.code === 20000 || res.code === 0) {
         // 获取请求URL
         const requestUrl = response.config.url || ''
-        // 如果有成功消息，且不是登录成功，且不是list请求，且不是机器人信息请求，且不是个人信息请求，才显示提示
-        if (res.message && res.message !== '登录成功' && !requestUrl.includes('/list') && !requestUrl.includes('/bot/info') && !requestUrl.includes('/user/info')) {
+        // 如果有成功消息，且不是登录成功，且不是list请求，且不是机器人信息请求，且不是个人信息请求，且不是docker信息请求，才显示提示
+        if (res.message && res.message !== '登录成功' && !requestUrl.includes('/list') && !requestUrl.includes('/bot/info') && !requestUrl.includes('/user/info') && !requestUrl.includes('/docker/info')) {
           ElMessage.success(res.message)
         }
         return res
@@ -66,8 +66,10 @@ service.interceptors.response.use(
         return Promise.reject(new Error(res.message || 'Error'))
       }
     } else {
-      // 如果后端返回的数据格式不符合预期，直接返回数据
-      return res
+      // 如果后端返回的数据格式不符合预期，拒绝请求
+      console.error('响应格式错误：缺少code字段', res)
+      ElMessage.error('服务器响应格式错误')
+      return Promise.reject(new Error('无效的响应格式'))
     }
   },
   error => {
