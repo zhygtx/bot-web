@@ -14,6 +14,16 @@ const containerInfo = ref({
   updateTime: ''
 })
 
+// 获取当前主机名，处理window对象可能不存在的情况
+const currentHost = ref('localhost')
+
+// 在组件挂载后获取主机名，确保window对象已经存在
+onMounted(() => {
+  if (typeof window !== 'undefined') {
+    currentHost.value = window.location.hostname || 'localhost'
+  }
+})
+
 // 加载状态
 const loading = ref(false)
 const createLoading = ref(false)
@@ -182,10 +192,16 @@ onMounted(() => {
           <el-descriptions-item label="容器ID" prop="containerId">{{ containerInfo.containerId || '未获取' }}</el-descriptions-item>
           <el-descriptions-item label="容器名称" prop="name">{{ containerInfo.name || '未获取' }}</el-descriptions-item>
           <el-descriptions-item label="访问端口" prop="port">
-            <span style="color: #409eff; font-weight: bold;">{{ containerInfo.port }}</span>
-            <el-tag type="info" style="margin-left: 10px;">
-              <a :href="`http://localhost:${containerInfo.port}`" target="_blank">访问Napcat UI</a>
-            </el-tag>
+            <div>
+              <span style="color: #409eff; font-weight: bold;">{{ containerInfo.port }}</span>
+              <a 
+                :href="`http://${currentHost}:${containerInfo.port}`" 
+                target="_blank" 
+                class="visit-btn"
+              >
+                访问Napcat UI
+              </a>
+            </div>
           </el-descriptions-item>
           <el-descriptions-item label="Napcat Token" prop="token">{{ containerInfo.token || '未获取' }}</el-descriptions-item>
           <el-descriptions-item label="创建时间" prop="createTime">{{ containerInfo.createTime }}</el-descriptions-item>
@@ -261,5 +277,24 @@ onMounted(() => {
   margin-top: 20px;
   display: flex;
   justify-content: flex-end;
+}
+
+.visit-btn {
+  display: inline-block;
+  margin-left: 10px;
+  padding: 4px 12px;
+  background-color: #ecf5ff;
+  color: #409eff;
+  border-radius: 4px;
+  text-decoration: none;
+  font-size: 12px;
+  border: 1px solid #d9ecff;
+  transition: all 0.3s;
+}
+
+.visit-btn:hover {
+  background-color: #409eff;
+  color: #fff;
+  border-color: #409eff;
 }
 </style>
