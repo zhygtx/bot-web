@@ -42,10 +42,24 @@ const rules = {
     { required: true, message: '请选择作用域类型', trigger: 'change' }
   ],
   QQUserRole: [
-    { required: true, message: '请选择用户权限', trigger: 'change' }
+    { required: (rule, value, callback) => {
+      // 只有非私聊模式时才需要选择用户权限
+      if (scopeForm.QQScopeType !== 'Private' && !value) {
+        callback(new Error('请选择用户权限'))
+      } else {
+        callback()
+      }
+    }, trigger: 'change' }
   ],
   QQBotRole: [
-    { required: true, message: '请选择Bot权限', trigger: 'change' }
+    { required: (rule, value, callback) => {
+      // 只有非私聊模式时才需要选择Bot权限
+      if (scopeForm.QQScopeType !== 'Private' && !value) {
+        callback(new Error('请选择Bot权限'))
+      } else {
+        callback()
+      }
+    }, trigger: 'change' }
   ]
 }
 
@@ -54,17 +68,21 @@ const scopeFormRef = ref(null)
 
 // 选项数据
 const scopeTypes = [
-  { label: '全部', value: 'all' },
-  { label: '群聊', value: 'groupMsg' },
-  { label: '私聊', value: 'privateMsg' }
+  { label: '全部', value: 'All' },
+  { label: '群聊', value: 'Group' },
+  { label: '私聊', value: 'Private' }
 ]
 
 // 监听作用域类型变化
 watch(() => scopeForm.QQScopeType, (newVal) => {
   console.log('QQScopeType变化:', newVal);
   // 当作用域类型为私聊时，自动设置isAt为false
-  if (newVal === 'privateMsg') {
+  if (newVal === 'Private') {
     scopeForm.isAt = false;
+  }
+  // 当作用域类型为'All'时，清空作用对象ID
+  if (newVal === 'All') {
+    scopeForm.QQScopeId = null;
   }
 })
 
@@ -111,7 +129,7 @@ const openAddDialog = () => {
   scopeForm.isAt = true
   scopeForm.QQUserRole = 'all'
   scopeForm.QQBotRole = 'all'
-  scopeForm.QQScopeType = 'all'
+  scopeForm.QQScopeType = 'All'
   scopeForm.QQScopeId = null
   dialogVisible.value = true
 }
@@ -277,7 +295,7 @@ onMounted(() => {
           <el-table-column prop="name" label="作用域名称" min-width="150"></el-table-column>
           <el-table-column label="作用域类型" min-width="120" align="center">
             <template #default="scope">
-              {{ (scope.row.QQScopeType || scope.row.qqScopeType) === 'all' ? '全部' : (scope.row.QQScopeType || scope.row.qqScopeType) === 'groupMsg' ? '群聊' : '私聊' }}
+              {{ (scope.row.QQScopeType || scope.row.qqScopeType) === 'All' || (scope.row.QQScopeType || scope.row.qqScopeType) === 'all' ? '全部' : (scope.row.QQScopeType || scope.row.qqScopeType) === 'Group' || (scope.row.QQScopeType || scope.row.qqScopeType) === 'groupMsg' ? '群聊' : '私聊' }}
             </template>
           </el-table-column>
           <el-table-column label="需要@" min-width="100" align="center">
@@ -348,14 +366,14 @@ onMounted(() => {
                 </el-select>
               </el-form-item>
             </el-col>
-            <el-col :span="12" v-if="scopeForm.QQScopeType !== 'privateMsg'">
+            <el-col :span="12" v-if="scopeForm.QQScopeType !== 'Private'">
               <el-form-item label="需要@才可触发">
                 <el-switch v-model="scopeForm.isAt"></el-switch>
               </el-form-item>
             </el-col>
           </el-row>
           
-          <el-row :gutter="20" v-if="scopeForm.QQScopeType !== 'all'">
+          <el-row :gutter="20" v-if="scopeForm.QQScopeType !== 'All'">
             <el-col :span="12">
               <el-form-item label="作用对象ID">
                 <el-input v-model="scopeForm.QQScopeId" placeholder="请输入作用对象ID"></el-input>
@@ -363,7 +381,8 @@ onMounted(() => {
             </el-col>
           </el-row>
           
-          <el-row :gutter="20">
+          <!-- 只有非私聊模式才显示用户权限和Bot权限 -->
+          <el-row :gutter="20" v-if="scopeForm.QQScopeType !== 'Private'">
             <el-col :span="12">
               <el-form-item label="用户权限" prop="QQUserRole">
                 <el-select v-model="scopeForm.QQUserRole" placeholder="请选择用户权限">

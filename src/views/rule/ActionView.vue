@@ -28,8 +28,8 @@ const actionForm = reactive({
   needAt: false,
   actionType: 'text',
   dataId: '',
-  isConcat: false,
-  seq: 0
+  seq: 0,
+  receivers: []
 })
 
 // 表单验证规则
@@ -211,8 +211,9 @@ const openAddDialog = () => {
   actionForm.needAt = false
   actionForm.actionType = 'text'
   actionForm.dataId = ''
-  actionForm.isConcat = false
   actionForm.seq = 0
+  // 初始添加一个默认接收者
+  actionForm.receivers = [{ receiverType: 'Default', receiverGroupQQ: null, receiverUserQQ: null }]
   // 获取默认类型（text）的数据名称列表
   getDataNames('text')
   dialogVisible.value = true
@@ -228,8 +229,13 @@ const openEditDialog = (action) => {
   actionForm.roleId = action.roleId
   actionForm.needAt = action.needAt
   actionForm.actionType = action.actionType
-  actionForm.isConcat = action.isConcat
   actionForm.seq = action.seq
+  // 处理receivers数组，确保数据结构正确
+  actionForm.receivers = (action.receivers || []).map(receiver => ({
+    receiverType: receiver.receiverType,
+    receiverGroupQQ: receiver.receiverGroupQQ || null,
+    receiverUserQQ: receiver.receiverUserQQ || null
+  }))
   // 获取最新的数据列表（刷新缓存）
   getDataNames(action.actionType).then(() => {
     // 在数据名称列表加载完成后设置数据ID，确保选项存在
@@ -265,6 +271,60 @@ const deleteAction = async (action) => {
 // 提交表单
 const submitForm = async () => {
   if (!actionFormRef.value) return
+  
+  // 处理接收者逻辑
+  // 确保至少有一个接收者
+  if (!actionForm.receivers || actionForm.receivers.length === 0) {
+    actionForm.receivers = [{ receiverType: 'Default', receiverGroupQQ: null, receiverUserQQ: null }]
+  }
+  
+  // 验证接收者
+  for (let i = 0; i < actionForm.receivers.length; i++) {
+    const receiver = actionForm.receivers[i]
+    
+    // 私聊类型：用户QQ必填
+    if (receiver.receiverType === 'Private') {
+      if (!receiver.receiverUserQQ || receiver.receiverUserQQ === '') {
+        ElMessage.error(`第${i+1}个接收者：私聊类型的用户QQ不能为空`)
+        return
+      }
+    }
+    
+    // 群聊类型：群号必填
+    if (receiver.receiverType === 'Group') {
+      if (!receiver.receiverGroupQQ || receiver.receiverGroupQQ === '') {
+        ElMessage.error(`第${i+1}个接收者：群聊类型的群号不能为空`)
+        return
+      }
+      
+      // 如果仅有一个群聊而且勾选了@用户的话，两个输入框都必填
+      if (actionForm.receivers.length === 1 && actionForm.needAt) {
+        if (!receiver.receiverUserQQ || receiver.receiverUserQQ === '') {
+          ElMessage.error(`当只有一个群聊接收者且勾选了@用户时，用户QQ不能为空`)
+          return
+        }
+      }
+    }
+  }
+  
+  // 处理默认类型
+  if (actionForm.receivers.length === 1) {
+    const receiver = actionForm.receivers[0]
+    // 如果接收者类型不是Default，且没有填写任何QQ，则自动转换为Default
+    if (receiver.receiverType !== 'Default') {
+      let hasQQ = false
+      if (receiver.receiverType === 'Private') {
+        hasQQ = !!receiver.receiverUserQQ
+      } else if (receiver.receiverType === 'Group') {
+        hasQQ = !!receiver.receiverGroupQQ
+      }
+      if (!hasQQ) {
+        receiver.receiverType = 'Default'
+        receiver.receiverGroupQQ = null
+        receiver.receiverUserQQ = null
+      }
+    }
+  }
   
   await actionFormRef.value.validate()
   
@@ -304,6 +364,21 @@ watch(() => actionForm.actionType, (newType) => {
   // 清空数据ID，防止类型不匹配
   actionForm.dataId = ''
 })
+
+// 提供一个方法来处理接收者类型变化
+const handleReceiverTypeChange = (receiver) => {
+  // 类型变化时清空相关字段
+  if (receiver.receiverType === 'Private') {
+    // 私聊类型：清空群号，保留用户QQ
+    receiver.receiverGroupQQ = null
+  } else if (receiver.receiverType === 'Group') {
+    // 群聊类型：无需特殊处理，允许填写群号和用户QQ
+  } else if (receiver.receiverType === 'Default') {
+    // 默认类型：清空所有QQ字段
+    receiver.receiverGroupQQ = null
+    receiver.receiverUserQQ = null
+  }
+}
 
 // 组件挂载时获取动作列表和规则列表
 onMounted(() => {
@@ -375,11 +450,6 @@ onMounted(() => {
         <el-table-column prop="needAt" label="需要@" min-width="100" align="center">
           <template #default="scope">
             <el-switch v-model="scope.row.needAt" disabled></el-switch>
-          </template>
-        </el-table-column>
-        <el-table-column prop="isConcat" label="拼接消息" min-width="100" align="center">
-          <template #default="scope">
-            <el-switch v-model="scope.row.isConcat" disabled></el-switch>
           </template>
         </el-table-column>
         <el-table-column prop="seq" label="优先级" min-width="100" align="center"></el-table-column>
@@ -463,12 +533,90 @@ onMounted(() => {
                 <el-switch v-model="actionForm.needAt"></el-switch>
               </el-form-item>
             </el-col>
-            <el-col :span="12">
-              <el-form-item label="拼接消息">
-                <el-switch v-model="actionForm.isConcat"></el-switch>
-              </el-form-item>
-            </el-col>
           </el-row>
+          
+          <!-- 消息接收者 -->
+          <el-form-item label="消息接收者">
+            <!-- 接收者表单容器 -->
+            <div style="margin-bottom: 5px;">
+              <div v-for="(receiver, index) in actionForm.receivers" :key="index" class="receiver-item" style="margin-bottom: 15px;">
+                <!-- 第一行：下拉框和删除按钮 -->
+                <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                  <el-select 
+                    v-model="receiver.receiverType" 
+                    placeholder="请选择接收者类型" 
+                    style="width: 200px; margin-right: 10px;"
+                    @change="handleReceiverTypeChange(receiver)">
+                    <!-- 如果当前接收者是默认类型，或者没有其他默认类型接收者，则显示默认选项 -->
+                    <el-option 
+                      label="默认" 
+                      value="Default" 
+                      v-if="receiver.receiverType === 'Default' || !actionForm.receivers.some((r, i) => r.receiverType === 'Default' && i !== index)"></el-option>
+                    <el-option label="私聊" value="Private"></el-option>
+                    <el-option label="群聊" value="Group"></el-option>
+                  </el-select>
+                  <el-button 
+                    type="danger" 
+                    size="small" 
+                    @click="actionForm.receivers.splice(index, 1)"
+                    v-if="actionForm.receivers.length > 1">
+                    删除
+                  </el-button>
+                </div>
+                
+                <!-- 私聊类型：只显示用户QQ输入框，单独一行 -->
+                <template v-if="receiver.receiverType === 'Private'">
+                  <div style="margin-left: 0;">
+                    <el-input 
+                      v-model="receiver.receiverUserQQ" 
+                      placeholder="请输入用户QQ" 
+                      type="text" 
+                      style="width: 300px;"
+                      required>
+                    </el-input>
+                  </div>
+                </template>
+                
+                <!-- 群聊类型：显示群号和用户QQ输入框，同一行 -->
+                <template v-if="receiver.receiverType === 'Group'">
+                  <div>
+                    <el-input 
+                      v-model="receiver.receiverGroupQQ" 
+                      placeholder="请输入群号" 
+                      type="text" 
+                      style="width: 145px; margin-right: 10px;" 
+                      required>
+                    </el-input>
+                    <el-input 
+                      v-model="receiver.receiverUserQQ" 
+                      placeholder="请输入用户QQ（选填）" 
+                      type="text" 
+                      style="width: 145px;">
+                    </el-input>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </el-form-item>
+          
+          <!-- 添加接收者按钮 -->
+          <div style="margin-left: 120px; margin-bottom: 20px; margin-top: -20px;">
+            <el-button 
+              type="primary" 
+              size="small" 
+              @click="() => {
+                // 检查是否已经存在默认类型的接收者
+                const hasDefault = actionForm.receivers.some(r => r.receiverType === 'Default')
+                // 如果已经存在默认类型，则新增的接收者为群聊类型，否则为默认类型
+                actionForm.receivers.push({
+                  receiverType: hasDefault ? 'Group' : 'Default',
+                  receiverGroupQQ: null,
+                  receiverUserQQ: null
+                })
+              }">
+              添加接收者
+            </el-button>
+          </div>
           
           <el-form-item label="执行优先级">
             <el-input-number v-model="actionForm.seq" placeholder="请输入执行优先级" :min="0" :precision="0"></el-input-number>

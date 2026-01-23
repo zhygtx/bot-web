@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Search } from '@element-plus/icons-vue'
 import request from '../../utils/request'
@@ -53,7 +53,14 @@ const rules = {
     { required: true, message: '请选择作用域', trigger: 'change' }
   ],
   regex: [
-    { required: true, message: '请输入正则表达式', trigger: 'blur' }
+    { required: (rule, value, callback) => {
+      // 只有文本模式时才需要必填正则表达式
+      if (roleForm.matchMode === 'text' && !value) {
+        callback(new Error('请输入正则表达式'))
+      } else {
+        callback()
+      }
+    }, trigger: 'blur' }
   ]
 }
 
@@ -62,9 +69,21 @@ const roleFormRef = ref(null)
 
 // 选项数据
 const matchModes = [
-  { label: '文本', value: 'text' },
-  { label: '图片', value: 'image' }
+  { label: '消息文本', value: 'text' },
+  { label: '消息图片', value: 'image' },
+  { label: '群成员增加', value: 'GroupIncrease' },
+  { label: '退群事件', value: 'GroupDecrease' }
 ]
+
+// 监听匹配模式变化
+watch(() => roleForm.matchMode, (newMode) => {
+  if (newMode !== 'text') {
+    // 非文本模式：清空正则表达式和提取相关字段
+    roleForm.regex = ''
+    roleForm.isExtract = false
+    roleForm.extractPosition = []
+  }
+})
 
 // 获取规则列表
 const getRoles = async () => {
@@ -266,7 +285,13 @@ onMounted(() => {
           </el-table-column>
           <el-table-column prop="matchMode" label="匹配模式" min-width="100" align="center">
             <template #default="scope">
-              {{ scope.row.matchMode === 'text' ? '文本' : '图片' }}
+              {{ 
+                scope.row.matchMode === 'text' ? '消息文本' : 
+                scope.row.matchMode === 'image' ? '消息图片' : 
+                scope.row.matchMode === 'GroupIncrease' ? '群成员增加' : 
+                scope.row.matchMode === 'GroupDecrease' ? '退群事件' : 
+                scope.row.matchMode 
+              }}
             </template>
           </el-table-column>
           <el-table-column prop="regex" label="正则表达式" min-width="200"></el-table-column>
@@ -359,7 +384,8 @@ onMounted(() => {
             </el-col>
           </el-row>
           
-          <el-form-item label="正则表达式" prop="regex">
+          <!-- 只有文本模式才显示正则表达式和提取位置相关字段 -->
+          <el-form-item v-if="roleForm.matchMode === 'text'" label="正则表达式" prop="regex">
             <el-input
               v-model="roleForm.regex"
               placeholder="请输入正则表达式"
@@ -372,11 +398,11 @@ onMounted(() => {
             </el-input>
           </el-form-item>
           
-          <el-form-item label="提取位置">
+          <el-form-item v-if="roleForm.matchMode === 'text'" label="提取位置">
             <el-switch v-model="roleForm.isExtract"></el-switch>
           </el-form-item>
           
-          <el-form-item label="提取位置列表" v-if="roleForm.isExtract">
+          <el-form-item v-if="roleForm.matchMode === 'text' && roleForm.isExtract" label="提取位置列表">
             <div class="extract-positions">
               <div v-for="(position, index) in roleForm.extractPosition" :key="index" class="extract-position-item">
                 <el-row :gutter="10" style="margin-bottom: 10px;">

@@ -3,7 +3,7 @@ import { ElMessage } from 'element-plus'
 
 // 创建axios实例
 const service = axios.create({
-  baseURL: 'http://101.43.170.64:8080', // 使用相对路径，自动适配当前域名和端口
+  baseURL: import.meta.env.DEV ? 'http://localhost:8080' : 'http://101.43.170.64:8080', // 使用相对路径，自动适配当前域名和端口
   timeout: 10000 // 请求超时时间
 })
 
