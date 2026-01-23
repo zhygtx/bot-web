@@ -1,8 +1,9 @@
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Edit, Delete, Search } from '@element-plus/icons-vue'
+import { ref, reactive, onMounted, watch } from 'vue'
+import { ElMessage, ElMessageBox, ElTree, ElIcon } from 'element-plus'
+import { Plus, Edit, Delete, Search, Close, InfoFilled } from '@element-plus/icons-vue'
 import request from '../../utils/request'
+import { useRoute } from 'vue-router'
 
 // 动作内容列表数据
 const actionContents = ref([])
@@ -323,6 +324,241 @@ const handleTemplateTypeChange = () => {
   getDataNames(contentForm.templateType)
 }
 
+// 路由实例
+const route = useRoute()
+
+// 悬浮球和树形控件显示状态
+const showFloatBall = ref(true)
+const showTreeDialog = ref(false)
+
+// 实体类属性中文解释
+const entityPropertyExplain = {
+  // GroupMessageEvent相关属性
+  font: '字体大小',
+  time: '消息时间戳',
+  avatar: '头像URL',
+  sender: '发送者信息',
+  age: '年龄',
+  sex: '性别',
+  area: '地区',
+  card: '群名片',
+  role: '群成员角色',
+  level: '群等级',
+  title: '专属头衔',
+  user_id: '用户QQ号',
+  nickname: '昵称',
+  message: '消息内容',
+  self_id: '机器人QQ号',
+  group_id: '群号',
+  sub_type: '消息子类型',
+  anonymous: '匿名信息',
+  post_type: '事件类型',
+  message_id: '消息ID',
+  raw_message: '原始消息内容',
+  message_type: '消息类型',
+  is_binded_user_id: '绑定用户ID',
+  real_message_type: '真实消息类型',
+  is_binded_group_id: '绑定群ID',
+  
+  // GroupIncreaseNoticeEvent和GroupDecreaseNoticeEvent相关属性
+  notice_type: '通知类型',
+  operator_id: '操作者QQ号',
+  
+  // PrivateMessageEvent相关属性
+  temp_source: '临时会话来源'
+}
+
+// 将JSON转换为树形结构的方法
+const convertJsonToTree = (json, path = '') => {
+  if (typeof json !== 'object' || json === null) {
+    return []
+  }
+  
+  return Object.keys(json).map(key => {
+    const currentPath = path ? `${path}.${key}` : key
+    const value = json[key]
+    const isObject = typeof value === 'object' && value !== null
+    
+    const node = {
+      label: key,
+      path: currentPath,
+      value: value,
+      example: value,
+      explain: entityPropertyExplain[key] || key,
+      type: typeof value,
+      isCopyable: !isObject, // 只有非对象类型可以被复制
+      children: []
+    }
+    
+    if (isObject) {
+      node.children = convertJsonToTree(value, currentPath)
+    }
+    
+    return node
+  })
+}
+
+// 实体类原始数据
+const entityRawData = {
+  GroupMessageEvent: {
+    font: 0,
+    time: 1769062335,
+    avatar: null,
+    sender: {
+      age: 0,
+      sex: "unknown",
+      area: "",
+      card: "",
+      role: "owner",
+      level: "0",
+      title: "2",
+      user_id: 1874743565,
+      nickname: "机械之咒"
+    },
+    message: "1",
+    self_id: 3845884126,
+    user_id: 1874743565,
+    group_id: 1053302473,
+    sub_type: "normal",
+    anonymous: null,
+    post_type: "message",
+    message_id: 10004,
+    raw_message: "1",
+    message_type: "group",
+    is_binded_user_id: null,
+    real_message_type: null,
+    is_binded_group_id: null
+  },
+  GroupIncreaseNoticeEvent: {
+    time: 1769062345,
+    self_id: 3845884126,
+    user_id: 3304372782,
+    group_id: 1053302473,
+    sub_type: "approve",
+    post_type: "notice",
+    notice_type: "group_increase",
+    operator_id: 1874743565
+  },
+  GroupDecreaseNoticeEvent: {
+    time: 1769062352,
+    self_id: 3845884126,
+    user_id: 3304372782,
+    group_id: 1053302473,
+    sub_type: "leave",
+    post_type: "notice",
+    notice_type: "group_decrease",
+    operator_id: 3304372782
+  },
+  PrivateMessageEvent: {
+    font: 0,
+    time: 1769062597,
+    sender: {
+      age: 0,
+      sex: "unknown",
+      user_id: 1874743565,
+      group_id: null,
+      nickname: "机械之咒"
+    },
+    message: "6",
+    self_id: 3845884126,
+    user_id: 1874743565,
+    sub_type: "group",
+    post_type: "message",
+    message_id: 10013,
+    raw_message: "6",
+    temp_source: null,
+    message_type: "private"
+  }
+}
+
+// 生成树形结构数据
+const entityTreeData = ref(
+  Object.keys(entityRawData).map(key => {
+    // 根节点注释
+    const rootExplain = {
+      GroupMessageEvent: '群消息事件消息体',
+      GroupIncreaseNoticeEvent: '群成员增加事件消息体',
+      GroupDecreaseNoticeEvent: '群成员减少事件消息体',
+      PrivateMessageEvent: '私聊消息事件消息体'
+    }[key] || key
+    
+    return {
+      label: key,
+      children: convertJsonToTree(entityRawData[key]),
+      type: 'entity',
+      explain: rootExplain,
+      example: JSON.stringify(entityRawData[key])
+    }
+  })
+)
+
+// 切换悬浮球和树形控件显示状态
+const toggleFloatBall = () => {
+  if (showFloatBall.value) {
+    // 打开树形控件
+    showFloatBall.value = false
+    showTreeDialog.value = true
+  } else {
+    // 关闭树形控件，使用关闭动画
+    closeTreeDialog()
+  }
+}
+
+// 关闭树形控件并显示悬浮球
+const closeTreeDialog = () => {
+  const treeDialog = document.querySelector('.tree-dialog')
+  if (treeDialog) {
+    treeDialog.classList.add('closing')
+    // 监听动画结束事件
+    const handleAnimationEnd = () => {
+      treeDialog.removeEventListener('animationend', handleAnimationEnd)
+      showTreeDialog.value = false
+      showFloatBall.value = true
+      treeDialog.classList.remove('closing')
+    }
+    treeDialog.addEventListener('animationend', handleAnimationEnd)
+  } else {
+    // 降级处理
+    showTreeDialog.value = false
+    showFloatBall.value = true
+  }
+}
+
+// 复制文本到剪贴板
+const copyToClipboard = (text) => {
+  navigator.clipboard.writeText(text)
+    .catch(err => {
+      ElMessage.error('复制失败')
+      console.error('复制失败:', err)
+    })
+}
+
+// 处理树形节点点击事件
+const handleTreeNodeClick = (node) => {
+  // 实体类节点不复制
+  if (node.type === 'entity') {
+    return
+  }
+  
+  // 只有可复制节点（非对象类型）才能被复制
+  if (!node.isCopyable) {
+    return
+  }
+  
+  // 复制属性路径，格式为 {{属性名}} 或 {{属性名.属性名}}
+  const copyText = `{{${node.path}}}`
+  copyToClipboard(copyText)
+}
+
+// 监听路由变化，自动关闭树形控件
+watch(
+  () => route.path,
+  () => {
+    showTreeDialog.value = false
+    showFloatBall.value = true
+  }
+)
+
 // 组件挂载时获取动作内容列表
 onMounted(() => {
   getActionContents()
@@ -584,12 +820,74 @@ onMounted(() => {
         </template>
       </el-dialog>
     </el-card>
+    
+    <!-- 悬浮球 -->
+    <div 
+      v-show="showFloatBall" 
+      class="float-ball"
+      @click="toggleFloatBall"
+    >
+      <el-icon class="float-ball-icon"><InfoFilled /></el-icon>
+    </div>
+    
+    <!-- 树形控件窗口 -->
+    <div 
+      v-show="showTreeDialog" 
+      class="tree-dialog"
+    >
+      <div class="tree-dialog-header">
+        <span>实体类属性</span>
+        <el-button 
+          type="text" 
+          class="close-button"
+          @click="closeTreeDialog"
+        >
+          <el-icon><Close /></el-icon>
+        </el-button>
+      </div>
+      <div class="tree-dialog-content">
+        <el-tree
+          :data="entityTreeData"
+          :props="{ label: 'label' }"
+          @node-click="handleTreeNodeClick"
+          show-checkbox
+          node-key="label"
+          default-expand-all
+        >
+          <template #default="{ node, data }">
+            <div class="tree-node-content">
+              <div class="tree-node-main">
+                <span class="tree-node-label">{{ node.label }}</span>
+                <span class="tree-node-explain" v-if="data.explain">
+                  {{ data.explain }}
+                </span>
+                <span class="tree-node-example" v-if="data.isCopyable && data.example !== undefined && data.example !== null">
+                  示例: {{ data.example }}
+                </span>
+              </div>
+            </div>
+          </template>
+        </el-tree>
+        
+        <!-- 使用说明 -->
+        <div class="usage-section">
+          <div class="usage-title">使用说明：</div>
+          <ul class="usage-list">
+            <li>点击属性节点可复制为 <code>&lbrace;&lbrace;属性名&rbrace;&rbrace;</code> 格式，消息处理时会自动替换为对应数值</li>
+            <li>支持默认值语法：<code>&lbrace;&lbrace;属性名|默认值&rbrace;&rbrace;</code>，当属性值为空时使用默认值</li>
+            <li>支持引用提取文本：<code>&lbrace;&lbrace;valueN&rbrace;&rbrace;</code>，N从0开始，对应正则提取的分组内容</li>
+            <li>无数据且无默认值时，将显示 <code>null</code></li>
+          </ul>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .action-content-view {
   width: 100%;
+  position: relative;
 }
 
 .card-header {
@@ -664,5 +962,229 @@ onMounted(() => {
 .action-buttons .el-button {
   flex: 1;
   max-width: 80px;
+}
+
+/* 悬浮球样式 */
+.float-ball {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-color: #409eff;
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  z-index: 9999;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 1;
+  transform: scale(1);
+}
+
+.float-ball:hover {
+  background-color: #66b1ff;
+  transform: scale(1.1);
+}
+
+.float-ball-icon {
+  font-size: 28px;
+  transition: all 0.3s ease;
+}
+
+/* 树形控件窗口样式 */
+.tree-dialog {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 400px;
+  height: 500px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.15);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* 添加缩放动画 */
+  transform-origin: bottom right;
+  animation: scaleIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* 缩放进入动画 */
+@keyframes scaleIn {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* 缩放退出动画 */
+@keyframes scaleOut {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0);
+    opacity: 0;
+  }
+}
+
+/* 关闭动画 */
+.tree-dialog.closing {
+  animation: scaleOut 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* 悬浮球隐藏时的样式 */
+.float-ball.hidden {
+  opacity: 0;
+  transform: scale(0);
+}
+
+/* 使用说明样式 */
+.usage-section {
+  padding: 12px;
+  background-color: #f5f7fa;
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
+  margin-top: 16px;
+  font-size: 13px;
+  color: #303133;
+}
+
+.usage-title {
+  font-weight: 500;
+  margin-bottom: 8px;
+  color: #303133;
+}
+
+.usage-list {
+  margin: 0;
+  padding-left: 20px;
+  line-height: 1.6;
+}
+
+.usage-list li {
+  margin-bottom: 6px;
+  color: #606266;
+}
+
+.usage-list li:last-child {
+  margin-bottom: 0;
+}
+
+.usage-list code {
+  background-color: #ecf5ff;
+  color: #409eff;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+.tree-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background-color: #f5f7fa;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.tree-dialog-header span {
+  font-size: 16px;
+  font-weight: 500;
+  color: #303133;
+}
+
+.close-button {
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.tree-dialog-content {
+  flex: 1;
+  padding: 16px;
+  overflow: auto;
+}
+
+/* 树形节点样式 */
+.tree-node-content {
+  width: 100%;
+  display: block;
+  padding: 4px 0;
+}
+
+.tree-node-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  line-height: 1.6;
+}
+
+.tree-node-label {
+  font-weight: 500;
+  color: #303133;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tree-node-explain {
+  font-size: 12px;
+  color: #67c23a;
+  font-weight: normal;
+  white-space: nowrap;
+}
+
+.tree-node-example {
+  font-size: 11px;
+  color: #909399;
+  display: inline;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+}
+
+/* 调整树形节点内容的间距 */
+:deep(.el-tree-node__content) {
+  padding: 2px 0;
+}
+
+/* 隐藏复选框 */
+:deep(.el-tree-node__content .el-checkbox) {
+  display: none;
+}
+
+/* 鼠标悬停效果 */
+:deep(.el-tree-node__content:hover .tree-node-label) {
+  color: #409eff;
+}
+
+/* 可复制节点的光标样式 */
+:deep(.el-tree-node__content:hover) {
+  cursor: pointer;
+}
+
+/* 不可复制节点的光标样式 */
+:deep(.el-tree-node__content:hover) .tree-node-label {
+  cursor: default;
+}
+
+:deep(.el-tree-node__content:hover) .tree-node-label:has(+ .tree-node-explain) {
+  cursor: pointer;
 }
 </style>
