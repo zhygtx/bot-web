@@ -72,7 +72,8 @@ const matchModes = [
   { label: '消息文本', value: 'text' },
   { label: '消息图片', value: 'image' },
   { label: '群成员增加', value: 'GroupIncrease' },
-  { label: '退群事件', value: 'GroupDecrease' }
+  { label: '群成员减少', value: 'GroupDecrease' },
+  { label: '加群请求事件', value: 'GroupAddRequest' }
 ]
 
 // 监听匹配模式变化
@@ -283,13 +284,14 @@ onMounted(() => {
               {{ scopes.find(s => s.id === scope.row.scopeId)?.name || scope.row.scopeId }}
             </template>
           </el-table-column>
-          <el-table-column prop="matchMode" label="匹配模式" min-width="100" align="center">
+          <el-table-column prop="matchMode" label="匹配模式" min-width="150" align="center">
             <template #default="scope">
               {{ 
                 scope.row.matchMode === 'text' ? '消息文本' : 
                 scope.row.matchMode === 'image' ? '消息图片' : 
                 scope.row.matchMode === 'GroupIncrease' ? '群成员增加' : 
-                scope.row.matchMode === 'GroupDecrease' ? '退群事件' : 
+                scope.row.matchMode === 'GroupDecrease' ? '群成员减少' : 
+                scope.row.matchMode === 'GroupAddRequest' ? '加群请求事件' : 
                 scope.row.matchMode 
               }}
             </template>

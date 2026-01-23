@@ -468,6 +468,18 @@ const entityRawData = {
     raw_message: "6",
     temp_source: null,
     message_type: "private"
+  },
+  GroupAddRequestEvent: {
+    flag: "e0aaf374-62be-4ed3-bc7f-e6b761be0a1c",
+    time: 1769154428,
+    comment: "",
+    self_id: 3845884126,
+    user_id: 3304372782,
+    group_id: 1053302473,
+    sub_type: "add",
+    post_type: "request",
+    invitor_id: null,
+    request_type: "group"
   }
 }
 
@@ -479,7 +491,8 @@ const entityTreeData = ref(
       GroupMessageEvent: '群消息事件消息体',
       GroupIncreaseNoticeEvent: '群成员增加事件消息体',
       GroupDecreaseNoticeEvent: '群成员减少事件消息体',
-      PrivateMessageEvent: '私聊消息事件消息体'
+      PrivateMessageEvent: '私聊消息事件消息体',
+      GroupAddRequestEvent: '加群请求事件消息体'
     }[key] || key
     
     return {
