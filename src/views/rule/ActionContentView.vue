@@ -56,6 +56,63 @@ const handleFocus = (event) => {
   currentFocusedElement.value = event.target
 }
 
+// valueN索引，用于插入正则提取值
+const valueIndex = ref(0)
+
+// 计算当前显示的valueN字符串
+const currentValueN = computed(() => {
+  return `{{value${valueIndex.value}}}`
+})
+
+// 增加valueIndex
+const incrementValueIndex = () => {
+  valueIndex.value++
+}
+
+// 减少valueIndex，确保不小于0
+const decrementValueIndex = () => {
+  if (valueIndex.value > 0) {
+    valueIndex.value--
+  }
+}
+
+// 插入valueIndex到当前焦点元素
+const insertValueIndex = () => {
+  // 使用保存的焦点元素，而不是document.activeElement，避免点击树形控件时失焦
+  const activeElement = currentFocusedElement.value
+  
+  // 检查是否为输入元素
+  if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+    // 保存当前光标位置
+    const start = activeElement.selectionStart
+    const end = activeElement.selectionEnd
+    const value = activeElement.value
+    
+    // 生成要插入的文本
+    const insertText = currentValueN.value
+    
+    // 插入文本
+    const newValue = value.substring(0, start) + insertText + value.substring(end)
+    
+    // 更新输入框的值
+    activeElement.value = newValue
+    
+    // 移动光标到插入后的位置
+    const newCursorPosition = start + insertText.length
+    activeElement.selectionStart = newCursorPosition
+    activeElement.selectionEnd = newCursorPosition
+    
+    // 触发input事件，确保表单验证和双向绑定生效
+    activeElement.dispatchEvent(new Event('input', { bubbles: true }))
+    activeElement.dispatchEvent(new Event('change', { bubbles: true }))
+    
+    // 重新聚焦，确保光标位置正确
+    activeElement.focus()
+  } else {
+    ElMessage.warning('请先点击输入框获得焦点')
+  }
+}
+
 // 数据名称选项
 const dataNameOptions = ref([])
 
@@ -1061,6 +1118,40 @@ onMounted(() => {
         </el-button>
       </div>
       <div class="tree-dialog-content">
+        <!-- 插入valueN组件 -->
+        <div class="value-insert-section">
+          <div 
+            class="value-insert-line"
+            @click="insertValueIndex"
+            tabindex="-1"
+          >
+            <el-button
+              type="default"
+              size="small"
+              @click.stop="decrementValueIndex"
+              class="value-button"
+              :native-type="'button'"
+            >
+              -
+            </el-button>
+            <span 
+              class="value-text"
+              tabindex="-1"
+            >
+              {{ currentValueN }}
+            </span>
+            <el-button
+              type="default"
+              size="small"
+              @click.stop="incrementValueIndex"
+              class="value-button"
+              :native-type="'button'"
+            >
+              +
+            </el-button>
+          </div>
+        </div>
+        
         <el-tree
           :data="entityTreeData"
           :props="{ label: 'label' }"
@@ -1442,5 +1533,108 @@ onMounted(() => {
 /* 确保展开图标可以点击，但不会获得焦点 */
 :deep(.el-tree-node__expand-icon) {
   cursor: pointer;
+}
+
+/* valueN插入组件样式 */
+.value-insert-section {
+  margin: 0;
+  padding: 0;
+  background-color: transparent;
+  border: none;
+  margin-bottom: 0;
+  padding-left: 12px;
+}
+
+.value-insert-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  width: 100%;
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.value-insert-line:hover {
+  background-color: transparent;
+}
+
+.value-insert-line:hover .value-text {
+  background-color: #ecf5ff;
+}
+
+.value-text {
+  color: #409eff;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.value-button {
+  min-width: 24px;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+/* 确保元素无法获得焦点 */
+.value-insert-line:focus,
+.value-text:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+/* 调整按钮样式，使其与树形控件风格一致 */
+.value-insert-line .el-button {
+  border: none;
+  background-color: transparent;
+  color: #606266;
+  padding: 0;
+  margin: 0;
+  box-shadow: none;
+  transition: all 0.2s ease;
+}
+
+.value-insert-line .el-button:hover {
+  background-color: #ecf5ff;
+  color: #409eff;
+  border-radius: 3px;
+}
+
+.value-insert-line .el-button:active {
+  background-color: #409eff;
+  color: #ffffff;
+}
+
+/* 移除按钮默认样式 */
+.value-insert-line .el-button--default {
+  border: none;
+  background-color: transparent;
+  color: #606266;
+  box-shadow: none;
+}
+
+.value-insert-line .el-button--default:hover {
+  border: none;
+  background-color: #ecf5ff;
+  color: #409eff;
+  box-shadow: none;
+}
+
+/* 确保按钮点击不会触发父元素的点击事件 */
+.value-insert-line .el-button {
+  position: relative;
+  z-index: 1;
 }
 </style>
