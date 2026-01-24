@@ -45,7 +45,9 @@ const contentForm = reactive({
   // API参数，直接作为顶级字段，简化处理
   specialTitle: '', // 头衔
   duration: '', // 持续时间
-  key: '' // 关键字
+  key: '', // 关键字
+  approve: '', // 是否加群
+  reason: '' // 理由
 })
 
 // 保存当前焦点元素的引用
@@ -138,7 +140,8 @@ const dataNameCache = ref({
 // API名称选项
 const apiNameOptions = [
   { label: 'setGroupSpecialTitle', value: 'setGroupSpecialTitle' },
-  { label: 'getWarframeFissure', value: 'getWarframeFissure' }
+  { label: 'getWarframeFissure', value: 'getWarframeFissure' },
+  { label: 'setGroupAddRequest', value: 'setGroupAddRequest' }
 ]
 
 // 模板类型选项
@@ -165,6 +168,9 @@ const dynamicRules = computed(() => {
       apiRules['duration'] = [{ required: true, message: '请输入持续时间', trigger: 'blur' }];
     } else if (contentForm.apiName === 'getWarframeFissure') {
       apiRules['key'] = [{ required: true, message: '请输入关键字', trigger: 'blur' }];
+    } else if (contentForm.apiName === 'setGroupAddRequest') {
+      apiRules['approve'] = [{ required: true, message: '请输入是否加群，仅允许true或false', trigger: 'blur' }];
+      apiRules['reason'] = [{ required: true, message: '请输入理由', trigger: 'blur' }];
     }
   }
   // 合并基础规则和动态规则
@@ -246,6 +252,8 @@ const openAddDialog = () => {
   contentForm.specialTitle = ''
   contentForm.duration = ''
   contentForm.key = ''
+  contentForm.approve = ''
+  contentForm.reason = ''
   // 加载对应模板类型的数据名称
   getDataNames('text')
   dialogVisible.value = true
@@ -274,14 +282,16 @@ const openEditDialog = (content) => {
       contentForm.text = content.text || ''
       break
     case 'api':
-      // API类型特有字段填充
-      contentForm.apiName = content.apiType || content.apiName || ''
-      // 填充API参数到顶级字段
-      const paramsObj = content.params || {}
-      contentForm.specialTitle = paramsObj.specialTitle || ''
-      contentForm.duration = paramsObj.duration || ''
-      contentForm.key = paramsObj.key || ''
-      break
+        // API类型特有字段填充
+        contentForm.apiName = content.apiType || content.apiName || ''
+        // 填充API参数到顶级字段
+        const paramsObj = content.params || {}
+        contentForm.specialTitle = paramsObj.specialTitle || ''
+        contentForm.duration = paramsObj.duration || ''
+        contentForm.key = paramsObj.key || ''
+        contentForm.approve = paramsObj.approve || ''
+        contentForm.reason = paramsObj.reason || ''
+        break
     case 'url':
       contentForm.url = content.url || ''
       // URL参数处理
@@ -358,6 +368,9 @@ const submitForm = async () => {
           apiParamsObj.duration = contentForm.duration;
         } else if (contentForm.apiName === 'getWarframeFissure') {
           apiParamsObj.key = contentForm.key;
+        } else if (contentForm.apiName === 'setGroupAddRequest') {
+          apiParamsObj.approve = contentForm.approve;
+          apiParamsObj.reason = contentForm.reason;
         }
         
         submitData = {
@@ -789,15 +802,26 @@ watch(
     if (newValue === 'setGroupSpecialTitle') {
       // 重置与其他API类型相关的字段
       contentForm.key = ''
+      contentForm.approve = ''
+      contentForm.reason = ''
     } else if (newValue === 'getWarframeFissure') {
       // 重置与其他API类型相关的字段
       contentForm.specialTitle = ''
       contentForm.duration = ''
+      contentForm.approve = ''
+      contentForm.reason = ''
+    } else if (newValue === 'setGroupAddRequest') {
+      // 重置与其他API类型相关的字段
+      contentForm.specialTitle = ''
+      contentForm.duration = ''
+      contentForm.key = ''
     } else {
       // 重置所有API参数
       contentForm.specialTitle = ''
       contentForm.duration = ''
       contentForm.key = ''
+      contentForm.approve = ''
+      contentForm.reason = ''
     }
     
     // 清除表单验证，确保新的验证规则生效
@@ -990,6 +1014,16 @@ onMounted(() => {
             <template v-else-if="contentForm.apiName === 'getWarframeFissure'">
               <el-form-item label="关键字" prop="key">
                 <el-input v-model="contentForm.key" placeholder="请输入关键字" @focus="handleFocus"></el-input>
+              </el-form-item>
+            </template>
+            
+            <!-- setGroupAddRequest参数：是否加群和理由 -->
+            <template v-else-if="contentForm.apiName === 'setGroupAddRequest'">
+              <el-form-item label="是否加群" prop="approve">
+                <el-input v-model="contentForm.approve" placeholder="请输入是否加群，仅允许true或false" @focus="handleFocus"></el-input>
+              </el-form-item>
+              <el-form-item label="理由" prop="reason">
+                <el-input v-model="contentForm.reason" placeholder="请输入理由" @focus="handleFocus"></el-input>
               </el-form-item>
             </template>
           </template>
