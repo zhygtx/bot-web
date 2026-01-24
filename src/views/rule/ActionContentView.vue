@@ -48,6 +48,14 @@ const contentForm = reactive({
   key: '' // 关键字
 })
 
+// 保存当前焦点元素的引用
+const currentFocusedElement = ref(null)
+
+// 监听焦点事件，保存当前焦点元素
+const handleFocus = (event) => {
+  currentFocusedElement.value = event.target
+}
+
 // 数据名称选项
 const dataNameOptions = ref([])
 
@@ -654,30 +662,57 @@ const closeTreeDialog = () => {
   }
 }
 
-// 复制文本到剪贴板
-const copyToClipboard = (text) => {
-  navigator.clipboard.writeText(text)
-    .catch(err => {
-      ElMessage.error('复制失败')
-      console.error('复制失败:', err)
-    })
+// 将文本插入到当前聚焦的输入框中
+const insertTextToFocusedInput = (text) => {
+  // 使用保存的焦点元素，而不是document.activeElement，避免点击树形控件时失焦
+  const activeElement = currentFocusedElement.value
+  
+  // 检查是否为输入元素
+  if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+    // 保存当前光标位置
+    const start = activeElement.selectionStart
+    const end = activeElement.selectionEnd
+    const value = activeElement.value
+    
+    // 插入文本
+    const newValue = value.substring(0, start) + text + value.substring(end)
+    
+    // 更新输入框的值
+    activeElement.value = newValue
+    
+    // 移动光标到插入后的位置
+    const newCursorPosition = start + text.length
+    activeElement.selectionStart = newCursorPosition
+    activeElement.selectionEnd = newCursorPosition
+    
+    // 触发input事件，确保表单验证和双向绑定生效
+    activeElement.dispatchEvent(new Event('input', { bubbles: true }))
+    activeElement.dispatchEvent(new Event('change', { bubbles: true }))
+    
+    // 重新聚焦，确保光标位置正确
+    activeElement.focus()
+    // 移除成功提示，避免干扰用户体验
+  } else {
+    ElMessage.warning('请先点击输入框获得焦点')
+  }
 }
 
 // 处理树形节点点击事件
 const handleTreeNodeClick = (node) => {
-  // 实体类节点不复制
+  // 实体类节点不处理
   if (node.type === 'entity') {
     return
   }
   
-  // 只有可复制节点（非对象类型）才能被复制
+  // 只有可复制节点（非对象类型）才能被插入
   if (!node.isCopyable) {
     return
   }
   
-  // 复制属性路径，格式为 {{属性名}} 或 {{属性名.属性名}}
-  const copyText = `{{${node.path}}}`
-  copyToClipboard(copyText)
+  // 生成属性路径，格式为 {{属性名}} 或 {{属性名.属性名}}
+  const insertText = `{{${node.path}}}`
+  // 直接插入到当前聚焦的输入框
+  insertTextToFocusedInput(insertText)
 }
 
 // 监听路由变化，自动关闭树形控件
@@ -856,7 +891,7 @@ onMounted(() => {
           label-width="120px"
         >
           <el-form-item label="名称" prop="name">
-            <el-input v-model="contentForm.name" placeholder="请输入名称"></el-input>
+            <el-input v-model="contentForm.name" placeholder="请输入名称" @focus="handleFocus"></el-input>
           </el-form-item>
           
           <!-- 文本类型特有表单 -->
@@ -866,6 +901,7 @@ onMounted(() => {
               placeholder="请输入文本内容"
               type="textarea"
               :rows="3"
+              @focus="handleFocus"
             ></el-input>
           </el-form-item>
           
@@ -886,24 +922,24 @@ onMounted(() => {
             <!-- setGroupSpecialTitle参数：头衔和持续时间 -->
             <template v-if="contentForm.apiName === 'setGroupSpecialTitle'">
               <el-form-item label="头衔" prop="specialTitle">
-                <el-input v-model="contentForm.specialTitle" placeholder="请输入头衔"></el-input>
+                <el-input v-model="contentForm.specialTitle" placeholder="请输入头衔" @focus="handleFocus"></el-input>
               </el-form-item>
               <el-form-item label="持续时间" prop="duration">
-                <el-input v-model="contentForm.duration" placeholder="请输入持续时间，-1为无限时间"></el-input>
+                <el-input v-model="contentForm.duration" placeholder="请输入持续时间，-1为无限时间" @focus="handleFocus"></el-input>
               </el-form-item>
             </template>
             
             <!-- getWarframeFissure参数：关键字 -->
             <template v-else-if="contentForm.apiName === 'getWarframeFissure'">
               <el-form-item label="关键字" prop="key">
-                <el-input v-model="contentForm.key" placeholder="请输入关键字"></el-input>
+                <el-input v-model="contentForm.key" placeholder="请输入关键字" @focus="handleFocus"></el-input>
               </el-form-item>
             </template>
           </template>
           
           <!-- URL类型特有表单 -->
           <el-form-item v-if="currentContentType === 'url'" label="URL地址">
-            <el-input v-model="contentForm.url" placeholder="请输入URL地址"></el-input>
+            <el-input v-model="contentForm.url" placeholder="请输入URL地址" @focus="handleFocus"></el-input>
           </el-form-item>
           <el-form-item v-if="currentContentType === 'url'" label="URL参数">
             <div class="url-params-form">
@@ -916,11 +952,13 @@ onMounted(() => {
                   v-model="param.key" 
                   placeholder="键" 
                   style="width: 120px; margin-right: 8px;"
+                  @focus="handleFocus"
                 ></el-input>
                 <el-input 
                   v-model="param.value" 
                   placeholder="值" 
                   style="flex: 1; margin-right: 8px;"
+                  @focus="handleFocus"
                 ></el-input>
                 <el-button 
                   type="danger" 
@@ -950,6 +988,7 @@ onMounted(() => {
               type="textarea"
               :rows="6"
               class="html-editor"
+              @focus="handleFocus"
             ></el-input>
             <div class="form-tip">
               提示：请使用Playwright的语言模式编写HTML模板
@@ -1029,6 +1068,8 @@ onMounted(() => {
           show-checkbox
           node-key="label"
           default-expand-all
+          class="no-focus-tree"
+          @click.stop
         >
           <template #default="{ node, data }">
             <div class="tree-node-content">
@@ -1049,7 +1090,7 @@ onMounted(() => {
         <div class="usage-section">
           <div class="usage-title">使用说明：</div>
           <ul class="usage-list">
-            <li>点击属性节点可复制为 <code>&lbrace;&lbrace;属性名&rbrace;&rbrace;</code> 格式，消息处理时会自动替换为对应数值</li>
+            <li>点击属性节点可直接插入 <code>&lbrace;&lbrace;属性名&rbrace;&rbrace;</code> 格式，消息处理时会自动替换为对应数值</li>
             <li>支持默认值语法：<code>&lbrace;&lbrace;属性名|默认值&rbrace;&rbrace;</code>，当属性值为空时使用默认值</li>
             <li>支持引用提取文本：<code>&lbrace;&lbrace;valueN&rbrace;&rbrace;</code>，N从0开始，对应正则提取的分组内容</li>
             <li>无数据且无默认值时，将显示 <code>null</code></li>
@@ -1361,6 +1402,45 @@ onMounted(() => {
 }
 
 :deep(.el-tree-node__content:hover) .tree-node-label:has(+ .tree-node-explain) {
+  cursor: pointer;
+}
+
+/* 确保树形控件无法获得焦点，点击时输入框不会失焦 */
+.no-focus-tree {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* 确保树形控件和内部元素都不会获得焦点 */
+:deep(.el-tree),
+:deep(.el-tree *),
+:deep(.el-tree *:focus) {
+  outline: none;
+  user-select: none;
+  /* 确保不会获得焦点 */
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  /* 允许点击事件，但不会获得焦点 */
+  pointer-events: auto;
+}
+
+/* 确保树形控件本身不会获得焦点 */
+.no-focus-tree {
+  /* 阻止默认的焦点行为 */
+  :focus {
+    outline: none;
+  }
+}
+
+/* 确保树形节点内容可以正常响应点击事件 */
+:deep(.el-tree-node__content) {
+  cursor: pointer;
+}
+
+/* 确保展开图标可以点击，但不会获得焦点 */
+:deep(.el-tree-node__expand-icon) {
   cursor: pointer;
 }
 </style>
