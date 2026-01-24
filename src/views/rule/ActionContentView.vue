@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, onMounted, watch, computed, nextTick } from 'vue'
 import { ElMessage, ElMessageBox, ElTree, ElIcon } from 'element-plus'
 import { Plus, Edit, Delete, Search, Close, InfoFilled } from '@element-plus/icons-vue'
 import request from '../../utils/request'
@@ -41,7 +41,11 @@ const contentForm = reactive({
   height: 0, // 模板高度
   dataId: '', // 模板数据ID
   templateType: 'text', // 模板类型
-  apiName: '' // API名称
+  apiName: '', // API名称
+  // API参数，直接作为顶级字段，简化处理
+  specialTitle: '', // 头衔
+  duration: '', // 持续时间
+  key: '' // 关键字
 })
 
 // 数据名称选项
@@ -87,6 +91,21 @@ const rules = {
   ]
 }
 
+// 计算属性：动态生成API参数验证规则
+const dynamicRules = computed(() => {
+  const apiRules = {};
+  if (currentContentType.value === 'api') {
+    if (contentForm.apiName === 'setGroupSpecialTitle') {
+      apiRules['specialTitle'] = [{ required: true, message: '请输入头衔', trigger: 'blur' }];
+      apiRules['duration'] = [{ required: true, message: '请输入持续时间', trigger: 'blur' }];
+    } else if (contentForm.apiName === 'getWarframeFissure') {
+      apiRules['key'] = [{ required: true, message: '请输入关键字', trigger: 'blur' }];
+    }
+  }
+  // 合并基础规则和动态规则
+  return { ...rules, ...apiRules };
+})
+
 // 表单引用
 const contentFormRef = ref(null)
 
@@ -100,14 +119,26 @@ const getActionContents = async () => {
     })
     actionContents.value = response.data || []
     
+    // 更新当前类型的数据缓存和名称缓存（缓存逻辑）
+    dataCache.value[currentContentType.value] = response.data
+    const nameCache = {}
+    response.data.forEach(item => {
+      nameCache[item.id] = item.name
+    })
+    dataNameCache.value[currentContentType.value] = nameCache
+    
     // 如果是模板类型，加载所有可能的数据类型列表用于显示数据名称
     if (currentContentType.value === 'template') {
-      // 加载文本、API、URL类型的数据列表
+      // 加载文本、API、URL类型的数据列表，确保模板类型的数据名称能够正确显示
       await Promise.all([
         getDataNames('text'),
         getDataNames('api'),
         getDataNames('url')
       ])
+    } else if (currentContentType.value === 'api') {
+      // 如果是API类型，确保API数据列表已经加载，这是缓存逻辑的重要部分
+      // 这样在动作管理页面中也能够正确显示API动作内容的名称
+      await getDataNames('api')
     }
   } catch (error) {
     ElMessage.error(error.message || '获取动作内容列表失败')
@@ -146,6 +177,10 @@ const openAddDialog = () => {
   contentForm.dataId = ''
   contentForm.templateType = 'text'
   contentForm.apiName = ''
+  // 重置API参数
+  contentForm.specialTitle = ''
+  contentForm.duration = ''
+  contentForm.key = ''
   // 加载对应模板类型的数据名称
   getDataNames('text')
   dialogVisible.value = true
@@ -154,25 +189,61 @@ const openAddDialog = () => {
 // 打开编辑动作内容对话框
 const openEditDialog = (content) => {
   dialogTitle.value = '编辑动作内容'
-  // 填充表单数据
+  
+  // 重置表单
+  if (contentFormRef.value) {
+    contentFormRef.value.resetFields()
+  }
+  
+  // 1. 设置当前类型
+  const editContentType = content.apiType ? 'api' : content.type || currentContentType.value
+  currentContentType.value = editContentType
+  
+  // 2. 基础字段填充，所有类型通用
   contentForm.id = content.id
   contentForm.name = content.name
-  contentForm.text = content.text || ''
-  contentForm.url = content.url || ''
-  // 将params对象转换为数组
-  const paramsObj = content.params || {}
-  contentForm.params = Object.keys(paramsObj).map(key => ({ key, value: paramsObj[key] }))
-  if (contentForm.params.length === 0) {
-    contentForm.params = [{ key: '', value: '' }]
+  
+  // 3. 类型特有字段填充，模仿文本和模板类型的实现方式
+  switch (editContentType) {
+    case 'text':
+      contentForm.text = content.text || ''
+      break
+    case 'api':
+      // API类型特有字段填充
+      contentForm.apiName = content.apiType || content.apiName || ''
+      // 填充API参数到顶级字段
+      const paramsObj = content.params || {}
+      contentForm.specialTitle = paramsObj.specialTitle || ''
+      contentForm.duration = paramsObj.duration || ''
+      contentForm.key = paramsObj.key || ''
+      break
+    case 'url':
+      contentForm.url = content.url || ''
+      // URL参数处理
+      const urlParamsObj = content.params || {}
+      contentForm.params = Object.keys(urlParamsObj).map(key => ({ key, value: urlParamsObj[key] }))
+      if (contentForm.params.length === 0) {
+        contentForm.params = [{ key: '', value: '' }]
+      }
+      break
+    case 'template':
+      contentForm.content = content.content || ''
+      contentForm.width = content.width || 0
+      contentForm.height = content.height || 0
+      contentForm.dataId = content.dataId || ''
+      contentForm.templateType = content.templateType || 'text'
+      break
   }
-  contentForm.content = content.content || ''
-  contentForm.width = content.width || 0
-  contentForm.height = content.height || 0
-  contentForm.dataId = content.dataId || ''
-  contentForm.templateType = content.templateType || 'text'
-  contentForm.apiName = content.name || '' // API的name字段是枚举类型
-  // 加载对应模板类型的数据名称
+  
+  // 4. 加载对应类型的数据名称
   getDataNames(content.templateType || 'text')
+  
+  // 5. 清除表单验证
+  if (contentFormRef.value) {
+    contentFormRef.value.clearValidate()
+  }
+  
+  // 6. 显示对话框
   dialogVisible.value = true
 }
 
@@ -215,7 +286,21 @@ const submitForm = async () => {
         submitData = { id: contentForm.id, name: contentForm.name, text: contentForm.text }
         break
       case 'api':
-        submitData = { id: contentForm.id, name: contentForm.apiName }
+        // 构建params对象，只包含当前API类型需要的参数
+        const apiParamsObj = {};
+        if (contentForm.apiName === 'setGroupSpecialTitle') {
+          apiParamsObj.specialTitle = contentForm.specialTitle;
+          apiParamsObj.duration = contentForm.duration;
+        } else if (contentForm.apiName === 'getWarframeFissure') {
+          apiParamsObj.key = contentForm.key;
+        }
+        
+        submitData = {
+          id: contentForm.id,
+          name: contentForm.name, // 动作内容名称
+          apiType: contentForm.apiName, // API类型
+          params: apiParamsObj // 只包含当前API类型需要的参数
+        };
         break
       case 'url':
         // 将params数组转换为对象
@@ -265,6 +350,18 @@ const submitForm = async () => {
 // 监听动作内容类型变化
 const handleContentTypeChange = () => {
   getActionContents()
+  
+  // 当切换到API类型时，预先确保表单字段准备好
+  if (currentContentType.value === 'api') {
+    // 确保API参数对象存在，避免第一次渲染时出现问题
+    if (!contentForm.apiParams) {
+      contentForm.apiParams = {
+        specialTitle: '',
+        duration: '',
+        key: ''
+      }
+    }
+  }
 }
 
 // 获取数据名称列表
@@ -292,6 +389,9 @@ const getDataNames = async (type) => {
   } catch (error) {
     ElMessage.error(error.message || '获取数据名称列表失败')
     dataNameOptions.value = []
+    // 清空缓存，避免错误数据影响其他页面
+    dataCache.value[type] = []
+    dataNameCache.value[type] = {}
   } finally {
     dataNameLoading.value = false
   }
@@ -323,6 +423,23 @@ const getDataNameById = (dataId, type) => {
 const handleTemplateTypeChange = () => {
   getDataNames(contentForm.templateType)
 }
+
+// 监听API名称变化，重置对应参数并清除验证
+watch(
+  () => contentForm.apiName,
+  (newValue) => {
+    // 重置API参数
+    contentForm.apiParams = {
+      specialTitle: '',
+      duration: '',
+      key: ''
+    }
+    // 清除表单验证
+    if (contentFormRef.value) {
+      contentFormRef.value.clearValidate()
+    }
+  }
+)
 
 // 路由实例
 const route = useRoute()
@@ -572,6 +689,32 @@ watch(
   }
 )
 
+// 监听API名称变化，重置对应参数（预渲染逻辑）
+watch(
+  () => contentForm.apiName,
+  (newValue) => {
+    // 重置API参数，根据不同API类型只保留需要的字段
+    if (newValue === 'setGroupSpecialTitle') {
+      // 重置与其他API类型相关的字段
+      contentForm.key = ''
+    } else if (newValue === 'getWarframeFissure') {
+      // 重置与其他API类型相关的字段
+      contentForm.specialTitle = ''
+      contentForm.duration = ''
+    } else {
+      // 重置所有API参数
+      contentForm.specialTitle = ''
+      contentForm.duration = ''
+      contentForm.key = ''
+    }
+    
+    // 清除表单验证，确保新的验证规则生效
+    if (contentFormRef.value) {
+      contentFormRef.value.clearValidate()
+    }
+  }
+)
+
 // 组件挂载时获取动作内容列表
 onMounted(() => {
   getActionContents()
@@ -709,7 +852,7 @@ onMounted(() => {
         <el-form
           ref="contentFormRef"
           :model="contentForm"
-          :rules="rules"
+          :rules="dynamicRules"
           label-width="120px"
         >
           <el-form-item label="名称" prop="name">
@@ -737,6 +880,26 @@ onMounted(() => {
               ></el-option>
             </el-select>
           </el-form-item>
+
+          <!-- 动态API参数表单 -->
+          <template v-if="currentContentType === 'api'">
+            <!-- setGroupSpecialTitle参数：头衔和持续时间 -->
+            <template v-if="contentForm.apiName === 'setGroupSpecialTitle'">
+              <el-form-item label="头衔" prop="specialTitle">
+                <el-input v-model="contentForm.specialTitle" placeholder="请输入头衔"></el-input>
+              </el-form-item>
+              <el-form-item label="持续时间" prop="duration">
+                <el-input v-model="contentForm.duration" placeholder="请输入持续时间，-1为无限时间"></el-input>
+              </el-form-item>
+            </template>
+            
+            <!-- getWarframeFissure参数：关键字 -->
+            <template v-else-if="contentForm.apiName === 'getWarframeFissure'">
+              <el-form-item label="关键字" prop="key">
+                <el-input v-model="contentForm.key" placeholder="请输入关键字"></el-input>
+              </el-form-item>
+            </template>
+          </template>
           
           <!-- URL类型特有表单 -->
           <el-form-item v-if="currentContentType === 'url'" label="URL地址">

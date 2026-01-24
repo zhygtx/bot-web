@@ -96,6 +96,15 @@ const getActions = async () => {
       method: 'get'
     })
     actions.value = response.data || []
+    
+    // 获取动作列表后，确保所有类型的数据名称列表都已加载（缓存逻辑）
+    // 这样在显示动作列表时，就能直接从缓存中获取数据名称，而不是显示ID
+    Promise.all([
+      getDataNames('text'),
+      getDataNames('api'),
+      getDataNames('url'),
+      getDataNames('template')
+    ])
   } catch (error) {
     ElMessage.error(error.message || '获取动作列表失败')
   } finally {
@@ -154,6 +163,9 @@ const getDataNames = async (type) => {
     if (actionForm.actionType === type) {
       dataNameOptions.value = []
     }
+    // 清空缓存，避免错误数据影响其他页面
+    dataCache.value[type] = []
+    dataNameCache.value[type] = {}
   } finally {
     dataNameLoading.value[type] = false
   }
@@ -384,7 +396,14 @@ const handleReceiverTypeChange = (receiver) => {
 onMounted(() => {
   getActions()
   getRoles()
-  // 不再初始化所有数据，改为按需加载
+  // 初始化加载所有类型的数据名称列表，确保动作管理页面能正确显示所有类型的数据名称
+  // 包括API类型，这是缓存逻辑的重要部分
+  Promise.all([
+    getDataNames('text'),
+    getDataNames('api'),
+    getDataNames('url'),
+    getDataNames('template')
+  ])
 })
 </script>
 
