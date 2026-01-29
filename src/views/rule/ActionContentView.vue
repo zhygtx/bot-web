@@ -26,7 +26,8 @@ const contentTypes = [
   { label: '文本', value: 'text' },
   { label: 'API', value: 'api' },
   { label: 'URL', value: 'url' },
-  { label: '模板', value: 'template' }
+  { label: '模板', value: 'template' },
+  { label: 'AI', value: 'ai' }
 ]
 
 // 表单数据
@@ -47,7 +48,12 @@ const contentForm = reactive({
   duration: '', // 持续时间
   key: '', // 关键字
   approve: '', // 是否加群
-  reason: '' // 理由
+  reason: '', // 理由
+  // AI参数
+  setting: '', // AI设定
+  apiKey: '', // AI API Key
+  compressPct: 0.8, // 压缩百分比
+  model: 'qwen3_vl_plus_2025_12_19' // AI模型
 })
 
 // 保存当前焦点元素的引用
@@ -126,7 +132,8 @@ const dataCache = ref({
   text: [],
   api: [],
   url: [],
-  template: []
+  template: [],
+  ai: []
 })
 
 // 数据名称缓存，用于快速查找数据名称
@@ -134,7 +141,8 @@ const dataNameCache = ref({
   text: {},
   api: {},
   url: {},
-  template: {}
+  template: {},
+  ai: {}
 })
 
 // API名称选项
@@ -149,6 +157,13 @@ const templateTypeOptions = [
   { label: '文本', value: 'text' },
   { label: 'API', value: 'api' },
   { label: 'URL', value: 'url' }
+]
+
+// AI模型选项
+const aiModelOptions = [
+  { label: 'qwen3_vl_plus_2025_12_19', value: 'qwen3_vl_plus_2025_12_19' },
+  { label: 'qwen3_vl_flash', value: 'qwen3_vl_flash' },
+  { label: 'qwen_flash', value: 'qwen_flash' }
 ]
 
 // 表单验证规则
@@ -172,6 +187,11 @@ const dynamicRules = computed(() => {
       apiRules['approve'] = [{ required: true, message: '请输入是否加群，仅允许true或false', trigger: 'blur' }];
       apiRules['reason'] = [{ required: true, message: '请输入理由', trigger: 'blur' }];
     }
+  } else if (currentContentType.value === 'ai') {
+    apiRules['setting'] = [{ required: true, message: '请输入AI设定', trigger: 'blur' }];
+    apiRules['apiKey'] = [{ required: true, message: '请输入AI API Key', trigger: 'blur' }];
+    apiRules['compressPct'] = [{ required: true, message: '请输入压缩百分比', trigger: 'blur' }];
+    apiRules['model'] = [{ required: true, message: '请选择AI模型', trigger: 'change' }];
   }
   // 合并基础规则和动态规则
   return { ...rules, ...apiRules };
@@ -204,12 +224,16 @@ const getActionContents = async () => {
       await Promise.all([
         getDataNames('text'),
         getDataNames('api'),
-        getDataNames('url')
+        getDataNames('url'),
+        getDataNames('ai')
       ])
     } else if (currentContentType.value === 'api') {
       // 如果是API类型，确保API数据列表已经加载，这是缓存逻辑的重要部分
       // 这样在动作管理页面中也能够正确显示API动作内容的名称
       await getDataNames('api')
+    } else if (currentContentType.value === 'ai') {
+      // 如果是AI类型，确保AI数据列表已经加载
+      await getDataNames('ai')
     }
   } catch (error) {
     ElMessage.error(error.message || '获取动作内容列表失败')
@@ -254,6 +278,11 @@ const openAddDialog = () => {
   contentForm.key = ''
   contentForm.approve = ''
   contentForm.reason = ''
+  // 重置AI参数
+  contentForm.setting = ''
+  contentForm.apiKey = ''
+  contentForm.compressPct = 0.8
+  contentForm.model = 'qwen3_vl_plus_2025_12_19'
   // 加载对应模板类型的数据名称
   getDataNames('text')
   dialogVisible.value = true
@@ -291,6 +320,13 @@ const openEditDialog = (content) => {
         contentForm.key = paramsObj.key || ''
         contentForm.approve = paramsObj.approve || ''
         contentForm.reason = paramsObj.reason || ''
+        break
+    case 'ai':
+        // AI类型特有字段填充
+        contentForm.setting = content.setting || ''
+        contentForm.apiKey = content.apiKey || ''
+        contentForm.compressPct = content.compressPct || 0.8
+        contentForm.model = content.model || 'qwen3_vl_plus_2025_12_19'
         break
     case 'url':
       contentForm.url = content.url || ''
@@ -399,6 +435,16 @@ const submitForm = async () => {
           height: contentForm.height,
           dataId: contentForm.dataId,
           templateType: contentForm.templateType
+        }
+        break
+      case 'ai':
+        submitData = { 
+          id: contentForm.id, 
+          name: contentForm.name,
+          setting: contentForm.setting,
+          apiKey: contentForm.apiKey,
+          compressPct: contentForm.compressPct,
+          model: contentForm.model
         }
         break
     }
@@ -554,6 +600,7 @@ const entityPropertyExplain = {
   is_binded_user_id: '绑定用户ID',
   real_message_type: '真实消息类型',
   is_binded_group_id: '绑定群ID',
+  comment: '加群理由',
   
   // GroupIncreaseNoticeEvent和GroupDecreaseNoticeEvent相关属性
   notice_type: '通知类型',
@@ -667,7 +714,7 @@ const entityRawData = {
   GroupAddRequestEvent: {
     flag: "e0aaf374-62be-4ed3-bc7f-e6b761be0a1c",
     time: 1769154428,
-    comment: "",
+    comment: "加群理由",
     self_id: 3845884126,
     user_id: 3304372782,
     group_id: 1053302473,
@@ -831,6 +878,20 @@ watch(
   }
 )
 
+// 监听动作内容类型变化，重置对应参数
+watch(
+  () => currentContentType.value,
+  (newValue) => {
+    // 当切换到非AI类型时，重置AI参数
+    if (newValue !== 'ai') {
+      contentForm.setting = ''
+      contentForm.apiKey = ''
+      contentForm.compressPct = 0.8
+      contentForm.model = 'qwen3_vl_plus_2025_12_19'
+    }
+  }
+)
+
 // 组件挂载时获取动作内容列表
 onMounted(() => {
   getActionContents()
@@ -935,6 +996,27 @@ onMounted(() => {
           </template>
         </el-table-column>
         
+        <!-- AI类型特有列 -->
+        <el-table-column v-if="currentContentType === 'ai'" prop="setting" label="AI设定" min-width="200">
+          <template #default="scope">
+            <el-tooltip :content="scope.row.setting" placement="top">
+              <div class="template-content-truncate">
+                {{ scope.row.setting }}
+              </div>
+            </el-tooltip>
+          </template>
+        </el-table-column>
+        <el-table-column v-if="currentContentType === 'ai'" prop="compressPct" label="压缩比" min-width="100" align="center">
+          <template #default="scope">
+            {{ scope.row.compressPct }}
+          </template>
+        </el-table-column>
+        <el-table-column v-if="currentContentType === 'ai'" prop="model" label="AI模型" min-width="150">
+          <template #default="scope">
+            {{ scope.row.model }}
+          </template>
+        </el-table-column>
+        
         <el-table-column label="操作" width="180" align="center">
           <template #default="scope">
             <div class="action-buttons">
@@ -1026,6 +1108,29 @@ onMounted(() => {
                 <el-input v-model="contentForm.reason" placeholder="请输入理由" @focus="handleFocus"></el-input>
               </el-form-item>
             </template>
+          </template>
+          
+          <!-- AI类型特有表单 -->
+          <template v-if="currentContentType === 'ai'">
+            <el-form-item label="AI设定" prop="setting">
+              <el-input v-model="contentForm.setting" placeholder="请输入AI设定" type="textarea" :rows="3" @focus="handleFocus"></el-input>
+            </el-form-item>
+            <el-form-item label="API Key" prop="apiKey">
+              <el-input v-model="contentForm.apiKey" placeholder="请输入AI API Key" @focus="handleFocus"></el-input>
+            </el-form-item>
+            <el-form-item label="压缩百分比" prop="compressPct">
+              <el-input-number v-model="contentForm.compressPct" :min="0" :max="1" :step="0.1" placeholder="请输入压缩百分比，0-1之间" @focus="handleFocus"></el-input-number>
+            </el-form-item>
+            <el-form-item label="AI模型" prop="model">
+              <el-select v-model="contentForm.model" placeholder="请选择AI模型">
+                <el-option
+                  v-for="item in aiModelOptions"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                ></el-option>
+              </el-select>
+            </el-form-item>
           </template>
           
           <!-- URL类型特有表单 -->

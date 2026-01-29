@@ -54,7 +54,8 @@ const actionTypeOptions = [
   { label: '图片', value: 'image' },
   { label: 'API', value: 'api' },
   { label: 'URL', value: 'url' },
-  { label: '模板', value: 'template' }
+  { label: '模板', value: 'template' },
+  { label: 'AI', value: 'ai' }
 ]
 
 // 数据名称选项
@@ -66,7 +67,8 @@ const dataNameLoading = ref({
   api: false,
   url: false,
   image: false,
-  template: false
+  template: false,
+  ai: false
 })
 
 // 数据缓存，用于存储不同类型的数据列表
@@ -75,7 +77,8 @@ const dataCache = ref({
   api: [],
   url: [],
   image: [],
-  template: []
+  template: [],
+  ai: []
 })
 
 // 数据名称缓存，用于快速查找数据名称
@@ -84,7 +87,8 @@ const dataNameCache = ref({
   api: {},
   url: {},
   image: {},
-  template: {}
+  template: {},
+  ai: {}
 })
 
 // 获取动作列表
@@ -103,7 +107,8 @@ const getActions = async () => {
       getDataNames('text'),
       getDataNames('api'),
       getDataNames('url'),
-      getDataNames('template')
+      getDataNames('template'),
+      getDataNames('ai')
     ])
   } catch (error) {
     ElMessage.error(error.message || '获取动作列表失败')
