@@ -8,31 +8,7 @@ export const menuItems = [
     label: '首页',
     icon: Document
   },
-  {
-    path: '/rule/scope',
-    name: 'scope',
-    label: '作用域管理',
-    icon: Setting
-  },
-  {
-    path: '/rule/role',
-    name: 'role',
-    label: '规则管理',
-    icon: User
-  },
 
-  {
-    path: '/rule/action',
-    name: 'action',
-    label: '动作管理',
-    icon: Setting
-  },
-  {
-    path: '/rule/action-content',
-    name: 'actionContent',
-    label: '动作内容管理',
-    icon: Setting
-  },
   {
     path: '/bot/docker',
     name: 'docker',

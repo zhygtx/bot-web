@@ -37,7 +37,7 @@ service.interceptors.response.use(
     // 处理后端返回的数据格式
     if (res.code !== undefined) {
       // 成功状态码处理
-      if (res.code === 200 || res.code === 20000 || res.code === 0) {
+      if (res.code === 200) {
         // 获取请求URL
         const requestUrl = response.config.url || ''
         // 如果有成功消息，且不是登录成功，且不是list请求，且不是机器人信息请求，且不是个人信息请求，且不是docker信息请求，才显示提示

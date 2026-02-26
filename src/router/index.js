@@ -30,42 +30,7 @@ const router = createRouter({
         requiresAuth: true
       }
     },
-    // 规则配置模块路由
-    {
-      path: '/rule',
-      name: 'rule',
-      component: () => import('../views/rule/RuleLayout.vue'),
-      meta: {
-        requiresAuth: true
-      },
-      children: [
-        {
-          path: 'role',
-          name: 'role',
-          component: () => import('../views/rule/RoleView.vue')
-        },
-        {
-          path: 'scope',
-          name: 'scope',
-          component: () => import('../views/rule/ScopeView.vue')
-        },
-        {
-          path: 'extract-position',
-          name: 'extractPosition',
-          component: () => import('../views/rule/ExtractPositionView.vue')
-        },
-        {
-          path: 'action',
-          name: 'action',
-          component: () => import('../views/rule/ActionView.vue')
-        },
-        {
-          path: 'action-content',
-          name: 'actionContent',
-          component: () => import('../views/rule/ActionContentView.vue')
-        }
-      ]
-    },
+
     // 机器人管理模块路由
     {
       path: '/bot',

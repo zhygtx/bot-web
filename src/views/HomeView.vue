@@ -49,7 +49,7 @@ const handleLogout = async () => {
         <el-dropdown>
           <span class="user-info">
             <el-icon class="user-icon"><User /></el-icon>
-            {{ userStore.username }}
+            {{ userStore.name }}
             <el-icon class="arrow-down"><ArrowDown /></el-icon>
           </span>
           <template #dropdown>
@@ -71,23 +71,10 @@ const handleLogout = async () => {
           </div>
         </template>
         <div class="welcome-content">
-          <h2>您好，{{ userStore.username }}！</h2>
-          <p>欢迎使用QQbot匹配回复规则系统，您可以在这里配置和管理您的机器人回复规则。</p>
+          <h2>您好，{{ userStore.name }}！</h2>
+          <p>欢迎使用QQbot系统，您可以在这里管理您的机器人和用户信息。</p>
           <el-divider></el-divider>
           <div class="function-cards">
-            <el-card class="function-card">
-              <template #header>
-                <div class="function-card-header">
-                  <el-icon><Setting /></el-icon>
-                  <span>规则配置</span>
-                </div>
-              </template>
-              <div class="function-card-content">
-                <p>配置机器人的回复规则，包括角色、作用域、提取位置和动作等。</p>
-                <el-button type="primary" size="small" @click="router.push('/rule/scope')">开始配置</el-button>
-              </div>
-            </el-card>
-            
             <el-card class="function-card">
               <template #header>
                 <div class="function-card-header">
