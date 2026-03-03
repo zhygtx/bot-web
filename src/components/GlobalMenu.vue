@@ -16,10 +16,7 @@ const activeMenu = computed(() => {
   return route.path
 })
 
-// 处理菜单点击
-const handleMenuClick = (path) => {
-  router.push(path)
-}
+
 </script>
 
 <template>
@@ -41,7 +38,6 @@ const handleMenuClick = (path) => {
           v-for="item in menuItems"
           :key="item.path"
           :index="item.path"
-          @click="handleMenuClick(item.path)"
         >
           <el-icon v-if="item.name === 'home'" class="menu-item-icon"><Document /></el-icon>
           <el-icon v-else-if="item.name === 'role' || item.name === 'userProfile'" class="menu-item-icon"><User /></el-icon>

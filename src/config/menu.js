@@ -8,7 +8,12 @@ export const menuItems = [
     label: '首页',
     icon: Document
   },
-
+  {
+    path: '/plugin/list',
+    name: 'plugin',
+    label: '插件管理',
+    icon: Setting
+  },
   {
     path: '/bot/docker',
     name: 'docker',

@@ -23,14 +23,37 @@ const router = createRouter({
       component: () => import('../views/ForgotPasswordView.vue')
     },
     {
-      path: '/home',
-      name: 'home',
-      component: () => import('../views/HomeView.vue'),
-      meta: {
-        requiresAuth: true
-      }
+    path: '/home',
+    name: 'home',
+    component: () => import('../views/HomeView.vue'),
+    meta: {
+      requiresAuth: true
+    }
+  },
+  // 插件管理模块路由
+  {
+    path: '/plugin',
+    component: () => import('../views/plugin/PluginLayout.vue'),
+    meta: {
+      requiresAuth: true
     },
-
+    children: [
+      {
+        path: '',
+        redirect: 'list'
+      },
+      {
+        path: 'list',
+        name: 'plugin',
+        component: () => import('../views/plugin/PluginListView.vue')
+      },
+      {
+        path: 'detail/:id',
+        name: 'pluginDetail',
+        component: () => import('../views/plugin/PluginDetailView.vue')
+      }
+    ]
+  },
     // 机器人管理模块路由
     {
       path: '/bot',

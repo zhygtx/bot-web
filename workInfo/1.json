@@ -1,0 +1,134 @@
+{
+    "code": 200,
+    "message": null,
+    "data": {
+        "id": "d0c598aa-a2c7-4cde-9ddc-bc1412a0a3b7",
+        "name": "1111",
+        "description": "11111",
+        "authorId": "fa74a466-cb2a-4e32-9f0a-60277bfd2731",
+        "authorName": "test",
+        "latestVersion": "1111",
+        "versionCount": 1,
+        "isPublic": true,
+        "createTime": "2026-02-27 14:27:51",
+        "updateTime": "2026-02-27 14:27:51",
+        "pluginVersionList": [
+            {
+                "id": "938399c6-618a-4a50-9227-075aeef60dd1",
+                "pluginId": "d0c598aa-a2c7-4cde-9ddc-bc1412a0a3b7",
+                "version": "1111",
+                "path": "D:\\GeneralBot\\demoTest/upload/plugins\\fa74a466-cb2a-4e32-9f0a-60277bfd2731\\1111\\230bad40-6eda-41c8-bcb9-5c2c4d79f8cb.jar",
+                "fileSize": 8295,
+                "fileMd5": "915009be6ce06c22895c920bd333283a",
+                "createTime": "2026-02-27 14:27:51",
+                "changelog": "11111",
+                "entityPackage": "pojo",
+                "methodPackage": "test",
+                "compatibleVersion": "[\"1111\"]",
+                "entityInfoList": [
+                    {
+                        "id": "88c46207-a88d-467f-8273-560d14e1db82",
+                        "description": null,
+                        "name": "User",
+                        "pluginVersionId": "938399c6-618a-4a50-9227-075aeef60dd1",
+                        "entityName": "io.github.zhygtx.pojo.User",
+                        "attributes": "{\"tests\":\"List<io.github.zhygtx.pojo.Test>\",\"hobbies\":\"List<String>\",\"sex\":\"String\",\"name\":\"String\",\"id\":\"Integer\",\"age\":\"int\",\"info\":\"Map<String, List<io.github.zhygtx.pojo.Info>>\"}"
+                    },
+                    {
+                        "id": "96164ecf-b97b-4611-ba67-1cd4dcea6969",
+                        "description": null,
+                        "name": "Test",
+                        "pluginVersionId": "938399c6-618a-4a50-9227-075aeef60dd1",
+                        "entityName": "io.github.zhygtx.pojo.Test",
+                        "attributes": "{\"name\":\"String\"}"
+                    },
+                    {
+                        "id": "96a91972-8509-4deb-9c58-050ce3490a7f",
+                        "description": null,
+                        "name": "Info",
+                        "pluginVersionId": "938399c6-618a-4a50-9227-075aeef60dd1",
+                        "entityName": "io.github.zhygtx.pojo.Info",
+                        "attributes": "{\"tests\":\"List<io.github.zhygtx.pojo.Test>\",\"name\":\"String\",\"id\":\"Integer\"}"
+                    }
+                ],
+                "methodClassInfoList": [
+                    {
+                        "id": "78bfe08c-b7f6-4d53-8b71-699eadc2c591",
+                        "description": null,
+                        "pluginVersionId": "938399c6-618a-4a50-9227-075aeef60dd1",
+                        "className": "io.github.zhygtx.test.User",
+                        "simpleClassName": "User",
+                        "packageName": "io.github.zhygtx.test",
+                        "methods": [
+                            {
+                                "id": "0426b14e-fbbd-45e4-9764-66e137fad379",
+                                "description": null,
+                                "methodClassId": "78bfe08c-b7f6-4d53-8b71-699eadc2c591",
+                                "name": "test",
+                                "parameters": [
+                                    {
+                                        "id": "613cc0c2-84d0-438a-9af3-336ded95f2b8",
+                                        "description": null,
+                                        "methodId": "0426b14e-fbbd-45e4-9764-66e137fad379",
+                                        "name": "name",
+                                        "type": "String"
+                                    }
+                                ],
+                                "returnType": "String"
+                            },
+                            {
+                                "id": "c0e5cf91-f9f3-4ac6-a581-12b40cfe22fa",
+                                "description": null,
+                                "methodClassId": "78bfe08c-b7f6-4d53-8b71-699eadc2c591",
+                                "name": "test",
+                                "parameters": [
+                                    {
+                                        "id": "88f49634-f4cb-47a0-9d3d-5371ca535471",
+                                        "description": null,
+                                        "methodId": "c0e5cf91-f9f3-4ac6-a581-12b40cfe22fa",
+                                        "name": "test",
+                                        "type": "String"
+                                    },
+                                    {
+                                        "id": "f26f0aa8-a348-40cb-9874-cbf49c954c4d",
+                                        "description": null,
+                                        "methodId": "c0e5cf91-f9f3-4ac6-a581-12b40cfe22fa",
+                                        "name": "name",
+                                        "type": "String"
+                                    }
+                                ],
+                                "returnType": "String"
+                            }
+                        ]
+                    },
+                    {
+                        "id": "a87842a5-0cef-430b-a680-5efa5583a5ce",
+                        "description": null,
+                        "pluginVersionId": "938399c6-618a-4a50-9227-075aeef60dd1",
+                        "className": "io.github.zhygtx.test.Test",
+                        "simpleClassName": "Test",
+                        "packageName": "io.github.zhygtx.test",
+                        "methods": [
+                            {
+                                "id": "710bd5c2-4433-4080-bf43-03f649aec3bb",
+                                "description": null,
+                                "methodClassId": "a87842a5-0cef-430b-a680-5efa5583a5ce",
+                                "name": "test",
+                                "parameters": [
+                                    {
+                                        "id": "35b86ff9-b2fd-46ad-bee3-e8d2cb9c97bb",
+                                        "description": null,
+                                        "methodId": "710bd5c2-4433-4080-bf43-03f649aec3bb",
+                                        "name": "user",
+                                        "type": "String"
+                                    }
+                                ],
+                                "returnType": "String"
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+}
