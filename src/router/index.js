@@ -46,13 +46,45 @@ const router = createRouter({
         path: 'list',
         name: 'plugin',
         component: () => import('../views/plugin/PluginListView.vue')
-      },
-      {
-        path: 'detail/:id',
-        name: 'pluginDetail',
-        component: () => import('../views/plugin/PluginDetailView.vue')
       }
     ]
+  },
+  // 插件详情页面（独立页面，无侧边栏）
+  {
+    path: '/plugin/detail/:id',
+    name: 'pluginDetail',
+    component: () => import('../views/plugin/PluginDetailView.vue'),
+    meta: {
+      requiresAuth: true
+    }
+  },
+  // 工作流管理模块路由
+  {
+    path: '/workflow',
+    component: () => import('../views/workflow/WorkflowLayout.vue'),
+    meta: {
+      requiresAuth: true
+    },
+    children: [
+      {
+        path: '',
+        redirect: 'list'
+      },
+      {
+        path: 'list',
+        name: 'workflow',
+        component: () => import('../views/workflow/WorkflowListView.vue')
+      }
+    ]
+  },
+  // 工作流编辑页面（独立页面，无侧边栏）
+  {
+    path: '/workflow/edit/:id?',
+    name: 'workflowEdit',
+    component: () => import('../views/workflow/WorkflowEditView.vue'),
+    meta: {
+      requiresAuth: true
+    }
   },
     // 机器人管理模块路由
     {

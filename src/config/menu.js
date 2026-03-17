@@ -15,6 +15,12 @@ export const menuItems = [
     icon: Setting
   },
   {
+    path: '/workflow/list',
+    name: 'workflow',
+    label: '工作流管理',
+    icon: Setting
+  },
+  {
     path: '/bot/docker',
     name: 'docker',
     label: 'Docker管理',

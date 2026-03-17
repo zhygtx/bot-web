@@ -105,6 +105,14 @@ const handleFileRemove = () => {
   pluginForm.value.file = null
 }
 
+// 清除页面缓存
+const clearCache = () => {
+  // 清除会话存储中的插件相关缓存
+  sessionStorage.removeItem('pluginCache')
+  // 清除localStorage中的插件相关缓存
+  localStorage.removeItem('pluginCache')
+}
+
 // 提交表单
 const submitForm = async () => {
   // 验证表单
@@ -187,6 +195,8 @@ const submitForm = async () => {
 
     if (response.code === 200) {
       ElMessage.success('操作成功')
+      // 保存成功时清除缓存
+      clearCache()
       emit('close')
     } else {
       ElMessage.error(response.message || '操作失败')
@@ -200,6 +210,8 @@ const submitForm = async () => {
 
 // 取消操作
 const cancel = () => {
+  // 取消时清除缓存
+  clearCache()
   emit('close')
 }
 

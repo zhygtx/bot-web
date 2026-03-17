@@ -26,6 +26,12 @@ const compatibleVersions = ref([])
 // 获取插件ID
 const pluginId = computed(() => route.params.id)
 
+// 只读模式
+const isReadOnly = computed(() => route.query.readOnly === 'true')
+
+// 返回路径
+const returnUrl = computed(() => route.query.returnUrl)
+
 // 加载插件详情
 const loadPluginDetail = async () => {
   loading.value = true
@@ -50,9 +56,24 @@ const loadPluginDetail = async () => {
   }
 }
 
-// 返回插件列表
+// 清除页面缓存
+const clearCache = () => {
+  // 清除会话存储中的插件相关缓存
+  sessionStorage.removeItem('pluginCache')
+  // 清除localStorage中的插件相关缓存
+  localStorage.removeItem('pluginCache')
+}
+
+// 返回
 const goBack = () => {
-  router.push('/plugin/list')
+  // 退出时清除缓存
+  clearCache()
+  if (returnUrl.value) {
+    // 直接返回原URL，确保 fromPluginDetail 和 reloadPlugins 参数被正确传递
+    window.location.href = returnUrl.value
+  } else {
+    router.push('/plugin/list')
+  }
 }
 
 // 编辑模式状态
@@ -96,6 +117,8 @@ const saveEdit = async () => {
     if (response.code === 200) {
       ElMessage.success('修改插件成功')
       isEditMode.value = false
+      // 保存成功时清除缓存
+      clearCache()
       loadPluginDetail()
     } else {
       ElMessage.error(response.message || '修改插件失败')
@@ -111,6 +134,8 @@ const saveEdit = async () => {
 const cancelEdit = () => {
   isEditMode.value = false
   editedPluginInfo.value = null
+  // 取消编辑时清除缓存
+  clearCache()
 }
 
 // 更新插件版本弹窗状态
@@ -185,7 +210,7 @@ onMounted(() => {
         <el-icon><ArrowLeft /></el-icon>
         返回
       </el-button>
-      <div class="header-actions" v-if="!isEditMode">
+      <div class="header-actions" v-if="!isEditMode && !isReadOnly">
         <el-button type="success" @click="goToEdit" plain>
           <el-icon><Edit /></el-icon>
           编辑插件
@@ -195,7 +220,7 @@ onMounted(() => {
           更新版本
         </el-button>
       </div>
-      <div class="header-actions" v-else>
+      <div class="header-actions" v-else-if="isEditMode && !isReadOnly">
         <el-button type="primary" @click="saveEdit" :loading="loading">
           保存
         </el-button>
@@ -403,7 +428,12 @@ onMounted(() => {
     <el-empty v-if="!pluginInfo && !loading" description="暂无插件信息" />
     
     <!-- 加载状态 -->
-    <el-loading v-if="loading" fullscreen text="加载中..." />
+    <div v-if="loading" class="loading-overlay">
+          <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">加载中...</div>
+          </div>
+        </div>
     
     <!-- 更新插件版本弹窗 -->
     <el-dialog
@@ -807,5 +837,43 @@ onMounted(() => {
 
 .edit-compatible-versions {
   width: 100%;
+}
+
+/* 加载状态样式 */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.loading-content {
+  text-align: center;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #409eff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 10px;
+}
+
+.loading-text {
+  color: #606266;
+  font-size: 14px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 </style>
