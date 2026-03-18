@@ -73,17 +73,27 @@ const handleDialogClose = () => {
   loadPlugins()
 }
 
-// 计算上次更新时间距今的天数
+// 计算上次更新时间距今的时间
 const getTimeAgo = (updateTime) => {
   if (!updateTime) return '未知'
   
   const now = new Date()
   const updateDate = new Date(updateTime)
   const diffTime = Math.abs(now - updateDate)
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
   
-  if (diffDays === 0) {
-    return '今天'
+  // 计算秒数
+  const diffSeconds = Math.floor(diffTime / 1000)
+  // 计算分钟数
+  const diffMinutes = Math.floor(diffSeconds / 60)
+  // 计算小时数
+  const diffHours = Math.floor(diffMinutes / 60)
+  // 计算天数
+  const diffDays = Math.floor(diffHours / 24)
+  
+  if (diffHours < 1) {
+    return `${diffMinutes}分钟前`
+  } else if (diffHours < 24) {
+    return `${diffHours}小时前`
   } else if (diffDays === 1) {
     return '昨天'
   } else if (diffDays < 7) {
@@ -179,74 +189,74 @@ onMounted(() => {
       </template>
       
       <div class="plugin-content">
-        <el-row :gutter="20" type="flex" justify="space-between">
-          <el-col :xs="24" :sm="12" :md="8" :lg="6" :xl="6" v-for="plugin in plugins" :key="plugin.id">
-            <el-card class="plugin-item-card" @click="goToDetail(plugin.id)">
-              <div class="plugin-card-content">
-                <div class="plugin-card-header">
-                  <h3 class="plugin-name">{{ plugin.name }}</h3>
-                  <div class="plugin-status">
-                    <el-icon 
-                      v-if="plugin.isPublic" 
-                      class="lock-icon public-lock"
-                      @click.stop="togglePluginPublic(plugin)"
-                      title="点击设为私有"
-                    >
-                      <Unlock />
-                    </el-icon>
-                    <el-icon 
-                      v-else 
-                      class="lock-icon private-lock"
-                      @click.stop="togglePluginPublic(plugin)"
-                      title="点击设为公开"
-                    >
-                      <Lock />
-                    </el-icon>
-                  </div>
-                </div>
-                <div class="delete-icon-container">
-                  <el-icon class="delete-icon" @click.stop="deletePlugin(plugin.id)">
-                    <Delete />
-                  </el-icon>
-                </div>
-                <div class="plugin-card-version">
-                  {{ plugin.latestVersion }}
-                </div>
-                <div class="plugin-card-description">
-                  {{ plugin.description }}
-                </div>
-                <div class="plugin-card-footer">
-                  <div class="plugin-card-author">
-                    <el-icon class="footer-icon"><User /></el-icon>
-                    <span>{{ plugin.authorName || '未知' }}</span>
-                  </div>
-                  <div class="plugin-card-time">
-                    <el-icon class="footer-icon"><Clock /></el-icon>
-                    <span>{{ getTimeAgo(plugin.updateTime) }}</span>
-                  </div>
-                </div>
-              </div>
-            </el-card>
-          </el-col>
-        </el-row>
-        
-        <!-- 空状态 -->
-        <el-empty v-if="plugins.length === 0 && !loading" description="暂无插件" />
-        
         <!-- 加载状态 -->
-        <el-loading v-if="loading" fullscreen text="加载中..." />
-        
-        <!-- 分页 -->
-        <div class="pagination" v-if="total > 0">
-          <el-pagination
-            v-model:current-page="pageNum"
-            v-model:page-size="pageSize"
-            :page-sizes="[6, 12, 24]"
-            layout="prev, pager, next"
-            :total="total"
-            @size-change="loadPlugins"
-            @current-change="handlePageChange"
-          />
+        <div v-loading="loading" element-loading-text="加载中..." style="width: 100%; height: 100%; min-height: 300px;">
+          <el-row :gutter="20" :justify="'start'">
+            <el-col :xs="24" :sm="12" :md="8" :lg="6" :xl="6" v-for="plugin in plugins" :key="plugin.id">
+              <el-card class="plugin-item-card" @click="goToDetail(plugin.id)">
+                <div class="plugin-card-content">
+                  <div class="plugin-card-header">
+                    <h3 class="plugin-name">{{ plugin.name }}</h3>
+                    <div class="plugin-status">
+                      <el-icon 
+                        v-if="plugin.isPublic" 
+                        class="lock-icon public-lock"
+                        @click.stop="togglePluginPublic(plugin)"
+                        title="点击设为私有"
+                      >
+                        <Unlock />
+                      </el-icon>
+                      <el-icon 
+                        v-else 
+                        class="lock-icon private-lock"
+                        @click.stop="togglePluginPublic(plugin)"
+                        title="点击设为公开"
+                      >
+                        <Lock />
+                      </el-icon>
+                    </div>
+                  </div>
+                  <div class="delete-icon-container">
+                    <el-icon class="delete-icon" @click.stop="deletePlugin(plugin.id)">
+                      <Delete />
+                    </el-icon>
+                  </div>
+                  <div class="plugin-card-version">
+                    {{ plugin.latestVersion }}
+                  </div>
+                  <div class="plugin-card-description">
+                    {{ plugin.description || '暂无描述' }}
+                  </div>
+                  <div class="plugin-card-footer">
+                    <div class="plugin-card-author">
+                      <el-icon class="footer-icon"><User /></el-icon>
+                      <span>{{ plugin.authorName || '未知' }}</span>
+                    </div>
+                    <div class="plugin-card-time">
+                      <el-icon class="footer-icon"><Clock /></el-icon>
+                      <span>{{ getTimeAgo(plugin.updateTime) }}</span>
+                    </div>
+                  </div>
+                </div>
+              </el-card>
+            </el-col>
+          </el-row>
+          
+          <!-- 空状态 -->
+          <el-empty v-if="plugins.length === 0 && !loading" description="暂无插件" />
+          
+          <!-- 分页 -->
+          <div class="pagination" v-if="total > 0">
+            <el-pagination
+              v-model:current-page="pageNum"
+              v-model:page-size="pageSize"
+              :page-sizes="[6, 12, 24]"
+              layout="prev, pager, next"
+              :total="total"
+              @size-change="loadPlugins"
+              @current-change="handlePageChange"
+            />
+          </div>
         </div>
       </div>
     </el-card>

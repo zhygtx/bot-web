@@ -5,7 +5,12 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      redirect: '/login'
+      redirect: (to) => {
+        // 检查token是否存在
+        const token = localStorage.getItem('token')
+        // 如果有token，跳转到首页；否则跳转到登录页
+        return token ? '/home' : '/login'
+      }
     },
     {
       path: '/login',

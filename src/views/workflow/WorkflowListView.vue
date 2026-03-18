@@ -28,30 +28,59 @@ const loadWorkflows = async () => {
         pageSize: pageSize.value
       }
     })
+    console.log('Response:', response)
     if (response.code === 200) {
-      workflows.value = response.data || []
-      total.value = response.data ? response.data.total || 0 : 0
+      // 检查响应数据格式
+      if (Array.isArray(response.data)) {
+        // 直接返回数组的情况
+        workflows.value = response.data
+        total.value = response.total || response.data.length
+      } else if (response.data) {
+        // PageHelper 分页对象的情况
+        if (Array.isArray(response.data.list)) {
+          workflows.value = response.data.list
+          total.value = response.data.total || 0
+        } else {
+          // 可能是直接返回的工作流对象数组
+          workflows.value = Object.values(response.data).filter(item => typeof item === 'object' && item !== null && item.id)
+          total.value = response.data.total || workflows.value.length
+        }
+      } else {
+        workflows.value = []
+        total.value = 0
+      }
     } else {
       ElMessage.error(response.message || '加载工作流失败')
     }
   } catch (error) {
+    console.error('Error:', error)
     ElMessage.error('加载工作流失败')
   } finally {
     loading.value = false
   }
 }
 
-// 计算上次更新时间距今的天数
+// 计算上次更新时间距今的时间
 const getTimeAgo = (updateTime) => {
   if (!updateTime) return '未知'
   
   const now = new Date()
   const updateDate = new Date(updateTime)
   const diffTime = Math.abs(now - updateDate)
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
   
-  if (diffDays === 0) {
-    return '今天'
+  // 计算秒数
+  const diffSeconds = Math.floor(diffTime / 1000)
+  // 计算分钟数
+  const diffMinutes = Math.floor(diffSeconds / 60)
+  // 计算小时数
+  const diffHours = Math.floor(diffMinutes / 60)
+  // 计算天数
+  const diffDays = Math.floor(diffHours / 24)
+  
+  if (diffHours < 1) {
+    return `${diffMinutes}分钟前`
+  } else if (diffHours < 24) {
+    return `${diffHours}小时前`
   } else if (diffDays === 1) {
     return '昨天'
   } else if (diffDays < 7) {
@@ -133,55 +162,53 @@ onMounted(() => {
       </template>
       
       <div class="workflow-content">
-        <el-row :gutter="20" type="flex" justify="space-between">
-          <el-col :xs="24" :sm="12" :md="8" :lg="6" :xl="6" v-for="workflow in workflows" :key="workflow.id">
-            <el-card class="workflow-item-card" @click="goToDetail(workflow.id)">
-              <div class="workflow-card-content">
-                <div class="workflow-card-header">
-                  <h3 class="workflow-name">{{ workflow.name }}</h3>
-                </div>
-                <div class="delete-icon-container">
-                  <el-icon class="delete-icon" @click.stop="deleteWorkflow(workflow.id)">
-                    <Delete />
-                  </el-icon>
-                </div>
-                <div class="workflow-card-description">
-                  {{ workflow.description }}
-                </div>
-                <div class="workflow-card-footer">
-                  <div class="workflow-card-author">
-                    <el-icon class="footer-icon"><User /></el-icon>
-                    <span>{{ workflow.userId || '未知' }}</span>
-                  </div>
-                  <div class="workflow-card-time">
-                    <el-icon class="footer-icon"><Clock /></el-icon>
-                    <span>{{ getTimeAgo(workflow.updateTime) }}</span>
-                  </div>
-                </div>
-              </div>
-            </el-card>
-          </el-col>
-        </el-row>
-        
-        <!-- 空状态 -->
-        <el-empty v-if="workflows.length === 0 && !loading" description="暂无工作流" />
-        
         <!-- 加载状态 -->
-        <div v-loading="loading" element-loading-text="加载中..." style="width: 100%; height: 100%;">
-          <!-- 内容区域 -->
-        </div>
-        
-        <!-- 分页 -->
-        <div class="pagination" v-if="total > 0">
-          <el-pagination
-            v-model:current-page="pageNum"
-            v-model:page-size="pageSize"
-            :page-sizes="[6, 12, 24]"
-            layout="prev, pager, next"
-            :total="total"
-            @size-change="loadWorkflows"
-            @current-change="handlePageChange"
-          />
+        <div v-loading="loading" element-loading-text="加载中..." style="width: 100%; height: 100%; min-height: 300px;">
+          <el-row :gutter="20" :justify="'start'">
+            <el-col :xs="24" :sm="12" :md="8" :lg="6" :xl="6" v-for="workflow in workflows" :key="workflow.id">
+              <el-card class="workflow-item-card" @click="goToDetail(workflow.id)">
+                <div class="workflow-card-content">
+                  <div class="workflow-card-header">
+                    <h3 class="workflow-name">{{ workflow.name }}</h3>
+                    <div class="delete-icon-container">
+                      <el-icon class="delete-icon" @click.stop="deleteWorkflow(workflow.id)">
+                        <Delete />
+                      </el-icon>
+                    </div>
+                  </div>
+                  <div class="workflow-card-description">
+                    {{ workflow.description || '暂无描述' }}
+                  </div>
+                  <div class="workflow-card-footer">
+                    <div class="workflow-card-author">
+                      <el-icon class="footer-icon"><User /></el-icon>
+                      <span>{{ workflow.authorName || workflow.userId || '未知' }}</span>
+                    </div>
+                    <div class="workflow-card-time">
+                      <el-icon class="footer-icon"><Clock /></el-icon>
+                      <span>{{ getTimeAgo(workflow.updateTime) }}</span>
+                    </div>
+                  </div>
+                </div>
+              </el-card>
+            </el-col>
+          </el-row>
+          
+          <!-- 空状态 -->
+          <el-empty v-if="workflows.length === 0 && !loading" description="暂无工作流" />
+          
+          <!-- 分页 -->
+          <div class="pagination" v-if="total > 0">
+            <el-pagination
+              v-model:current-page="pageNum"
+              v-model:page-size="pageSize"
+              :page-sizes="[6, 12, 24]"
+              layout="prev, pager, next"
+              :total="total"
+              @size-change="loadWorkflows"
+              @current-change="handlePageChange"
+            />
+          </div>
         </div>
       </div>
     </el-card>
@@ -246,6 +273,7 @@ onMounted(() => {
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 12px;
+  position: relative;
 }
 
 .workflow-name {
@@ -254,13 +282,16 @@ onMounted(() => {
   font-weight: bold;
   color: #303133;
   flex: 1;
-  margin-right: 10px;
+  margin-right: 40px; /* 为删除图标留出空间 */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .delete-icon-container {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: -5px;
+  right: -5px;
   z-index: 10;
 }
 

@@ -809,13 +809,13 @@ onMounted(() => {
     dataMaps.value = props.node.dataMaps
     // 转换为连接数据
     connections.value = dataMaps.value.map(map => ({
-      id: parseInt(map.id),
-      sourceNodeId: parseInt(map.sourceNodeId),
-      sourcePath: map.sourcePath,
+      id: map.id ? parseInt(map.id) : Date.now(),
+      sourceNodeId: map.sourceNodeId,
+      sourcePath: map.sourcePath || '',
       sourceId: `value_${map.sourceNodeId}`, // 构建sourceId
-      paramIndex: map.paramIndex,
-      targetParamName: map.targetParamName,
-      targetPath: map.targetPath,
+      paramIndex: map.paramIndex || 0,
+      targetParamName: map.targetParamName || '',
+      targetPath: map.targetPath || '',
       targetId: `param_${map.paramIndex}_value` // 构建targetId
     }))
   }
@@ -861,13 +861,13 @@ watch(() => props.visible, (newValue) => {
         console.log('Loaded dataMaps:', dataMaps.value)
         // 转换为连接数据
         connections.value = dataMaps.value.map(map => ({
-          id: parseInt(map.id),
-          sourceNodeId: parseInt(map.sourceNodeId),
-          sourcePath: map.sourcePath,
+          id: map.id ? parseInt(map.id) : Date.now(),
+          sourceNodeId: map.sourceNodeId,
+          sourcePath: map.sourcePath || '',
           sourceId: `value_${map.sourceNodeId}`, // 构建sourceId
-          paramIndex: map.paramIndex,
-          targetParamName: map.targetParamName,
-          targetPath: map.targetPath,
+          paramIndex: map.paramIndex || 0,
+          targetParamName: map.targetParamName || '',
+          targetPath: map.targetPath || '',
           targetId: `param_${map.paramIndex}_value` // 构建targetId
         }))
         console.log('Created connections:', connections.value)
@@ -876,6 +876,24 @@ watch(() => props.visible, (newValue) => {
       if (props.node && props.node.nodeDefaults) {
         nodeDefaults.value = props.node.nodeDefaults
         console.log('Loaded nodeDefaults:', nodeDefaults.value)
+        // 将nodeDefaults中的默认值填充到defaultValues中
+        nodeDefaults.value.forEach(defaultVal => {
+          const key = `${defaultVal.paramIndex}_${defaultVal.fieldPath || defaultVal.paramName}_value`
+          defaultValues.value[key] = defaultVal.defaultValue
+          // 设置类型默认值为String
+          const typeKey = `${defaultVal.paramIndex}_${defaultVal.fieldPath || defaultVal.paramName}_type`
+          defaultValues.value[typeKey] = defaultVal.defaultValueType || 'String'
+        })
+      }
+      
+      // 为所有参数设置类型默认值为String
+      if (props.node && props.node.method && props.node.method.parameters) {
+        props.node.method.parameters.forEach((param, index) => {
+          const typeKey = `${index}_${param.name}_type`
+          if (!defaultValues.value[typeKey]) {
+            defaultValues.value[typeKey] = 'String'
+          }
+        })
       }
       
       // 再次延迟，确保DOM元素已经完全渲染，然后触发一次更新

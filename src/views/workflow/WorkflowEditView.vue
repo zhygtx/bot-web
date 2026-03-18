@@ -117,19 +117,64 @@ const loadWorkflowInfo = async () => {
   if (workflowId) {
     loading.value = true
     try {
-      // 这里需要实现加载工作流信息的接口调用
-      // 暂时使用模拟数据
-      workflowInfo.value = {
-        id: workflowId,
-        name: '测试工作流',
-        description: '这是一个测试工作流'
+      const response = await request({
+        url: `/workflow/${workflowId}`,
+        method: 'get'
+      })
+      console.log('Workflow Detail Response:', response)
+      if (response.code === 200) {
+        workflowInfo.value = response.data || {}
+        // 加载节点信息
+        if (workflowInfo.value.nodes) {
+          nodes.value = workflowInfo.value.nodes
+          // 为每个节点添加 method 属性，指向 methodInfo
+          nodes.value.forEach(node => {
+            node.method = node.methodInfo
+            // 确保 preNodeId 和 nextNodeId 是数组
+            if (!node.preNodeId) node.preNodeId = []
+            if (!node.nextNodeId) node.nextNodeId = []
+            // 确保 dataMaps 是数组
+            if (!node.dataMaps) node.dataMaps = []
+          })
+          // 生成连线
+          generateConnections()
+        }
+      } else {
+        ElMessage.error(response.message || '加载工作流信息失败')
       }
     } catch (error) {
+      console.error('Error:', error)
       ElMessage.error('加载工作流信息失败')
     } finally {
       loading.value = false
     }
   }
+}
+
+// 根据节点的 preNodeId 和 nextNodeId 生成连线
+const generateConnections = () => {
+  connections.value = []
+  nodes.value.forEach(node => {
+    if (node.nextNodeId && node.nextNodeId.length > 0) {
+      node.nextNodeId.forEach(nextNodeId => {
+        // 检查是否已经存在这条连线
+        const existingConnection = connections.value.find(conn => 
+          conn.fromNode === node.id && conn.toNode === nextNodeId
+        )
+        if (!existingConnection) {
+          const newConnection = {
+            id: Date.now() + Math.random(),
+            fromNode: node.id,
+            fromPort: 'right',
+            toNode: nextNodeId,
+            toPort: 'left'
+          }
+          connections.value.push(newConnection)
+        }
+      })
+    }
+  })
+  console.log('Generated connections:', connections.value)
 }
 
 // 加载插件列表
@@ -170,16 +215,34 @@ const saveWorkflow = async () => {
     return
   }
   
+  // 验证所有节点的参数是否都有数据映射或默认值
+  const validationResult = validateWorkflowNodes()
+  if (!validationResult.valid) {
+    ElMessage.error(validationResult.message)
+    return
+  }
+  
+  // 获取当前用户信息
+  const userId = localStorage.getItem('userId')
+  const name = localStorage.getItem('name')
+  
   // 构建完整的工作流信息
   const workflowData = {
-    ...workflowInfo.value,
+    // 确保工作流自身信息完整填充
+    id: workflowInfo.value.id || '',
+    userId: workflowInfo.value.userId || userId || '',
+    authorName: workflowInfo.value.authorName || name || '',
+    name: workflowInfo.value.name || '',
+    description: workflowInfo.value.description || '',
+    createTime: workflowInfo.value.createTime || null,
+    updateTime: workflowInfo.value.updateTime || null,
     nodes: nodes.value.map(node => {
       // 构建节点数据
       return {
-        id: node.id.toString(),
-        x: node.x,
-        y: node.y,
-        workflowId: workflowInfo.value.id || workflowId,
+        id: node.id ? node.id.toString() : '',
+        x: node.x || 0,
+        y: node.y || 0,
+        workflowId: workflowInfo.value.id || workflowId || '',
         pluginId: node.pluginId || '',
         pluginVersionId: node.pluginVersionId || '',
         methodClassId: node.methodClassId || '',
@@ -190,14 +253,15 @@ const saveWorkflow = async () => {
         nextNodeId: node.nextNodeId || [],
         nodeDefaults: node.nodeDefaults || [],
         condition: node.condition || null,
-        // 这些字段后端可能不需要，但为了保持结构完整，也一并包含
         pluginInfo: node.pluginInfo || null,
         pluginVersion: node.pluginVersion || null,
         methodClassInfo: node.methodClassInfo || null,
-        methodInfo: node.method || null
+        methodInfo: node.methodInfo || node.method || null
       }
     })
   }
+  
+  console.log('保存工作流数据:', workflowData)
   
   loading.value = true
   try {
@@ -217,6 +281,42 @@ const saveWorkflow = async () => {
     ElMessage.error(isEditMode.value ? '更新工作流失败' : '创建工作流失败')
   } finally {
     loading.value = false
+  }
+}
+
+// 验证工作流节点参数
+const validateWorkflowNodes = () => {
+  for (const node of nodes.value) {
+    // 检查节点是否有方法和参数
+    if (node.method && node.method.parameters && node.method.parameters.length > 0) {
+      // 获取节点的数据映射和默认值
+      const dataMaps = node.dataMaps || []
+      const nodeDefaults = node.nodeDefaults || []
+      
+      // 检查每个参数是否有数据映射或默认值
+      for (const param of node.method.parameters) {
+        const paramIndex = node.method.parameters.indexOf(param)
+        
+        // 检查是否有数据映射
+        const hasDataMap = dataMaps.some(map => map.paramIndex === paramIndex)
+        
+        // 检查是否有默认值
+        const hasDefaultValue = nodeDefaults.some(defaultVal => defaultVal.paramIndex === paramIndex)
+        
+        // 如果既没有数据映射也没有默认值，返回错误
+        if (!hasDataMap && !hasDefaultValue) {
+          return {
+            valid: false,
+            message: `节点 ${node.method.name} 的参数 ${param.name} 未设置数据映射或默认值`
+          }
+        }
+      }
+    }
+  }
+  
+  return {
+    valid: true,
+    message: ''
   }
 }
 
@@ -1344,30 +1444,30 @@ onUnmounted(() => {
             <div class="node-content">
               <div class="node-body">
                 <div 
-                  v-if="node.method.parameters && node.method.parameters.length > 0"
+                  v-if="node.method && node.method.parameters && node.method.parameters.length > 0"
                   class="node-dot node-dot-left"
                   :class="{ 'node-dot-filled': isPortConnected(node.id, 'left') }"
                   @mousedown="handlePortMouseDown($event, node, 'left')"
                 ></div>
                 <div class="node-content-inner">
                   <div class="node-header">
-                    <span class="node-method-name">{{ node.method.name }}</span>
+                    <span class="node-method-name">{{ node.method ? node.method.name : '未知方法' }}</span>
                   </div>
-                  <div v-if="node.method.description" class="node-description">
+                  <div v-if="node.method && node.method.description" class="node-description">
                     {{ node.method.description }}
                   </div>
                   <div class="node-params">
-                    <span v-for="(param, index) in node.method.parameters" :key="index" class="node-param">
+                    <span v-for="(param, index) in (node.method && node.method.parameters ? node.method.parameters : [])" :key="index" class="node-param">
                       {{ param.type }} {{ param.name }}
                     </span>
                   </div>
                   <div class="node-return">
                     <span class="return-label">返回值:</span>
-                    <span class="return-type">{{ node.method.returnType }}</span>
+                    <span class="return-type">{{ node.method ? node.method.returnType : 'void' }}</span>
                   </div>
                 </div>
                 <div 
-                  v-if="node.method.returnType && node.method.returnType !== 'void'"
+                  v-if="node.method && node.method.returnType && node.method.returnType !== 'void'"
                   class="node-dot node-dot-right"
                   :class="{ 'node-dot-filled': isPortConnected(node.id, 'right') }"
                   @mousedown="handlePortMouseDown($event, node, 'right')"
