@@ -9,6 +9,12 @@ export class ParameterInfo {
   id = '';
 
   /**
+   * 参数顺序
+   * 系统生成
+   */
+  order = 0;
+
+  /**
    * 参数描述
    * 系统生成默认为空用户可修改
    */

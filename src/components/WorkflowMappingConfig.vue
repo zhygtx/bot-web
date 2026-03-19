@@ -231,7 +231,18 @@ const computeRightTreeData = () => {
   const treeData = []
   
   if (props.node && props.node.method && props.node.method.parameters) {
-    props.node.method.parameters.forEach((param, index) => {
+    // 按照order字段排序参数，当order相同或不存在时按照参数名排序
+    const sortedParameters = [...props.node.method.parameters].sort((a, b) => {
+      // 首先按照order字段排序
+      const orderDiff = (a.order || 0) - (b.order || 0)
+      if (orderDiff !== 0) {
+        return orderDiff
+      }
+      // 如果order相同，按照参数名排序
+      return a.name.localeCompare(b.name)
+    })
+    
+    sortedParameters.forEach((param, index) => {
       const paramData = {
         id: `param_${index}`,
         label: `${param.type} ${param.name}`,
@@ -386,24 +397,25 @@ const handleMouseUp = (event) => {
       // 从端口点元素向上查找对应的端口元素
       const portElement = portDotElement.closest('.port')
       if (portElement) {
-        // 遍历右侧树数据，找到对应的目标节点
-        for (const nodeData of rightTreeData.value) {
-          for (const child of nodeData.children) {
-            if (child.type === 'param_value') {
-              // 检查是否是目标端口
-              // 这里简化处理，实际需要根据元素的data属性或其他方式获取目标节点
-              // 为了演示，我们假设能够获取到目标节点
-              const targetNode = {
-                type: 'param_value',
-                paramIndex: child.paramIndex,
-                paramName: child.paramName,
-                path: child.path
-              }
-              
-              // 检查目标节点是否有效
-              if (targetNode && targetNode.type === 'param_value' && startNode.value.type === 'value') {
-                createConnection(startNode.value, targetNode)
-                break
+        // 获取目标节点的ID
+        const targetNodeId = portElement.getAttribute('data-node-id')
+        if (targetNodeId) {
+          // 遍历右侧树数据，找到对应的目标节点
+          for (const nodeData of rightTreeData.value) {
+            for (const child of nodeData.children) {
+              if (child.id === targetNodeId || (child.children && child.children.some(attr => attr.id === targetNodeId))) {
+                let targetNode
+                if (child.id === targetNodeId) {
+                  targetNode = child
+                } else {
+                  targetNode = child.children.find(attr => attr.id === targetNodeId)
+                }
+                
+                // 检查目标节点是否有效
+                if (targetNode && (targetNode.type === 'param_value' || targetNode.type === 'entity_attr') && startNode.value.type === 'value') {
+                  createConnection(startNode.value, targetNode)
+                  break
+                }
               }
             }
           }
@@ -447,6 +459,12 @@ const getConnectionPath = (connection) => {
 
 // 创建连接
 const createConnection = (sourceNode, targetNode) => {
+  // 检查参数是否有效
+  if (!sourceNode || !targetNode || !sourceNode.nodeId || targetNode.paramIndex === undefined) {
+    ElMessage.error('连接参数无效')
+    return
+  }
+  
   // 检查是否已存在相同的连接
   const existingConnection = connections.value.find(conn => 
     conn.sourceNodeId === sourceNode.nodeId && 
@@ -499,11 +517,11 @@ const createConnection = (sourceNode, targetNode) => {
   const newConnection = {
     id: Date.now(),
     sourceNodeId: sourceNode.nodeId,
-    sourcePath: sourceNode.path,
+    sourcePath: sourceNode.path || 'value',
     sourceId: sourceNode.id,
     paramIndex: targetNode.paramIndex,
     targetParamName: targetNode.paramName,
-    targetPath: targetNode.path,
+    targetPath: targetNode.path || targetNode.paramName,
     targetId: targetNode.id
   }
   
@@ -518,7 +536,7 @@ const updateDataMaps = () => {
   dataMaps.value = connections.value.map(conn => ({
     id: conn.id ? conn.id.toString() : '',
     sourceNodeId: conn.sourceNodeId ? conn.sourceNodeId.toString() : '',
-    sourcePath: conn.sourcePath || '',
+    sourcePath: conn.sourcePath || 'value',
     targetParamName: conn.targetParamName || '',
     paramIndex: conn.paramIndex || 0,
     targetPath: conn.targetPath || '',
@@ -535,6 +553,8 @@ const deleteConnection = (connectionId) => {
 
 // 检查节点是否已经连接
 const isNodeConnected = (node) => {
+  if (!node || !node.id) return false
+  
   if (node.type === 'value' || node.type === 'entity_attr') {
     // 检查左侧节点是否有连接
     return connections.value.some(conn => conn.sourceId === node.id)
@@ -777,15 +797,15 @@ watch(() => props.node, (newNode) => {
     dataMaps.value = newNode.dataMaps
     // 转换为连接数据
     connections.value = dataMaps.value.map(map => ({
-      id: parseInt(map.id),
-      sourceNodeId: parseInt(map.sourceNodeId),
-      sourcePath: map.sourcePath,
-      sourceId: `value_${map.sourceNodeId}`, // 构建sourceId
-      paramIndex: map.paramIndex,
-      targetParamName: map.targetParamName,
-      targetPath: map.targetPath,
-      targetId: `param_${map.paramIndex}_value` // 构建targetId
-    }))
+      id: map.id ? parseInt(map.id) : Date.now(),
+      sourceNodeId: map.sourceNodeId ? parseInt(map.sourceNodeId) : null,
+      sourcePath: map.sourcePath || 'value',
+      sourceId: map.sourceNodeId ? `value_${map.sourceNodeId}` : null, // 构建sourceId
+      paramIndex: map.paramIndex || 0,
+      targetParamName: map.targetParamName || '',
+      targetPath: map.targetPath || '',
+      targetId: `param_${map.paramIndex || 0}_value` // 构建targetId
+    })).filter(conn => conn.sourceNodeId !== null && conn.sourceId !== null) // 过滤掉无效连接
   }
   
   if (newNode && newNode.nodeDefaults) {
@@ -862,14 +882,14 @@ watch(() => props.visible, (newValue) => {
         // 转换为连接数据
         connections.value = dataMaps.value.map(map => ({
           id: map.id ? parseInt(map.id) : Date.now(),
-          sourceNodeId: map.sourceNodeId,
-          sourcePath: map.sourcePath || '',
-          sourceId: `value_${map.sourceNodeId}`, // 构建sourceId
+          sourceNodeId: map.sourceNodeId ? parseInt(map.sourceNodeId) : null,
+          sourcePath: map.sourcePath || 'value',
+          sourceId: map.sourceNodeId ? `value_${map.sourceNodeId}` : null, // 构建sourceId
           paramIndex: map.paramIndex || 0,
           targetParamName: map.targetParamName || '',
           targetPath: map.targetPath || '',
-          targetId: `param_${map.paramIndex}_value` // 构建targetId
-        }))
+          targetId: `param_${map.paramIndex || 0}_value` // 构建targetId
+        })).filter(conn => conn.sourceNodeId !== null && conn.sourceId !== null) // 过滤掉无效连接
         console.log('Created connections:', connections.value)
       }
       
@@ -877,23 +897,41 @@ watch(() => props.visible, (newValue) => {
         nodeDefaults.value = props.node.nodeDefaults
         console.log('Loaded nodeDefaults:', nodeDefaults.value)
         // 将nodeDefaults中的默认值填充到defaultValues中
+        // 先按参数名建立映射
+        const defaultByParamName = {}
         nodeDefaults.value.forEach(defaultVal => {
-          const key = `${defaultVal.paramIndex}_${defaultVal.fieldPath || defaultVal.paramName}_value`
-          defaultValues.value[key] = defaultVal.defaultValue
-          // 设置类型默认值为String
-          const typeKey = `${defaultVal.paramIndex}_${defaultVal.fieldPath || defaultVal.paramName}_type`
-          defaultValues.value[typeKey] = defaultVal.defaultValueType || 'String'
-        })
-      }
-      
-      // 为所有参数设置类型默认值为String
-      if (props.node && props.node.method && props.node.method.parameters) {
-        props.node.method.parameters.forEach((param, index) => {
-          const typeKey = `${index}_${param.name}_type`
-          if (!defaultValues.value[typeKey]) {
-            defaultValues.value[typeKey] = 'String'
+          defaultByParamName[defaultVal.paramName] = {
+            value: defaultVal.defaultValue,
+            type: defaultVal.defaultValueType || 'String'
           }
         })
+        
+        // 然后根据排序后的参数顺序设置默认值
+        if (props.node.method && props.node.method.parameters) {
+          props.node.method.parameters.forEach((param, index) => {
+            const key = `${index}_${param.name}_value`
+            const typeKey = `${index}_${param.name}_type`
+            if (defaultByParamName[param.name]) {
+              defaultValues.value[key] = defaultByParamName[param.name].value
+              defaultValues.value[typeKey] = defaultByParamName[param.name].type
+            } else {
+              // 为所有参数设置类型默认值为String
+              if (!defaultValues.value[typeKey]) {
+                defaultValues.value[typeKey] = 'String'
+              }
+            }
+          })
+        }
+      } else {
+        // 为所有参数设置类型默认值为String
+        if (props.node && props.node.method && props.node.method.parameters) {
+          props.node.method.parameters.forEach((param, index) => {
+            const typeKey = `${index}_${param.name}_type`
+            if (!defaultValues.value[typeKey]) {
+              defaultValues.value[typeKey] = 'String'
+            }
+          })
+        }
       }
       
       // 再次延迟，确保DOM元素已经完全渲染，然后触发一次更新

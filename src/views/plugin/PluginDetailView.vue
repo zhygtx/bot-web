@@ -402,7 +402,15 @@ onMounted(() => {
                           <el-collapse class="parameters-collapse">
                             <el-collapse-item title="查看参数" class="parameters-collapse-item">
                               <div class="parameters-list">
-                                <div v-for="param in method.parameters" :key="param.id" class="parameter-item">
+                                <div v-for="param in [...method.parameters].sort((a, b) => {
+                                  // 首先按照order字段排序
+                                  const orderDiff = (a.order || 0) - (b.order || 0)
+                                  if (orderDiff !== 0) {
+                                    return orderDiff
+                                  }
+                                  // 如果order相同，按照参数名排序
+                                  return a.name.localeCompare(b.name)
+                                })" :key="param.id" class="parameter-item">
                                   <span class="parameter-name">{{ param.name }}:</span>
                                   <span class="parameter-type">{{ param.type }}</span>
                                 </div>

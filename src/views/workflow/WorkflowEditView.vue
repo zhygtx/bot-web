@@ -130,6 +130,18 @@ const loadWorkflowInfo = async () => {
           // 为每个节点添加 method 属性，指向 methodInfo
           nodes.value.forEach(node => {
             node.method = node.methodInfo
+            // 对参数按照order字段排序，当order相同或不存在时按照参数名排序
+            if (node.method && node.method.parameters) {
+              node.method.parameters.sort((a, b) => {
+                // 首先按照order字段排序
+                const orderDiff = (a.order || 0) - (b.order || 0)
+                if (orderDiff !== 0) {
+                  return orderDiff
+                }
+                // 如果order相同，按照参数名排序
+                return a.name.localeCompare(b.name)
+              })
+            }
             // 确保 preNodeId 和 nextNodeId 是数组
             if (!node.preNodeId) node.preNodeId = []
             if (!node.nextNodeId) node.nextNodeId = []
@@ -208,6 +220,10 @@ const loadPlugins = async () => {
   }
 }
 
+// 测试结果弹窗
+const showTestResult = ref(false)
+const testResult = ref({})
+
 // 保存工作流
 const saveWorkflow = async () => {
   if (!workflowInfo.value.name) {
@@ -267,18 +283,210 @@ const saveWorkflow = async () => {
   try {
     const response = await request({
       url: '/workflow',
-      method: isEditMode.value ? 'put' : 'post',
+      method: workflowInfo.value.id ? 'put' : 'post',
       data: workflowData
     })
     
     if (response.code === 200) {
-      ElMessage.success(isEditMode.value ? '更新工作流成功' : '创建工作流成功')
+      // 检查返回的工作流ID是否与当前ID一致
+      if (response.data && response.data.workflowId && response.data.workflowId !== workflowInfo.value.id) {
+        // 更新前端的工作流ID
+        workflowInfo.value.id = response.data.workflowId
+        // 更新所有节点的workflowId
+        nodes.value.forEach(node => {
+          node.workflowId = response.data.workflowId
+        })
+      }
+      ElMessage.success(workflowInfo.value.id ? '更新工作流成功' : '创建工作流成功')
       router.push('/workflow/list')
     } else {
-      ElMessage.error(response.message || (isEditMode.value ? '更新工作流失败' : '创建工作流失败'))
+      ElMessage.error(response.message || (workflowInfo.value.id ? '更新工作流失败' : '创建工作流失败'))
     }
   } catch (error) {
-    ElMessage.error(isEditMode.value ? '更新工作流失败' : '创建工作流失败')
+    ElMessage.error(workflowInfo.value.id ? '更新工作流失败' : '创建工作流失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 加载工作流详情
+const loadWorkflowDetail = async (id) => {
+  try {
+    const response = await request({
+      url: `/workflow/${id}`,
+      method: 'get'
+    })
+    
+    if (response.code === 200) {
+      const workflowData = response.data
+      // 更新工作流信息
+      workflowInfo.value = workflowData
+      
+      // 更新节点数据
+      nodes.value = workflowData.nodes || []
+      
+      // 确保节点有正确的方法信息
+      nodes.value.forEach(node => {
+        console.log('原始节点数据:', node)
+        // 确保节点有 method 属性
+        if (!node.method) {
+          // 尝试从不同的字段获取方法信息
+          if (node.methodInfo) {
+            node.method = node.methodInfo
+          } else if (node.methodInfoList && node.methodInfoList.length > 0) {
+            node.method = node.methodInfoList[0]
+          } else if (node.methodData) {
+            node.method = node.methodData
+          } else {
+            // 如果没有方法信息，创建一个默认的方法对象
+            node.method = {
+              name: '未知方法',
+              returnType: 'void',
+              parameters: []
+            }
+          }
+        }
+        // 对参数按照order字段排序，当order相同或不存在时按照参数名排序
+        if (node.method && node.method.parameters) {
+          node.method.parameters.sort((a, b) => {
+            // 首先按照order字段排序
+            const orderDiff = (a.order || 0) - (b.order || 0)
+            if (orderDiff !== 0) {
+              return orderDiff
+            }
+            // 如果order相同，按照参数名排序
+            return a.name.localeCompare(b.name)
+          })
+        }
+        // 确保节点有 pluginInfo 和其他必要属性
+        if (!node.pluginVersion && node.pluginVersionInfo) {
+          node.pluginVersion = node.pluginVersionInfo
+        }
+        if (!node.methodClass && node.methodClassInfo) {
+          node.methodClass = node.methodClassInfo
+        }
+        if (!node.plugin && node.pluginInfo) {
+          node.plugin = node.pluginInfo
+        }
+        console.log('处理后的节点数据:', node)
+      })
+      
+      // 生成连线
+      connections.value = []
+      nodes.value.forEach(node => {
+        if (node.nextNodeId && node.nextNodeId.length > 0) {
+          node.nextNodeId.forEach(nextNodeId => {
+            const existingConnection = connections.value.find(conn => 
+              conn.fromNode === node.id && conn.toNode === nextNodeId
+            )
+            if (!existingConnection) {
+              const newConnection = {
+                id: Date.now() + Math.random(),
+                fromNode: node.id,
+                fromPort: 'right',
+                toNode: nextNodeId,
+                toPort: 'left'
+              }
+              connections.value.push(newConnection)
+            }
+          })
+        }
+      })
+      
+      console.log('重新加载工作流成功:', workflowData)
+      console.log('重新加载后的节点数据:', nodes.value)
+    } else {
+      ElMessage.error('加载工作流详情失败')
+    }
+  } catch (error) {
+    console.error('加载工作流详情失败:', error)
+    ElMessage.error('加载工作流详情失败')
+  }
+}
+
+// 保存并测试工作流
+const saveAndTestWorkflow = async () => {
+  if (!workflowInfo.value.name) {
+    ElMessage.error('请输入工作流名称')
+    return
+  }
+  
+  // 验证所有节点的参数是否都有数据映射或默认值
+  const validationResult = validateWorkflowNodes()
+  if (!validationResult.valid) {
+    ElMessage.error(validationResult.message)
+    return
+  }
+  
+  // 获取当前用户信息
+  const userId = localStorage.getItem('userId')
+  const name = localStorage.getItem('name')
+  
+  // 构建完整的工作流信息
+  const workflowData = {
+    // 确保工作流自身信息完整填充
+    id: workflowInfo.value.id || '',
+    userId: workflowInfo.value.userId || userId || '',
+    authorName: workflowInfo.value.authorName || name || '',
+    name: workflowInfo.value.name || '',
+    description: workflowInfo.value.description || '',
+    createTime: workflowInfo.value.createTime || null,
+    updateTime: workflowInfo.value.updateTime || null,
+    nodes: nodes.value.map(node => {
+      // 构建节点数据
+      return {
+        id: node.id ? node.id.toString() : '',
+        x: node.x || 0,
+        y: node.y || 0,
+        workflowId: workflowInfo.value.id || workflowId || '',
+        pluginId: node.pluginId || '',
+        pluginVersionId: node.pluginVersionId || '',
+        methodClassId: node.methodClassId || '',
+        methodId: node.methodId || '',
+        inDegree: node.inDegree || 0,
+        dataMaps: node.dataMaps || [],
+        preNodeId: node.preNodeId || [],
+        nextNodeId: node.nextNodeId || [],
+        nodeDefaults: node.nodeDefaults || [],
+        condition: node.condition || null,
+        pluginInfo: node.pluginInfo || null,
+        pluginVersion: node.pluginVersion || null,
+        methodClassInfo: node.methodClassInfo || null,
+        methodInfo: node.methodInfo || node.method || null
+      }
+    })
+  }
+  
+  console.log('保存并测试工作流数据:', workflowData)
+  
+  loading.value = true
+  try {
+    const response = await request({
+      url: '/workflow/test',
+      method: 'post',
+      data: workflowData
+    })
+    
+    if (response.code === 200) {
+      // 检查返回的工作流ID是否与当前ID一致
+      if (response.data && response.data.workflowId && response.data.workflowId !== workflowInfo.value.id) {
+        // 更新前端的工作流ID
+        workflowInfo.value.id = response.data.workflowId
+        // 更新所有节点的workflowId
+        nodes.value.forEach(node => {
+          node.workflowId = response.data.workflowId
+        })
+        // 重新查询工作流并更新画布
+        await loadWorkflowDetail(response.data.workflowId)
+      }
+      ElMessage.success('测试工作流成功')
+      testResult.value = response.data.testResult
+      showTestResult.value = true
+    } else {
+      ElMessage.error(response.message || '测试工作流失败')
+    }
+  } catch (error) {
+    ElMessage.error('测试工作流失败')
   } finally {
     loading.value = false
   }
@@ -840,6 +1048,25 @@ const deleteSelectedNodes = () => {
       return !selectedNodeIds.includes(conn.fromNode) && !selectedNodeIds.includes(conn.toNode)
     })
     
+    // 更新其他节点的前置和后置节点ID列表，并删除相关的映射关系
+    nodes.value.forEach(node => {
+      // 从前置节点列表中删除被删除的节点ID
+      if (node.preNodeId) {
+        node.preNodeId = node.preNodeId.filter(nodeId => !selectedNodeIds.includes(nodeId))
+      }
+      // 从后置节点列表中删除被删除的节点ID
+      if (node.nextNodeId) {
+        node.nextNodeId = node.nextNodeId.filter(nodeId => !selectedNodeIds.includes(nodeId))
+      }
+      // 删除与被删除节点相关的映射关系
+      if (node.dataMaps) {
+        node.dataMaps = node.dataMaps.filter(map => {
+          // 过滤掉源节点为被删除节点的映射
+          return !selectedNodeIds.includes(map.sourceNodeId)
+        })
+      }
+    })
+    
     // 删除节点
     nodes.value = nodes.value.filter(node => !selectedNodeIds.includes(node.id))
     
@@ -917,6 +1144,12 @@ const deleteSelectedConnection = () => {
       toNode.preNodeId = toNode.preNodeId.filter(nodeId => nodeId !== connection.fromNode)
       // 更新节点的入度
       toNode.inDegree = Math.max(0, (toNode.inDegree || 0) - 1)
+      
+      // 删除对应的映射关系
+      if (toNode.dataMaps) {
+        // 过滤掉与被删除连线相关的映射
+        toNode.dataMaps = toNode.dataMaps.filter(map => map.sourceNodeId !== connection.fromNode)
+      }
     }
     
     // 删除连线
@@ -948,6 +1181,12 @@ const disconnectSelectedNodes = () => {
         toNode.preNodeId = toNode.preNodeId.filter(nodeId => nodeId !== connection.fromNode)
         // 更新节点的入度
         toNode.inDegree = Math.max(0, (toNode.inDegree || 0) - 1)
+        
+        // 删除对应的映射关系
+        if (toNode.dataMaps) {
+          // 过滤掉与被删除连线相关的映射
+          toNode.dataMaps = toNode.dataMaps.filter(map => map.sourceNodeId !== connection.fromNode)
+        }
       }
     })
     
@@ -1053,6 +1292,20 @@ const dropNode = (e) => {
     const nodeX = e.clientX - rect.left
     const nodeY = e.clientY - rect.top
     
+    // 对方法参数按照order字段排序，当order相同或不存在时按照参数名排序
+    const method = draggingElement.value.method
+    if (method && method.parameters) {
+      method.parameters.sort((a, b) => {
+        // 首先按照order字段排序
+        const orderDiff = (a.order || 0) - (b.order || 0)
+        if (orderDiff !== 0) {
+          return orderDiff
+        }
+        // 如果order相同，按照参数名排序
+        return a.name.localeCompare(b.name)
+      })
+    }
+    
     // 创建新节点
     const newNode = {
       id: Date.now().toString(),
@@ -1072,8 +1325,8 @@ const dropNode = (e) => {
       pluginInfo: draggingElement.value.plugin || null,
       pluginVersion: draggingElement.value.version || null,
       methodClassInfo: draggingElement.value.methodClass || null,
-      methodInfo: draggingElement.value.method || null,
-      method: draggingElement.value.method,
+      methodInfo: method,
+      method: method,
       methodClass: draggingElement.value.methodClass,
       plugin: draggingElement.value.plugin
     }
@@ -1234,6 +1487,7 @@ onUnmounted(() => {
       </div>
       <div class="header-right">
         <el-button @click="router.push('/workflow/list')">取消</el-button>
+        <el-button type="warning" @click="saveAndTestWorkflow">保存并测试</el-button>
         <el-button type="primary" @click="saveWorkflow">保存</el-button>
       </div>
     </div>
@@ -1305,7 +1559,7 @@ onUnmounted(() => {
                                         <div v-for="methodClass in versionItem.methodClassInfoList" :key="methodClass.id" class="method-class-card">
                                           <div class="method-class-header">
                                             <h5 class="method-class-name">{{ methodClass.simpleClassName }}</h5>
-                                            <span class="method-class-description">{{ methodClass.description || '无描述' }}</span>
+                                            <p class="method-class-description">{{ methodClass.description || '无描述' }}</p>
                                           </div>
                                           <div class="methods-list">
                                             <!-- 显示方法 -->
@@ -1318,12 +1572,21 @@ onUnmounted(() => {
                                               >
                                                 {{ method.returnType }} {{ method.name }}(
                                                   <template v-if="method.parameters && method.parameters.length > 0">
-                                                    <span v-for="(param, index) in method.parameters" :key="param.id">
+                                                    <span v-for="(param, index) in [...method.parameters].sort((a, b) => {
+                                                      // 首先按照order字段排序
+                                                      const orderDiff = (a.order || 0) - (b.order || 0)
+                                                      if (orderDiff !== 0) {
+                                                        return orderDiff
+                                                      }
+                                                      // 如果order相同，按照参数名排序
+                                                      return a.name.localeCompare(b.name)
+                                                    })" :key="param.id">
                                                       {{ param.type }} {{ param.name }}{{ index < method.parameters.length - 1 ? ', ' : '' }}
                                                     </span>
                                                   </template>
                                                 )
                                               </span>
+                                              <p v-if="method.description" class="method-item-description">{{ method.description }}</p>
                                             </div>
                                           </div>
                                         </div>
@@ -1457,7 +1720,15 @@ onUnmounted(() => {
                     {{ node.method.description }}
                   </div>
                   <div class="node-params">
-                    <span v-for="(param, index) in (node.method && node.method.parameters ? node.method.parameters : [])" :key="index" class="node-param">
+                    <span v-for="(param, index) in (node.method && node.method.parameters ? [...node.method.parameters].sort((a, b) => {
+                      // 首先按照order字段排序
+                      const orderDiff = (a.order || 0) - (b.order || 0)
+                      if (orderDiff !== 0) {
+                        return orderDiff
+                      }
+                      // 如果order相同，按照参数名排序
+                      return a.name.localeCompare(b.name)
+                    }) : [])" :key="index" class="node-param">
                       {{ param.type }} {{ param.name }}
                     </span>
                   </div>
@@ -1521,6 +1792,22 @@ onUnmounted(() => {
       @update:visible="showConditionConfig = $event"
       @save="saveConditionConfig"
     />
+    
+    <!-- 测试结果弹窗 -->
+    <el-dialog
+      v-model="showTestResult"
+      title="工作流测试结果"
+      width="800px"
+    >
+      <div class="test-result-container">
+        <pre class="test-result-content">{{ JSON.stringify(testResult, null, 2) }}</pre>
+      </div>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="showTestResult = false">关闭</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -1836,8 +2123,9 @@ onUnmounted(() => {
   background-color: #f9f9f9;
   border-bottom: 1px solid #e6e6e6;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
 }
 
 .method-class-name {
@@ -1848,8 +2136,11 @@ onUnmounted(() => {
 }
 
 .method-class-description {
-  font-size: 12px;
+  font-size: 13px;
   color: #606266;
+  margin: 0;
+  line-height: 1.4;
+  width: 100%;
 }
 
 /* 方法列表样式 */
@@ -1861,9 +2152,10 @@ onUnmounted(() => {
 .method-item {
   display: flex;
   flex-direction: column;
-  padding: 8px 0;
+  padding: 12px 0;
   border-bottom: 1px solid #f0f0f0;
   transition: all 0.2s ease;
+  gap: 6px;
 }
 
 .method-item:last-child {
@@ -1883,6 +2175,16 @@ onUnmounted(() => {
   font-size: 14px;
   font-family: 'Courier New', monospace;
   line-height: 1.4;
+}
+
+/* 方法描述样式 */
+.method-item-description {
+  font-size: 12px;
+  color: #606266;
+  margin: 0;
+  line-height: 1.4;
+  padding-left: 10px;
+  border-left: 2px solid #e4e7ed;
 }
 
 @keyframes slideDown {
@@ -2168,5 +2470,20 @@ onUnmounted(() => {
 .context-menu-item:hover {
   background-color: #f5f7fa;
   color: #409eff;
+}
+
+/* 测试结果弹窗样式 */
+.test-result-container {
+  max-height: 500px;
+  overflow: auto;
+}
+
+.test-result-content {
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #303133;
+  white-space: pre-wrap;
+  word-wrap: break-word;
 }
 </style>
