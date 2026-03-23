@@ -93,7 +93,7 @@ const submitForm = async () => {
   try {
     await request({
       url: '/user/update',
-      method: 'post',
+      method: 'put',
       data: profileForm
     })
     

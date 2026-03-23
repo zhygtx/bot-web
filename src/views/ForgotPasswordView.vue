@@ -110,7 +110,7 @@ const handleResetPassword = async () => {
     // 发送重置密码请求
     await request({
       url: '/user/retrievePwd',
-      method: 'post',
+      method: 'put',
       params: {
         account: forgotPasswordForm.account,
         email: forgotPasswordForm.email,

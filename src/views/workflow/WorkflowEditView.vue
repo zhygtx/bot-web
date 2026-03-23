@@ -224,6 +224,12 @@ const loadPlugins = async () => {
 const showTestResult = ref(false)
 const testResult = ref({})
 
+// 清除工作流缓存
+const clearWorkflowCache = () => {
+  localStorage.removeItem(`workflow_${workflowId}_nodes`)
+  localStorage.removeItem(`workflow_${workflowId}_connections`)
+}
+
 // 保存工作流
 const saveWorkflow = async () => {
   if (!workflowInfo.value.name) {
@@ -298,6 +304,8 @@ const saveWorkflow = async () => {
         })
       }
       ElMessage.success(workflowInfo.value.id ? '更新工作流成功' : '创建工作流成功')
+      // 清除工作流缓存
+      clearWorkflowCache()
       router.push('/workflow/list')
     } else {
       ElMessage.error(response.message || (workflowInfo.value.id ? '更新工作流失败' : '创建工作流失败'))
@@ -461,10 +469,15 @@ const saveAndTestWorkflow = async () => {
   
   loading.value = true
   try {
+    // 计算超时时间：节点数量 * 5秒
+    const nodeCount = workflowData.nodes.length
+    const timeout = nodeCount * 5000
+    
     const response = await request({
       url: '/workflow/test',
       method: 'post',
-      data: workflowData
+      data: workflowData,
+      timeout: timeout
     })
     
     if (response.code === 200) {
@@ -482,6 +495,8 @@ const saveAndTestWorkflow = async () => {
       ElMessage.success('测试工作流成功')
       testResult.value = response.data.testResult
       showTestResult.value = true
+      // 清除工作流缓存
+      clearWorkflowCache()
     } else {
       ElMessage.error(response.message || '测试工作流失败')
     }
@@ -494,28 +509,49 @@ const saveAndTestWorkflow = async () => {
 
 // 验证工作流节点参数
 const validateWorkflowNodes = () => {
+  // 检查所有节点的参数是否都已填充
   for (const node of nodes.value) {
-    // 检查节点是否有方法和参数
     if (node.method && node.method.parameters && node.method.parameters.length > 0) {
-      // 获取节点的数据映射和默认值
-      const dataMaps = node.dataMaps || []
-      const nodeDefaults = node.nodeDefaults || []
+      // 检查节点是否有数据映射或默认值
+      const hasDataMaps = node.dataMaps && node.dataMaps.length > 0
+      const hasNodeDefaults = node.nodeDefaults && node.nodeDefaults.length > 0
       
-      // 检查每个参数是否有数据映射或默认值
-      for (const param of node.method.parameters) {
-        const paramIndex = node.method.parameters.indexOf(param)
-        
-        // 检查是否有数据映射
-        const hasDataMap = dataMaps.some(map => map.paramIndex === paramIndex)
-        
-        // 检查是否有默认值
-        const hasDefaultValue = nodeDefaults.some(defaultVal => defaultVal.paramIndex === paramIndex)
-        
-        // 如果既没有数据映射也没有默认值，返回错误
-        if (!hasDataMap && !hasDefaultValue) {
+      // 如果没有数据映射和默认值，检查是否有参数
+      if (!hasDataMaps && !hasNodeDefaults) {
+        return {
+          valid: false,
+          message: `节点 ${node.method.name} 的参数未设置数据映射或默认值`
+        }
+      }
+      
+      // 检查每个参数是否都有对应的映射或默认值
+      const paramNames = node.method.parameters.map(p => p.name)
+      const mappedParams = new Set()
+      
+      // 检查数据映射
+      if (node.dataMaps) {
+        node.dataMaps.forEach(map => {
+          // 提取参数名（处理子属性，如param.subparam）
+          const paramName = map.targetParamName.split('.')[0]
+          mappedParams.add(paramName)
+        })
+      }
+      
+      // 检查默认值
+      if (node.nodeDefaults) {
+        node.nodeDefaults.forEach(def => {
+          // 提取参数名（处理子属性，如param.subparam）
+          const paramName = def.paramName.split('.')[0]
+          mappedParams.add(paramName)
+        })
+      }
+      
+      // 检查是否所有参数都已映射或设置默认值
+      for (const paramName of paramNames) {
+        if (!mappedParams.has(paramName)) {
           return {
             valid: false,
-            message: `节点 ${node.method.name} 的参数 ${param.name} 未设置数据映射或默认值`
+            message: `节点 ${node.method.name} 的参数 ${paramName} 未设置数据映射或默认值`
           }
         }
       }
@@ -1201,18 +1237,13 @@ const disconnectSelectedNodes = () => {
 
 // 打开映射配置弹窗
 const openMappingConfig = (node) => {
-  console.log('openMappingConfig called with node:', node)
-  console.log('Before setting showMappingConfig:', showMappingConfig.value)
   currentNode.value = node
   showMappingConfig.value = true
-  console.log('After setting showMappingConfig:', showMappingConfig.value)
-  console.log('currentNode:', currentNode.value)
   hideContextMenu()
 }
 
 // 打开条件配置弹窗
 const openConditionConfig = (node) => {
-  console.log('openConditionConfig called with node:', node)
   currentNode.value = node
   showConditionConfig.value = true
   hideContextMenu()
@@ -1451,7 +1482,7 @@ onUnmounted(() => {
     <!-- 顶部导航栏 -->
     <div class="workflow-header">
       <div class="header-left">
-        <el-button class="exit-button" @click="router.push('/workflow/list')" circle>
+        <el-button class="exit-button" @click="() => { clearWorkflowCache(); router.push('/workflow/list'); }" circle>
           <el-icon><Close /></el-icon>
         </el-button>
         <div class="workflow-name-container">
@@ -1486,7 +1517,7 @@ onUnmounted(() => {
         </el-button-group>
       </div>
       <div class="header-right">
-        <el-button @click="router.push('/workflow/list')">取消</el-button>
+        <el-button @click="() => { clearWorkflowCache(); router.push('/workflow/list'); }">取消</el-button>
         <el-button type="warning" @click="saveAndTestWorkflow">保存并测试</el-button>
         <el-button type="primary" @click="saveWorkflow">保存</el-button>
       </div>
@@ -1781,6 +1812,7 @@ onUnmounted(() => {
       :visible="showMappingConfig"
       :node="currentNode"
       :pre-nodes="preNodes"
+      :plugins="plugins"
       @update:visible="showMappingConfig = $event"
       @save="saveMappingConfig"
     />

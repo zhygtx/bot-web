@@ -1,7 +1,6 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
-import { ElMessage, ElInput, ElSelect, ElOption, ElTree, ElButton, ElDialog, ElForm, ElFormItem, ElIcon } from 'element-plus'
-import { Close, Check } from '@element-plus/icons-vue'
+import { ref, onMounted, watch } from 'vue'
+import { ElMessage, ElInput, ElSelect, ElOption, ElButton, ElDialog } from 'element-plus'
 
 // 定义组件属性
 const props = defineProps({
@@ -15,6 +14,11 @@ const props = defineProps({
   },
   // 前置节点列表
   preNodes: {
+    type: Array,
+    default: () => []
+  },
+  // 插件列表
+  plugins: {
     type: Array,
     default: () => []
   }
@@ -50,14 +54,237 @@ const selectedLeftNode = ref(null)
 // 选中的右侧节点
 const selectedRightNode = ref(null)
 
+// 填充状态映射（key: 参数路径, value: 是否填充）
+const filledStatus = ref({})
+
+// 检查路径是否已经填充
+const isPathFilled = (path) => {
+  try {
+    // 检查是否有直接的映射
+    const hasMapping = dataMaps.value.some(map => map.targetPath === path)
+    if (hasMapping) {
+      return true
+    }
+    
+    // 检查是否有直接的默认值
+    const valueKey = path.replace(/\./g, '_') + '_value'
+    if (defaultValues.value[valueKey] !== undefined && defaultValues.value[valueKey] !== '') {
+      return true
+    }
+    
+    // 检查是否有直接的默认值（通过参数索引）
+    if (props.node && props.node.method && props.node.method.parameters) {
+      const paramIndex = props.node.method.parameters.findIndex(param => param.name === path)
+      if (paramIndex !== -1) {
+        const indexValueKey = `${paramIndex}_${path}_value`
+        if (defaultValues.value[indexValueKey] !== undefined && defaultValues.value[indexValueKey] !== '') {
+          return true
+        }
+      }
+    }
+    
+    return false
+  } catch (error) {
+    console.error('isPathFilled 函数错误:', error)
+    return false
+  }
+}
+
+// 更新填充状态
+const updateFilledStatus = (path) => {
+  try {
+    // 更新当前路径的填充状态
+    const isFilled = isPathFilled(path)
+    filledStatus.value[path] = isFilled
+  } catch (error) {
+    console.error('updateFilledStatus 函数错误:', error)
+  }
+}
+
+// 监听数据映射变化，更新填充状态
+watch(dataMaps, () => {
+  // 收集所有路径
+  const paths = new Set()
+  dataMaps.value.forEach(map => {
+    paths.add(map.targetPath)
+  })
+  
+  // 收集所有参数路径
+  if (props.node && props.node.method && props.node.method.parameters) {
+    props.node.method.parameters.forEach(param => {
+      paths.add(param.name)
+    })
+  }
+  
+  // 更新所有路径的填充状态
+  paths.forEach(path => {
+    updateFilledStatus(path)
+  })
+}, { deep: true })
+
+// 监听默认值变化，更新填充状态
+watch(defaultValues, (newValues) => {
+  try {
+    // 收集所有路径
+    const paths = new Set()
+    
+    // 检查所有以_value结尾的键
+    Object.keys(newValues).forEach(key => {
+      if (key.endsWith('_value')) {
+        const path = key.replace('_value', '').replace(/_/g, '.')
+        paths.add(path)
+      }
+    })
+    
+    // 收集所有参数路径
+    if (props.node && props.node.method && props.node.method.parameters) {
+      props.node.method.parameters.forEach(param => {
+        paths.add(param.name)
+      })
+    }
+    
+    // 更新所有路径的填充状态
+    paths.forEach(path => {
+      updateFilledStatus(path)
+    })
+  } catch (error) {
+    console.error('defaultValues watcher 错误:', error)
+  }
+}, { deep: true, immediate: true })
+
+// 监听节点变化，初始化填充状态
+watch(() => props.node, () => {
+  if (props.node && props.node.method && props.node.method.parameters) {
+    // 初始化所有参数的填充状态
+    props.node.method.parameters.forEach(param => {
+      updateFilledStatus(param.name)
+    })
+  }
+}, { deep: true, immediate: true })
+
+// 检查所有参数是否已填充
+const areAllParamsFilled = () => {
+  if (!props.node || !props.node.method || !props.node.method.parameters) {
+    return true
+  }
+  
+  for (const param of props.node.method.parameters) {
+    // 检查参数是否已填充
+    if (!filledStatus.value[param.name]) {
+      console.log(`参数 ${param.name} 未填充，填充状态:`, filledStatus.value[param.name])
+      return false
+    }
+  }
+  
+  console.log('所有参数已填充，填充状态:', filledStatus.value)
+  return true
+}
+
+// 保存配置
+const saveConfig = () => {
+  console.log('保存配置被调用')
+  // 检查所有参数是否已填充
+  if (!areAllParamsFilled()) {
+    ElMessage.error('请为所有参数设置数据映射或默认值')
+    return
+  }
+  
+  // 验证所有默认值是否合法
+  const validationResult = validateAllDefaultValues()
+  if (!validationResult.isValid) {
+    validationResult.errors.forEach(error => {
+      ElMessage.error(error)
+    })
+    return
+  }
+  
+  console.log('所有参数已填充，开始保存')
+  isSaving.value = true
+  // 处理默认值
+  const newNodeDefaults = []
+  
+  // 遍历defaultValues，创建nodeDefaults
+  Object.keys(defaultValues.value).forEach(key => {
+    if (key.endsWith('_value')) {
+      const parts = key.split('_')
+      const paramIndex = parseInt(parts[0])
+      const path = parts.slice(1, -1).join('_')
+      const value = defaultValues.value[key]
+      
+      if (value !== undefined && value !== '') {
+        // 检查参数是否已经设置了映射
+        if (hasMapping(paramIndex, path)) {
+          ElMessage.warning(`参数 ${path} 已经设置了映射，不能再设置默认值`)
+          return
+        }
+        
+        // 检查父级节点是否已经设置了映射
+        const targetNode = {
+          type: 'entity_attr',
+          path: path,
+          paramIndex: paramIndex
+        }
+        if (hasParentMapping(targetNode)) {
+          ElMessage.warning(`父级节点已经设置了映射，子级节点 ${path} 不能再设置默认值`)
+          return
+        }
+        
+        // 查找参数信息，获取实际的数据类型
+        let paramType = 'String'
+        if (props.node.method && props.node.method.parameters) {
+          // 只按照order字段排序
+          const sortedParameters = [...props.node.method.parameters].sort((a, b) => {
+            return (a.order || 0) - (b.order || 0)
+          })
+          const param = sortedParameters.find(p => p.name === path)
+          if (param) {
+            paramType = param.type
+          }
+        }
+        
+        // 检查类型是否是基本数据类型或包装类
+        if (!isBasicType(paramType)) {
+          ElMessage.warning(`类型 ${paramType} 不是基本数据类型或包装类，不能设置默认值`)
+          return
+        }
+        
+        // 查找原始参数的索引，确保保存的paramIndex是正确的
+        const originalParam = props.node.method.parameters.find(p => p.name === path)
+        const originalIndex = originalParam ? props.node.method.parameters.indexOf(originalParam) : paramIndex
+        
+        newNodeDefaults.push({
+          id: Date.now().toString(),
+          paramIndex: originalIndex,
+          paramName: path,
+          fieldPath: path,
+          defaultValue: value,
+          defaultValueType: paramType
+        })
+        console.log('保存默认值:', path, value, paramType, '原始索引:', originalIndex)
+      }
+    }
+  })
+  console.log('准备保存的 nodeDefaults:', newNodeDefaults)
+  
+  console.log('准备保存的数据:', {
+    dataMaps: dataMaps.value,
+    nodeDefaults: newNodeDefaults
+  })
+  
+  emit('save', {
+    dataMaps: dataMaps.value,
+    nodeDefaults: newNodeDefaults
+  })
+  // 保存后关闭弹窗
+  dialogVisible.value = false
+  // 重置标志
+  setTimeout(() => {
+    isSaving.value = false
+  }, 100)
+}
+
 // 连接线数据
 const connections = ref([])
-
-// 正在拖动的左侧节点
-const draggingLeftNode = ref(null)
-
-// 正在拖动的右侧节点
-const draggingRightNode = ref(null)
 
 // 连线相关状态
 const isDrawing = ref(false)
@@ -150,7 +377,7 @@ const getTypeMismatchMessage = (sourceType, targetType) => {
   return `类型不兼容，当前：${sourceBaseType} -> ${targetBaseType}`
 }
 
-// 解析实体类属性信息
+// 解析实体类属性信息（仅用于左侧前置节点）
 const parseEntityAttributes = (entityName, attributes) => {
   try {
     if (!attributes) return []
@@ -164,7 +391,9 @@ const parseEntityAttributes = (entityName, attributes) => {
         entityName: entityName,
         attrName: name,
         typeName: type,
-        path: name
+        path: name,
+        // 为了在模板中显示类型，添加一个带类型的标签
+        labelWithType: `${type} ${name}`
       })
     }
     return children
@@ -182,20 +411,9 @@ const computeLeftTreeData = () => {
     if (preNode.method && preNode.method.returnType && preNode.method.returnType !== 'void') {
       const nodeData = {
         id: `node_${preNode.id}`,
-        label: `${preNode.method.name}`,
+        label: `${preNode.method.name} (${preNode.method.returnType})`,
         type: 'node',
         nodeId: preNode.id,
-        children: []
-      }
-      
-      // 添加返回值根节点
-      const returnValueNode = {
-        id: `value_${preNode.id}`,
-        label: 'value',
-        type: 'value',
-        nodeId: preNode.id,
-        path: 'value',
-        typeName: preNode.method.returnType,
         children: []
       }
       
@@ -204,21 +422,48 @@ const computeLeftTreeData = () => {
       const returnTypeBase = getBaseType(returnType)
       
       // 尝试从插件信息中找到实体类信息
-      if (preNode.plugin && preNode.plugin.pluginVersionList) {
-        for (const version of preNode.plugin.pluginVersionList) {
+      let isEntity = false
+      if (preNode.pluginInfo && preNode.pluginInfo.pluginVersionList) {
+        for (const version of preNode.pluginInfo.pluginVersionList) {
           if (version.entityInfoList) {
             const entityInfo = version.entityInfoList.find(e => 
               e.name === returnTypeBase || e.entityName === returnType
             )
             if (entityInfo && entityInfo.attributes) {
-              returnValueNode.children = parseEntityAttributes(returnTypeBase, entityInfo.attributes)
+              // 是实体类，直接添加属性作为子节点
+              const attributes = parseEntityAttributes(returnTypeBase, entityInfo.attributes)
+              // 为每个属性设置正确的path和type
+              attributes.forEach(attr => {
+                attr.type = 'value'; // 改为value类型，以便可以连线
+                attr.nodeId = preNode.id;
+                attr.path = `value.${attr.attrName}`; // 使用value.attrName的形式作为路径
+                // 确保显示时只显示属性名，而不是完整路径
+                attr.label = attr.attrName;
+                // 确保labelWithType也被正确设置，显示类型和属性名
+                attr.labelWithType = `${attr.typeName} ${attr.attrName}`;
+              });
+              nodeData.children = attributes;
+              isEntity = true;
               break
             }
           }
         }
       }
       
-      nodeData.children.push(returnValueNode)
+      // 如果不是实体类，添加返回值根节点
+      if (!isEntity) {
+        const returnValueNode = {
+          id: `value_${preNode.id}`,
+          label: 'value',
+          type: 'value',
+          nodeId: preNode.id,
+          path: 'value',
+          typeName: preNode.method.returnType,
+          children: []
+        }
+        nodeData.children.push(returnValueNode)
+      }
+      
       treeData.push(nodeData)
     }
   })
@@ -231,15 +476,9 @@ const computeRightTreeData = () => {
   const treeData = []
   
   if (props.node && props.node.method && props.node.method.parameters) {
-    // 按照order字段排序参数，当order相同或不存在时按照参数名排序
+    // 只按照order字段排序
     const sortedParameters = [...props.node.method.parameters].sort((a, b) => {
-      // 首先按照order字段排序
-      const orderDiff = (a.order || 0) - (b.order || 0)
-      if (orderDiff !== 0) {
-        return orderDiff
-      }
-      // 如果order相同，按照参数名排序
-      return a.name.localeCompare(b.name)
+      return (a.order || 0) - (b.order || 0)
     })
     
     sortedParameters.forEach((param, index) => {
@@ -262,25 +501,6 @@ const computeRightTreeData = () => {
         path: param.name,
         paramTypeName: param.type,
         children: []
-      }
-      
-      // 检查是否是实体类，尝试解析属性
-      const paramType = param.type
-      const paramTypeBase = getBaseType(paramType)
-      
-      // 尝试从插件信息中找到实体类信息
-      if (props.node.plugin && props.node.plugin.pluginVersionList) {
-        for (const version of props.node.plugin.pluginVersionList) {
-          if (version.entityInfoList) {
-            const entityInfo = version.entityInfoList.find(e => 
-              e.name === paramTypeBase || e.entityName === paramType
-            )
-            if (entityInfo && entityInfo.attributes) {
-              paramValueNode.children = parseEntityAttributes(paramTypeBase, entityInfo.attributes)
-              break
-            }
-          }
-        }
       }
       
       paramData.children.push(paramValueNode)
@@ -343,7 +563,7 @@ const endDrawing = (targetNode, event) => {
   
   // 检查目标节点是否有效，并且确保点击的是右侧的空心圆点
   const portDotElement = event?.target.closest('.port-dot')
-  if (targetNode && targetNode.type === 'param_value' && startNode.value.type === 'value' && portDotElement) {
+  if ((targetNode && (targetNode.type === 'param_value' || targetNode.type === 'entity_attr') && startNode.value.type === 'value' && portDotElement)) {
     createConnection(startNode.value, targetNode)
   }
   
@@ -489,7 +709,7 @@ const createConnection = (sourceNode, targetNode) => {
   }
   
   // 检查参数是否已经设置了默认值
-  if (hasAnyDefaultValue(targetNode.paramIndex)) {
+  if (hasAnyDefaultValue(targetNode.paramIndex, targetNode.path)) {
     ElMessage.warning('该参数已经设置了默认值，不能再设置映射')
     return
   }
@@ -513,15 +733,22 @@ const createConnection = (sourceNode, targetNode) => {
     }
   }
   
+  // 获取参数名
+  const paramName = props.node?.method?.parameters?.[targetNode.paramIndex]?.name || ''
+  
   // 创建新连接
+  // 查找原始参数索引
+  const originalParam = props.node.method.parameters.find(p => p.name === paramName)
+  const originalIndex = originalParam ? props.node.method.parameters.indexOf(originalParam) : targetNode.paramIndex
+  
   const newConnection = {
     id: Date.now(),
     sourceNodeId: sourceNode.nodeId,
     sourcePath: sourceNode.path || 'value',
     sourceId: sourceNode.id,
-    paramIndex: targetNode.paramIndex,
-    targetParamName: targetNode.paramName,
-    targetPath: targetNode.path || targetNode.paramName,
+    paramIndex: originalIndex,
+    targetParamName: targetNode.type === 'entity_attr' ? `${paramName}.${targetNode.attrName}` : targetNode.paramName,
+    targetPath: targetNode.type === 'entity_attr' ? `${paramName}.${targetNode.path}` : (targetNode.path || targetNode.paramName),
     targetId: targetNode.id
   }
   
@@ -533,16 +760,60 @@ const createConnection = (sourceNode, targetNode) => {
 
 // 更新数据映射
 const updateDataMaps = () => {
-  dataMaps.value = connections.value.map(conn => ({
-    id: conn.id ? conn.id.toString() : '',
-    sourceNodeId: conn.sourceNodeId ? conn.sourceNodeId.toString() : '',
-    sourcePath: conn.sourcePath || 'value',
-    targetParamName: conn.targetParamName || '',
-    paramIndex: conn.paramIndex || 0,
-    targetPath: conn.targetPath || '',
-    sourceType: 'String', // 这里需要根据实际类型设置
-    targetType: 'String'  // 这里需要根据实际类型设置
-  }))
+  dataMaps.value = connections.value.map(conn => {
+    // 查找源节点的类型
+    let sourceType = 'String'
+    const sourceNode = findNodeById(conn.sourceId)
+    if (sourceNode && sourceNode.typeName) {
+      sourceType = sourceNode.typeName
+    }
+    
+    // 查找目标节点的类型
+    let targetType = 'String'
+    const targetNode = findNodeById(conn.targetId)
+    if (targetNode && (targetNode.paramTypeName || targetNode.typeName)) {
+      targetType = targetNode.paramTypeName || targetNode.typeName
+    }
+    
+    return {
+      id: conn.id ? conn.id.toString() : '',
+      sourceNodeId: conn.sourceNodeId ? conn.sourceNodeId.toString() : '',
+      sourcePath: conn.sourcePath || 'value',
+      targetParamName: conn.targetParamName || '',
+      paramIndex: conn.paramIndex || 0,
+      targetPath: conn.targetPath || '',
+      sourceType: sourceType,
+      targetType: targetType
+    }
+  })
+  
+  // 触发填充状态更新
+  const paths = new Set()
+  
+  // 收集所有连接的路径
+  connections.value.forEach(conn => {
+    paths.add(conn.targetPath)
+  })
+  
+  // 收集所有默认值的路径
+  Object.keys(defaultValues.value).forEach(key => {
+    if (key.endsWith('_value')) {
+      const path = key.replace('_value', '').replace(/_/g, '.')
+      paths.add(path)
+    }
+  })
+  
+  // 收集所有参数路径
+  if (props.node && props.node.method && props.node.method.parameters) {
+    props.node.method.parameters.forEach(param => {
+      paths.add(param.name)
+    })
+  }
+  
+  // 更新所有路径的填充状态
+  paths.forEach(path => {
+    updateFilledStatus(path)
+  })
 }
 
 // 删除连接
@@ -555,7 +826,7 @@ const deleteConnection = (connectionId) => {
 const isNodeConnected = (node) => {
   if (!node || !node.id) return false
   
-  if (node.type === 'value' || node.type === 'entity_attr') {
+  if (node.type === 'value') {
     // 检查左侧节点是否有连接
     return connections.value.some(conn => conn.sourceId === node.id)
   } else if (node.type === 'param_value' || node.type === 'entity_attr') {
@@ -567,46 +838,57 @@ const isNodeConnected = (node) => {
 
 // 检查参数是否已经设置了默认值
 const hasDefaultValue = (paramIndex, path) => {
-  return Object.keys(defaultValues.value).some(key => {
-    if (key.endsWith('_value')) {
-      const parts = key.split('_')
-      const paramIdx = parseInt(parts[0])
-      const paramPath = parts.slice(1, -1).join('_')
-      return paramIdx === paramIndex && paramPath === path && defaultValues.value[key] !== ''
-    }
-    return false
-  })
+  const normalizedPath = path.replace(/\./g, '_')
+  const key = `${paramIndex}_${normalizedPath}_value`
+  return defaultValues.value[key] !== undefined && defaultValues.value[key] !== ''
 }
 
-// 检查参数或其子属性是否已经设置了映射
-const hasMapping = (paramIndex) => {
-  return connections.value.some(conn => conn.paramIndex === paramIndex)
+// 检查参数是否已经设置了映射
+const hasMapping = (paramIndex, path) => {
+  if (path) {
+    // 检查特定路径是否有映射
+    return connections.value.some(conn => 
+      conn.targetPath === path
+    )
+  } else {
+    // 检查整个参数是否有映射
+    const param = props.node.method.parameters[paramIndex]
+    if (!param) return false
+    // 检查是否有任何连接指向该参数
+    return connections.value.some(c => {
+      // 检查targetPath是否等于参数名
+      return c.targetPath === param.name
+    })
+  }
 }
 
-// 检查参数或其子属性是否已经设置了默认值
-const hasAnyDefaultValue = (paramIndex) => {
-  return Object.keys(defaultValues.value).some(key => {
-    if (key.endsWith('_value')) {
-      const parts = key.split('_')
-      const paramIdx = parseInt(parts[0])
-      return paramIdx === paramIndex && defaultValues.value[key] !== ''
-    }
-    return false
-  })
-}
-
-// 检查当前节点的父级是否已经设置了映射
-const hasParentMapping = (node) => {
-  if (node.type === 'entity_attr') {
-    // 检查父级节点是否有连接
-    const parentPath = node.path.split('.')[0]
-    return connections.value.some(conn => {
-      if (conn.targetPath === parentPath) {
-        return true
+// 检查参数是否已经设置了默认值
+const hasAnyDefaultValue = (paramIndex, path) => {
+  if (path) {
+    // 检查特定路径是否有默认值
+    const normalizedPath = path.replace(/\./g, '_')
+    const key = `${paramIndex}_${normalizedPath}_value`
+    return defaultValues.value[key] !== undefined && defaultValues.value[key] !== ''
+  } else {
+    // 检查整个参数是否有默认值
+    // 首先获取参数名
+    const param = props.node.method.parameters[paramIndex]
+    if (!param) return false
+    
+    // 查找参数名对应的默认值
+    return Object.keys(defaultValues.value).some(key => {
+      if (key.endsWith('_value')) {
+        const parts = key.split('_')
+        const pathPart = parts.slice(1, -1).join('_')
+        return pathPart === param.name && defaultValues.value[key] !== ''
       }
       return false
     })
   }
+}
+
+// 检查当前节点的父级是否已经设置了映射
+const hasParentMapping = () => {
   return false
 }
 
@@ -620,6 +902,133 @@ const isBasicType = (type) => {
     'BigInteger', 'BigDecimal', 'Date', 'LocalDate', 'LocalDateTime', 'Timestamp'
   ]
   return basicTypesOnly.includes(baseType)
+}
+
+// 验证默认值是否符合数据类型
+const validateDefaultValue = (value, type) => {
+  if (!value || value.trim() === '') return true
+  
+  const baseType = getBaseType(type)
+  
+  try {
+    switch (baseType) {
+      case 'String':
+        return true
+      case 'Integer':
+      case 'int':
+        return Number.isInteger(Number(value))
+      case 'Long':
+      case 'long':
+        return !isNaN(Number(value))
+      case 'Double':
+      case 'double':
+      case 'Float':
+      case 'float':
+        return !isNaN(Number(value))
+      case 'Boolean':
+      case 'boolean':
+        return ['true', 'false', '1', '0'].includes(value.toLowerCase())
+      case 'Byte':
+      case 'byte':
+        const byteValue = Number(value)
+        return !isNaN(byteValue) && byteValue >= -128 && byteValue <= 127
+      case 'Short':
+      case 'short':
+        const shortValue = Number(value)
+        return !isNaN(shortValue) && shortValue >= -32768 && shortValue <= 32767
+      case 'Character':
+      case 'char':
+        return value.length === 1
+      case 'BigInteger':
+      case 'BigDecimal':
+        return !isNaN(Number(value))
+      case 'Date':
+      case 'LocalDate':
+      case 'LocalDateTime':
+      case 'Timestamp':
+        return !isNaN(new Date(value).getTime())
+      default:
+        return true
+    }
+  } catch (error) {
+    return false
+  }
+}
+
+// 验证所有默认值是否合法
+const validateAllDefaultValues = () => {
+  let isValid = true
+  const errors = []
+  
+  Object.keys(defaultValues.value).forEach(key => {
+    if (key.endsWith('_value')) {
+      const parts = key.split('_')
+      const paramIndex = parseInt(parts[0])
+      const path = parts.slice(1, -1).join('_')
+      const value = defaultValues.value[key]
+      
+      if (value !== undefined && value !== '') {
+        // 查找参数信息，获取实际的数据类型
+        let paramType = 'String'
+        if (props.node.method && props.node.method.parameters) {
+          // 只按照order字段排序
+          const sortedParameters = [...props.node.method.parameters].sort((a, b) => {
+            return (a.order || 0) - (b.order || 0)
+          })
+          const param = sortedParameters.find(p => p.name === path)
+          if (param) {
+            paramType = param.type
+          }
+        }
+        
+        if (!validateDefaultValue(value, paramType)) {
+          isValid = false
+          errors.push(`参数 ${path} 的默认值不符合 ${paramType} 类型要求`)
+        }
+      }
+    }
+  })
+  
+  return { isValid, errors }
+}
+
+// 根据节点ID查找节点
+const findNodeById = (nodeId) => {
+  // 先在左侧树数据中查找
+  for (const nodeData of leftTreeData.value) {
+    for (const child of nodeData.children) {
+      if (child.id === nodeId) {
+        return child
+      }
+      // 检查子节点
+      if (child.children) {
+        for (const grandchild of child.children) {
+          if (grandchild.id === nodeId) {
+            return grandchild
+          }
+        }
+      }
+    }
+  }
+  
+  // 再在右侧树数据中查找
+  for (const nodeData of rightTreeData.value) {
+    for (const child of nodeData.children) {
+      if (child.id === nodeId) {
+        return child
+      }
+      // 检查子节点
+      if (child.children) {
+        for (const grandchild of child.children) {
+          if (grandchild.id === nodeId) {
+            return grandchild
+          }
+        }
+      }
+    }
+  }
+  
+  return null
 }
 
 // 获取连线点击区域的样式
@@ -708,75 +1117,12 @@ const deleteSelectedConnection = () => {
 // 关闭弹窗
 const closeDialog = () => {
   console.log('closeDialog called')
-  // 关闭弹窗
+  // 直接关闭弹窗，不进行验证
   emit('update:visible', false)
 }
 
 // 标志，用于避免在点击保存按钮时重复保存
 const isSaving = ref(false)
-
-// 保存配置
-const saveConfig = () => {
-  isSaving.value = true
-  // 处理默认值
-  const newNodeDefaults = []
-  
-  // 遍历defaultValues，创建nodeDefaults
-  Object.keys(defaultValues.value).forEach(key => {
-    if (key.endsWith('_value')) {
-      const parts = key.split('_')
-      const paramIndex = parseInt(parts[0])
-      const path = parts.slice(1, -1).join('_')
-      const value = defaultValues.value[key]
-      const type = defaultValues.value[`${paramIndex}_${path}_type`] || 'String'
-      
-      if (value !== undefined && value !== '') {
-        // 检查参数是否已经设置了映射
-        if (hasMapping(paramIndex)) {
-          ElMessage.warning(`参数 ${path} 已经设置了映射，不能再设置默认值`)
-          return
-        }
-        
-        // 检查父级节点是否已经设置了映射
-        const targetNode = {
-          type: 'entity_attr',
-          path: path,
-          paramIndex: paramIndex
-        }
-        if (hasParentMapping(targetNode)) {
-          ElMessage.warning(`父级节点已经设置了映射，子级节点 ${path} 不能再设置默认值`)
-          return
-        }
-        
-        // 检查类型是否是基本数据类型或包装类
-        if (!isBasicType(type)) {
-          ElMessage.warning(`类型 ${type} 不是基本数据类型或包装类，不能设置默认值`)
-          return
-        }
-        
-        newNodeDefaults.push({
-          id: Date.now().toString(),
-          paramIndex: paramIndex,
-          paramName: path,
-          fieldPath: path,
-          defaultValue: value,
-          defaultValueType: type
-        })
-      }
-    }
-  })
-  
-  emit('save', {
-    dataMaps: dataMaps.value,
-    nodeDefaults: newNodeDefaults
-  })
-  // 保存后关闭弹窗
-  dialogVisible.value = false
-  // 重置标志
-  setTimeout(() => {
-    isSaving.value = false
-  }, 100)
-}
 
 // 监听节点变化，更新树数据和重置状态
 watch(() => props.node, (newNode) => {
@@ -797,7 +1143,7 @@ watch(() => props.node, (newNode) => {
     dataMaps.value = newNode.dataMaps
     // 转换为连接数据
     connections.value = dataMaps.value.map(map => ({
-      id: map.id ? parseInt(map.id) : Date.now(),
+      id: map.id ? (parseInt(map.id) || Date.now()) : Date.now(),
       sourceNodeId: map.sourceNodeId ? parseInt(map.sourceNodeId) : null,
       sourcePath: map.sourcePath || 'value',
       sourceId: map.sourceNodeId ? `value_${map.sourceNodeId}` : null, // 构建sourceId
@@ -820,7 +1166,6 @@ watch(() => props.preNodes, () => {
 
 // 组件挂载时初始化数据
 onMounted(() => {
-  console.log('WorkflowMappingConfig mounted with props:', props)
   computeLeftTreeData()
   computeRightTreeData()
   
@@ -828,20 +1173,46 @@ onMounted(() => {
   if (props.node && props.node.dataMaps) {
     dataMaps.value = props.node.dataMaps
     // 转换为连接数据
-    connections.value = dataMaps.value.map(map => ({
-      id: map.id ? parseInt(map.id) : Date.now(),
-      sourceNodeId: map.sourceNodeId,
-      sourcePath: map.sourcePath || '',
-      sourceId: `value_${map.sourceNodeId}`, // 构建sourceId
-      paramIndex: map.paramIndex || 0,
-      targetParamName: map.targetParamName || '',
-      targetPath: map.targetPath || '',
-      targetId: `param_${map.paramIndex}_value` // 构建targetId
-    }))
+    connections.value = dataMaps.value.map(map => {
+      // 构建sourceId
+      let sourceId = null
+      if (map.sourceNodeId) {
+        if (map.sourcePath && map.sourcePath !== 'value') {
+          // 实体类属性的sourceId
+          const attrName = map.sourcePath.replace('value.', '')
+          const preNode = props.preNodes.find(n => n.id === map.sourceNodeId)
+          if (preNode && preNode.method) {
+            const returnType = preNode.method.returnType
+            const returnTypeBase = getBaseType(returnType)
+            sourceId = `attr_${returnTypeBase}_${attrName}`
+          }
+        } else {
+          // 基本类型的sourceId
+          sourceId = `value_${map.sourceNodeId}`
+        }
+      }
+      return {
+        id: map.id ? (parseInt(map.id) || Date.now()) : Date.now(),
+        sourceNodeId: map.sourceNodeId,
+        sourcePath: map.sourcePath || '',
+        sourceId: sourceId,
+        paramIndex: map.paramIndex || 0,
+        targetParamName: map.targetParamName || '',
+        targetPath: map.targetPath || '',
+        targetId: `param_${map.paramIndex}_value` // 构建targetId
+      }
+    })
   }
   
   if (props.node && props.node.nodeDefaults) {
     nodeDefaults.value = props.node.nodeDefaults
+  }
+  
+  // 初始化填充状态
+  if (props.node && props.node.method && props.node.method.parameters) {
+    props.node.method.parameters.forEach(param => {
+      updateFilledStatus(param.name)
+    })
   }
   
   // 延迟计算连线路径，确保DOM元素已经完全渲染
@@ -853,7 +1224,8 @@ onMounted(() => {
 
 // 监听visible属性变化
 watch(() => props.visible, (newValue) => {
-  console.log('WorkflowMappingConfig visible changed:', newValue)
+  // 无论之前的状态如何，都要更新dialogVisible的值
+  // 这样可以确保即使在用户强制关闭弹窗后，也能再次打开
   dialogVisible.value = newValue
   
   // 当弹窗打开时，重新初始化所有状态和数据
@@ -866,79 +1238,108 @@ watch(() => props.visible, (newValue) => {
     selectedLeftNode.value = null
     selectedRightNode.value = null
     
-    // 先更新树数据
-    computeLeftTreeData()
-    computeRightTreeData()
-    
     // 延迟初始化数据，确保props.node已经更新
     setTimeout(() => {
-      console.log('Initializing data for node:', props.node?.id)
-      console.log('Node dataMaps:', props.node?.dataMaps)
+      // 先更新树数据
+      computeLeftTreeData()
+      computeRightTreeData()
+      
+      // 计算排序后的参数列表
+      let sortedParameters = []
+      if (props.node && props.node.method && props.node.method.parameters) {
+        // 只按照order字段排序
+        sortedParameters = [...props.node.method.parameters].sort((a, b) => {
+          return (a.order || 0) - (b.order || 0)
+        })
+      }
       
       // 初始化当前节点的数据映射和默认值
       if (props.node && props.node.dataMaps) {
         dataMaps.value = props.node.dataMaps
-        console.log('Loaded dataMaps:', dataMaps.value)
         // 转换为连接数据
-        connections.value = dataMaps.value.map(map => ({
-          id: map.id ? parseInt(map.id) : Date.now(),
-          sourceNodeId: map.sourceNodeId ? parseInt(map.sourceNodeId) : null,
-          sourcePath: map.sourcePath || 'value',
-          sourceId: map.sourceNodeId ? `value_${map.sourceNodeId}` : null, // 构建sourceId
-          paramIndex: map.paramIndex || 0,
-          targetParamName: map.targetParamName || '',
-          targetPath: map.targetPath || '',
-          targetId: `param_${map.paramIndex || 0}_value` // 构建targetId
-        })).filter(conn => conn.sourceNodeId !== null && conn.sourceId !== null) // 过滤掉无效连接
-        console.log('Created connections:', connections.value)
+        connections.value = dataMaps.value.map(map => {
+          // 构建sourceId
+          let sourceId = null
+          if (map.sourceNodeId) {
+            if (map.sourcePath && map.sourcePath !== 'value') {
+              // 实体类属性的sourceId
+              const attrName = map.sourcePath.replace('value.', '')
+              const preNode = props.preNodes.find(n => n.id === map.sourceNodeId)
+              if (preNode && preNode.method) {
+                const returnType = preNode.method.returnType
+                const returnTypeBase = getBaseType(returnType)
+                sourceId = `attr_${returnTypeBase}_${attrName}`
+              }
+            } else {
+              // 基本类型的sourceId
+              sourceId = `value_${map.sourceNodeId}`
+            }
+          }
+          
+          // 查找参数在排序后的参数列表中的索引
+          let paramIndex = 0
+          if (props.node.method && props.node.method.parameters) {
+            // 只按照order字段排序
+            const sortedParameters = [...props.node.method.parameters].sort((a, b) => {
+              return (a.order || 0) - (b.order || 0)
+            })
+            const param = sortedParameters.find(p => p.name === map.targetParamName || p.name === map.targetPath)
+            if (param) {
+              paramIndex = sortedParameters.indexOf(param)
+            }
+          }
+          
+          return {
+            id: map.id ? (parseInt(map.id) || Date.now()) : Date.now(),
+            sourceNodeId: map.sourceNodeId,
+            sourcePath: map.sourcePath || 'value',
+            sourceId: sourceId,
+            paramIndex: paramIndex,
+            targetParamName: map.targetParamName || '',
+            targetPath: map.targetPath || '',
+            targetId: `param_${paramIndex}_value` // 构建targetId
+          }
+        }).filter(conn => conn.sourceNodeId !== null && conn.sourceId !== null) // 过滤掉无效连接
       }
       
       if (props.node && props.node.nodeDefaults) {
         nodeDefaults.value = props.node.nodeDefaults
-        console.log('Loaded nodeDefaults:', nodeDefaults.value)
+        console.log('加载的 nodeDefaults:', nodeDefaults.value)
         // 将nodeDefaults中的默认值填充到defaultValues中
-        // 先按参数名建立映射
-        const defaultByParamName = {}
-        nodeDefaults.value.forEach(defaultVal => {
-          defaultByParamName[defaultVal.paramName] = {
-            value: defaultVal.defaultValue,
-            type: defaultVal.defaultValueType || 'String'
-          }
-        })
         
-        // 然后根据排序后的参数顺序设置默认值
-        if (props.node.method && props.node.method.parameters) {
-          props.node.method.parameters.forEach((param, index) => {
-            const key = `${index}_${param.name}_value`
-            const typeKey = `${index}_${param.name}_type`
-            if (defaultByParamName[param.name]) {
-              defaultValues.value[key] = defaultByParamName[param.name].value
-              defaultValues.value[typeKey] = defaultByParamName[param.name].type
-            } else {
-              // 为所有参数设置类型默认值为String
-              if (!defaultValues.value[typeKey]) {
-                defaultValues.value[typeKey] = 'String'
-              }
+        // 然后设置所有默认值
+        nodeDefaults.value.forEach(defaultVal => {
+          const { paramName, defaultValue } = defaultVal
+          // 查找参数在排序后的参数列表中的索引
+          let paramIndex = 0
+          if (props.node.method && props.node.method.parameters) {
+            // 只按照order字段排序
+            const sortedParameters = [...props.node.method.parameters].sort((a, b) => {
+              return (a.order || 0) - (b.order || 0)
+            })
+            const param = sortedParameters.find(p => p.name === paramName)
+            if (param) {
+              paramIndex = sortedParameters.indexOf(param)
             }
-          })
-        }
-      } else {
-        // 为所有参数设置类型默认值为String
-        if (props.node && props.node.method && props.node.method.parameters) {
-          props.node.method.parameters.forEach((param, index) => {
-            const typeKey = `${index}_${param.name}_type`
-            if (!defaultValues.value[typeKey]) {
-              defaultValues.value[typeKey] = 'String'
-            }
-          })
-        }
+          }
+          // 构建默认值的键
+          const key = `${paramIndex}_${paramName}_value`
+          // 设置默认值
+          defaultValues.value[key] = defaultValue
+          console.log('恢复默认值:', key, defaultValue, '参数索引:', paramIndex)
+        })
+        console.log('恢复后的 defaultValues:', defaultValues.value)
       }
       
       // 再次延迟，确保DOM元素已经完全渲染，然后触发一次更新
       setTimeout(() => {
         // 触发一次连接数据的更新，强制重新计算路径
         connections.value = [...connections.value]
-        console.log('Connections after update:', connections.value)
+        // 延迟一点时间，确保defaultValues已经完全初始化
+        setTimeout(() => {
+          // 触发数据映射更新，确保填充状态正确
+          updateDataMaps()
+        }, 50)
       }, 100)
     }, 100) // 延迟时间，确保props.node已经更新
   }
@@ -946,41 +1347,16 @@ watch(() => props.visible, (newValue) => {
 
 // 监听dialogVisible变化
 watch(dialogVisible, (newValue, oldValue) => {
-  console.log('WorkflowMappingConfig dialogVisible changed:', newValue)
-  emit('update:visible', newValue)
+  // 只有当dialogVisible的值与props.visible的值一致时，才更新props.visible
+  // 这样可以避免当用户强制关闭弹窗时的状态混乱
+  if (newValue === props.visible) {
+    emit('update:visible', newValue)
+  }
   
-  // 当弹窗从打开状态变为关闭状态时，自动保存配置
+  // 当弹窗从打开状态变为关闭状态时，不自动保存配置
+  // 只有当点击保存按钮时才进行验证和保存
   if (oldValue && !newValue && !isSaving.value) {
-    console.log('Auto-saving config on dialog close')
-    // 处理默认值
-    const newNodeDefaults = []
-    
-    // 遍历defaultValues，创建nodeDefaults
-    Object.keys(defaultValues.value).forEach(key => {
-      if (key.endsWith('_value')) {
-        const parts = key.split('_')
-        const paramIndex = parseInt(parts[0])
-        const path = parts.slice(1, -1).join('_')
-        const value = defaultValues.value[key]
-        const type = defaultValues.value[`${paramIndex}_${path}_type`] || 'String'
-        
-        if (value !== undefined && value !== '') {
-          newNodeDefaults.push({
-            id: Date.now().toString(),
-            paramIndex: paramIndex,
-            paramName: path,
-            fieldPath: path,
-            defaultValue: value,
-            defaultValueType: type
-          })
-        }
-      }
-    })
-    
-    emit('save', {
-      dataMaps: dataMaps.value,
-      nodeDefaults: newNodeDefaults
-    })
+    // 直接关闭弹窗，不进行验证和保存
   }
 })
 </script>
@@ -1017,7 +1393,7 @@ watch(dialogVisible, (newValue, oldValue) => {
                   :class="{ 'port-dot-connected': isNodeConnected(child) }"
                   @mousedown="startDrawing(child, $event)"
                 ></div>
-                <div class="port-label">{{ child.label }}</div>
+                <div class="port-label">{{ child.labelWithType || child.label }}</div>
                 <!-- 实体类属性 -->
                 <div v-if="child.children && child.children.length > 0" class="entity-attributes">
                   <div
@@ -1033,7 +1409,7 @@ watch(dialogVisible, (newValue, oldValue) => {
                       :class="{ 'port-dot-connected': isNodeConnected(attr) }"
                       @mousedown="startDrawing(attr, $event)"
                     ></div>
-                    <div class="port-label">{{ attr.label }}</div>
+                    <div class="port-label">{{ attr.labelWithType }}</div>
                   </div>
                 </div>
               </div>
@@ -1112,45 +1488,12 @@ watch(dialogVisible, (newValue, oldValue) => {
                 <div class="port-label">{{ child.label }}</div>
                 <div v-if="child.type === 'param_value'" class="default-value-config">
                   <el-input
-                    v-model="defaultValues[`${child.paramIndex}_${child.path}_value`]"
+                    v-model="defaultValues[`${child.paramIndex}_${child.path.replace(/\./g, '_')}_value`]"
                     placeholder="默认值"
                     size="small"
-                    style="width: 100px; margin-left: 10px;"
+                    style="width: 180px; margin-left: 10px;"
                     :disabled="hasMapping(child.paramIndex) || !isBasicType(child.paramTypeName)"
                   />
-                  <el-select
-                    v-model="defaultValues[`${child.paramIndex}_${child.path}_type`]"
-                    size="small"
-                    style="width: 80px; margin-left: 5px;"
-                    :disabled="hasMapping(child.paramIndex)"
-                  >
-                    <el-option label="String" value="String" />
-                    <el-option label="Integer" value="Integer" />
-                    <el-option label="Double" value="Double" />
-                    <el-option label="Boolean" value="Boolean" />
-                    <el-option label="Long" value="Long" />
-                  </el-select>
-                </div>
-                <!-- 实体类属性 -->
-                <div v-if="child.children && child.children.length > 0" class="entity-attributes">
-                  <div
-                    v-for="attr in child.children"
-                    :key="attr.id"
-                    class="port port-attr"
-                    :data-node-id="attr.id"
-                    :class="{ 'port-selected': selectedRightNode?.id === attr.id }"
-                    @click="selectRightNode(attr)"
-                  >
-                    <!-- 当默认值未填写时显示圆圈 -->
-                    <div 
-                      v-if="!hasDefaultValue(child.paramIndex, attr.path)"
-                      class="port-dot" 
-                      :class="{ 'port-dot-connected': isNodeConnected(attr) }"
-                      @mouseup="endDrawing(attr, $event)"
-                      :style="{ cursor: hasParentMapping(attr) ? 'not-allowed' : 'crosshair' }"
-                    ></div>
-                    <div class="port-label">{{ attr.label }}</div>
-                  </div>
                 </div>
               </div>
             </div>
@@ -1203,23 +1546,23 @@ watch(dialogVisible, (newValue, oldValue) => {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  z-index: 2;
-  pointer-events: none;
+  z-index: 10;
+  pointer-events: auto;
 }
 
 .right-panel {
   position: absolute;
   right: 0;
   top: 0;
-  width: 300px;
+  width: 350px;
   height: 100%;
   padding: 10px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  z-index: 2;
-  pointer-events: none;
+  z-index: 10;
+  pointer-events: auto;
 }
 
 .left-panel h3,
@@ -1249,6 +1592,7 @@ watch(dialogVisible, (newValue, oldValue) => {
   padding: 0;
   overflow: hidden;
   z-index: 1;
+  pointer-events: none;
 }
 
 .canvas {
@@ -1256,6 +1600,7 @@ watch(dialogVisible, (newValue, oldValue) => {
   height: 100%;
   background-color: #f9f9f9;
   cursor: crosshair;
+  pointer-events: auto;
 }
 
 .node-list {
@@ -1272,7 +1617,7 @@ watch(dialogVisible, (newValue, oldValue) => {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   position: relative;
   z-index: 3;
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 .port {
@@ -1284,7 +1629,7 @@ watch(dialogVisible, (newValue, oldValue) => {
   cursor: pointer;
   transition: all 0.3s ease;
   justify-content: space-between;
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 .port-dot {
@@ -1323,11 +1668,23 @@ watch(dialogVisible, (newValue, oldValue) => {
   align-items: center;
   margin-left: 10px;
   pointer-events: auto;
+  flex-wrap: wrap;
+  gap: 5px;
 }
 
 .default-value-config input,
 .default-value-config select {
   pointer-events: auto;
+  max-width: 100px;
+}
+
+.default-value-config input {
+  flex: 1;
+  min-width: 80px;
+}
+
+.default-value-config select {
+  min-width: 70px;
 }
 
 .dialog-footer {
@@ -1368,13 +1725,40 @@ watch(dialogVisible, (newValue, oldValue) => {
 
 /* 实体类属性样式 */
 .entity-attributes {
-  margin-left: 20px;
+  margin-left: 10px;
   margin-top: 5px;
 }
 
 .port-attr {
-  border-left: 2px solid #e6e6e6;
-  padding-left: 10px;
-  margin-left: 10px;
+  padding-left: 0;
+  margin-left: 0;
+}
+
+/* 实体类头部样式 */
+.entity-header {
+  display: flex;
+  align-items: center;
+  padding: 5px 10px;
+  margin: 5px 0;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.entity-header:hover {
+  background-color: #e6f7ff;
+}
+
+.expand-icon {
+  margin-right: 8px;
+  font-size: 12px;
+  color: #409eff;
+  transition: transform 0.3s ease;
+}
+
+.entity-header span {
+  font-size: 13px;
+  color: #606266;
 }
 </style>

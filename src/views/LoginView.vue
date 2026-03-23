@@ -53,7 +53,7 @@ const handleLogin = async () => {
     // 发送登录请求
     const response = await request({
       url: '/user/login',
-      method: 'get',
+      method: 'post',
       params: {
         account: loginForm.account,
         pwd: loginForm.pwd

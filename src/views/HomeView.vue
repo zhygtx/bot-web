@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { ElMessage } from 'element-plus'
 import { User, ArrowDown, Setting } from '@element-plus/icons-vue'
+import request from '../utils/request'
 
 // 获取路由实例
 const router = useRouter()
@@ -15,13 +16,13 @@ const userStore = useUserStore()
 const handleLogout = async () => {
   try {
     // 调用退出登录接口
-    // await request({
-    //   url: '/user/logout',
-    //   method: 'post',
-    //   params: {
-    //     userId: userStore.userId
-    //   }
-    // })
+    await request({
+      url: '/user/logout',
+      method: 'post',
+      params: {
+        userId: userStore.userId
+      }
+    })
     
     // 清除用户信息
     userStore.logout()
