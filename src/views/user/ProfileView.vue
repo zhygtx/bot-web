@@ -91,20 +91,24 @@ const submitForm = async () => {
   }
   
   try {
-    await request({
+    const response = await request({
       url: '/user/update',
       method: 'put',
       data: profileForm
     })
     
-    ElMessage.success('更新个人信息成功')
-    dialogVisible.value = false
-    getUserInfo()
-    
-    // 更新用户状态管理中的信息
-    userStore.updateUserInfo({
-      name: profileForm.name
-    })
+    if (response.code === 200) {
+      ElMessage.success('更新个人信息成功')
+      dialogVisible.value = false
+      getUserInfo()
+      
+      // 更新用户状态管理中的信息
+      userStore.updateUserInfo({
+        name: profileForm.name
+      })
+    } else {
+      ElMessage.error(response.message || '操作失败')
+    }
   } catch (error) {
     ElMessage.error(error.message || '操作失败')
   }

@@ -57,6 +57,11 @@ const draggingNode = ref(null)
 // 节点拖动的起始位置
 const nodeDragStart = ref({ x: 0, y: 0 })
 
+// BOT 相关数据
+const botEvents = ref([])
+const botActions = ref([])
+const hasBotQQ = ref(localStorage.getItem('botQQ') !== null)
+
 // 连线相关状态
 const connections = ref([]) // 存储所有连线
 const isDrawing = ref(false) // 是否正在绘制连线
@@ -127,26 +132,115 @@ const loadWorkflowInfo = async () => {
         // 加载节点信息
         if (workflowInfo.value.nodes) {
           nodes.value = workflowInfo.value.nodes
-          // 为每个节点添加 method 属性，指向 methodInfo
+          // 处理节点信息
           nodes.value.forEach(node => {
-            node.method = node.methodInfo
-            // 对参数按照order字段排序，当order相同或不存在时按照参数名排序
+            let methodInitialized = false
+            
+            // 根据节点类型和 botEventName/botActionName 补全 BOT 节点信息
+            if (node.nodeType === 'botEvent' && node.botEventName) {
+              // 从 botEvents 中匹配事件信息
+              const matchedEvent = botEvents.value.find(event => event.eventName === node.botEventName)
+              if (matchedEvent) {
+                node.eventType = matchedEvent.eventType
+                node.method = {
+                  name: matchedEvent.eventName,
+                  description: matchedEvent.description,
+                  returnType: 'object',
+                  parameters: []
+                }
+                node.methodInfo = {
+                  name: matchedEvent.eventName,
+                  description: matchedEvent.description,
+                  returnType: 'object',
+                  parameters: []
+                }
+                methodInitialized = true
+              }
+            } else if (node.nodeType === 'botAction' && node.botActionName) {
+              // 从 botActions 中匹配动作信息
+              const matchedAction = botActions.value.find(action => action.actionName === node.botActionName)
+              if (matchedAction) {
+                node.method = {
+                  name: matchedAction.actionDisplayName,
+                  description: matchedAction.description,
+                  returnType: 'void',
+                  parameters: matchedAction.parameters || []
+                }
+                node.methodInfo = {
+                  name: matchedAction.actionDisplayName,
+                  description: matchedAction.description,
+                  returnType: 'void',
+                  parameters: matchedAction.parameters || []
+                }
+                // 对方法参数按照 order 字段排序
+                if (node.method.parameters) {
+                  node.method.parameters.sort((a, b) => {
+                    const orderDiff = (a.order || 0) - (b.order || 0)
+                    if (orderDiff !== 0) {
+                      return orderDiff
+                    }
+                    return a.name.localeCompare(b.name)
+                  })
+                }
+                methodInitialized = true
+              }
+            }
+            
+            // 如果没有初始化 method，尝试从不同的字段获取方法信息
+            if (!methodInitialized && !node.method) {
+              if (node.methodInfo) {
+                node.method = node.methodInfo
+              } else if (node.methodInfoList && node.methodInfoList.length > 0) {
+                node.method = node.methodInfoList[0]
+              } else if (node.methodData) {
+                node.method = node.methodData
+              } else {
+                // 如果没有方法信息，根据节点类型创建默认的方法对象
+                if (node.nodeType === 'botEvent') {
+                  node.method = {
+                    name: node.botEventName || 'BOT 事件',
+                    returnType: 'object',
+                    parameters: []
+                  }
+                } else if (node.nodeType === 'botAction') {
+                  node.method = {
+                    name: node.botActionName || 'BOT 动作',
+                    returnType: 'void',
+                    parameters: []
+                  }
+                } else {
+                  node.method = {
+                    name: '未知方法',
+                    returnType: 'void',
+                    parameters: []
+                  }
+                }
+              }
+            } else if (!methodInitialized && node.methodInfo) {
+              // 对于非 BOT 节点，使用 methodInfo
+              node.method = node.methodInfo
+            }
+            
+            // 对参数按照 order 字段排序，当 order 相同或不存在时按照参数名排序
             if (node.method && node.method.parameters) {
               node.method.parameters.sort((a, b) => {
-                // 首先按照order字段排序
+                // 首先按照 order 字段排序
                 const orderDiff = (a.order || 0) - (b.order || 0)
                 if (orderDiff !== 0) {
                   return orderDiff
                 }
-                // 如果order相同，按照参数名排序
+                // 如果 order 相同，按照参数名排序
                 return a.name.localeCompare(b.name)
               })
             }
+            
             // 确保 preNodeId 和 nextNodeId 是数组
             if (!node.preNodeId) node.preNodeId = []
             if (!node.nextNodeId) node.nextNodeId = []
             // 确保 dataMaps 是数组
             if (!node.dataMaps) node.dataMaps = []
+            // 确保 nodeDefaults 是数组
+            if (!node.nodeDefaults) node.nodeDefaults = []
           })
           // 生成连线
           generateConnections()
@@ -160,6 +254,10 @@ const loadWorkflowInfo = async () => {
     } finally {
       loading.value = false
     }
+  }
+  // 确保 nodes 是数组
+  if (!nodes.value) {
+    nodes.value = []
   }
 }
 
@@ -220,6 +318,40 @@ const loadPlugins = async () => {
   }
 }
 
+// 加载 BOT 事件列表
+const loadBotEvents = async () => {
+  try {
+    const response = await request({
+      url: '/api/bot/events',
+      method: 'get'
+    })
+    if (response.code === 200) {
+      botEvents.value = response.data || []
+    } else {
+      ElMessage.error(response.message || '加载 BOT 事件失败')
+    }
+  } catch (error) {
+    ElMessage.error('加载 BOT 事件失败')
+  }
+}
+
+// 加载 BOT 动作列表
+const loadBotActions = async () => {
+  try {
+    const response = await request({
+      url: '/api/bot/actions',
+      method: 'get'
+    })
+    if (response.code === 200) {
+      botActions.value = response.data || []
+    } else {
+      ElMessage.error(response.message || '加载 BOT 动作失败')
+    }
+  } catch (error) {
+    ElMessage.error('加载 BOT 动作失败')
+  }
+}
+
 // 测试结果弹窗
 const showTestResult = ref(false)
 const testResult = ref({})
@@ -265,10 +397,15 @@ const saveWorkflow = async () => {
         x: node.x || 0,
         y: node.y || 0,
         workflowId: workflowInfo.value.id || workflowId || '',
-        pluginId: node.pluginId || '',
-        pluginVersionId: node.pluginVersionId || '',
-        methodClassId: node.methodClassId || '',
-        methodId: node.methodId || '',
+        pluginId: node.pluginId,
+        pluginVersionId: node.pluginVersionId,
+        methodClassId: node.methodClassId,
+        methodId: node.methodId,
+        nodeType: node.nodeType || 'pluginMethod',
+        eventType: node.eventType || null,
+        botQQ: node.botQQ || null,
+        botActionName: node.botActionName || null,
+        botEventName: node.botEventName || null,
         inDegree: node.inDegree || 0,
         dataMaps: node.dataMaps || [],
         preNodeId: node.preNodeId || [],
@@ -294,19 +431,133 @@ const saveWorkflow = async () => {
     })
     
     if (response.code === 200) {
-      // 检查返回的工作流ID是否与当前ID一致
-      if (response.data && response.data.workflowId && response.data.workflowId !== workflowInfo.value.id) {
-        // 更新前端的工作流ID
-        workflowInfo.value.id = response.data.workflowId
-        // 更新所有节点的workflowId
+      // 保存后端返回的完整工作流信息
+      if (response.data) {
+        // 更新工作流信息
+        workflowInfo.value = response.data
+        // 更新节点数据
+        nodes.value = response.data.nodes || []
+        // 处理节点信息
         nodes.value.forEach(node => {
-          node.workflowId = response.data.workflowId
+          let methodInitialized = false
+          
+          // 根据节点类型和 botEventName/botActionName 补全 BOT 节点信息
+          if (node.nodeType === 'botEvent' && node.botEventName) {
+            // 从 botEvents 中匹配事件信息
+            const matchedEvent = botEvents.value.find(event => event.eventName === node.botEventName)
+            if (matchedEvent) {
+              node.eventType = matchedEvent.eventType
+              node.method = {
+                name: matchedEvent.eventName,
+                description: matchedEvent.description,
+                returnType: 'object',
+                parameters: []
+              }
+              node.methodInfo = {
+                name: matchedEvent.eventName,
+                description: matchedEvent.description,
+                returnType: 'object',
+                parameters: []
+              }
+              methodInitialized = true
+            }
+          } else if (node.nodeType === 'botAction' && node.botActionName) {
+            // 从 botActions 中匹配动作信息
+            const matchedAction = botActions.value.find(action => action.actionName === node.botActionName)
+            if (matchedAction) {
+              node.method = {
+                name: matchedAction.actionDisplayName,
+                description: matchedAction.description,
+                returnType: 'void',
+                parameters: matchedAction.parameters || []
+              }
+              node.methodInfo = {
+                name: matchedAction.actionDisplayName,
+                description: matchedAction.description,
+                returnType: 'void',
+                parameters: matchedAction.parameters || []
+              }
+              // 对方法参数按照 order 字段排序
+              if (node.method.parameters) {
+                node.method.parameters.sort((a, b) => {
+                  const orderDiff = (a.order || 0) - (b.order || 0)
+                  if (orderDiff !== 0) {
+                    return orderDiff
+                  }
+                  return a.name.localeCompare(b.name)
+                })
+              }
+              methodInitialized = true
+            }
+          }
+          
+          // 如果没有初始化 method，尝试从不同的字段获取方法信息
+          if (!methodInitialized && !node.method) {
+            if (node.methodInfo) {
+              node.method = node.methodInfo
+            } else if (node.methodInfoList && node.methodInfoList.length > 0) {
+              node.method = node.methodInfoList[0]
+            } else if (node.methodData) {
+              node.method = node.methodData
+            } else {
+              // 如果没有方法信息，根据节点类型创建默认的方法对象
+              if (node.nodeType === 'botEvent') {
+                node.method = {
+                  name: node.botEventName || 'BOT 事件',
+                  returnType: 'object',
+                  parameters: []
+                }
+              } else if (node.nodeType === 'botAction') {
+                node.method = {
+                  name: node.botActionName || 'BOT 动作',
+                  returnType: 'void',
+                  parameters: []
+                }
+              } else {
+                node.method = {
+                  name: '未知方法',
+                  returnType: 'void',
+                  parameters: []
+                }
+              }
+            }
+          } else if (!methodInitialized && node.methodInfo) {
+            // 对于非 BOT 节点，使用 methodInfo
+            node.method = node.methodInfo
+          }
+          
+          // 对参数按照 order 字段排序，当 order 相同或不存在时按照参数名排序
+          if (node.method && node.method.parameters) {
+            node.method.parameters.sort((a, b) => {
+              // 首先按照 order 字段排序
+              const orderDiff = (a.order || 0) - (b.order || 0)
+              if (orderDiff !== 0) {
+                return orderDiff
+              }
+              // 如果 order 相同，按照参数名排序
+              return a.name.localeCompare(b.name)
+            })
+          }
+          
+          // 确保 preNodeId 和 nextNodeId 是数组
+          if (!node.preNodeId) node.preNodeId = []
+          if (!node.nextNodeId) node.nextNodeId = []
+          // 确保 dataMaps 是数组
+          if (!node.dataMaps) node.dataMaps = []
+          // 确保 nodeDefaults 是数组
+          if (!node.nodeDefaults) node.nodeDefaults = []
         })
+        // 生成连线
+        generateConnections()
       }
       ElMessage.success(workflowInfo.value.id ? '更新工作流成功' : '创建工作流成功')
+      // 更新浏览器URL，添加工作流ID
+      if (workflowInfo.value.id) {
+        router.replace(`/workflow/edit/${workflowInfo.value.id}`)
+      }
       // 清除工作流缓存
       clearWorkflowCache()
-      router.push('/workflow/list')
+      // 不退出工作流画布，只保存
     } else {
       ElMessage.error(response.message || (workflowInfo.value.id ? '更新工作流失败' : '创建工作流失败'))
     }
@@ -336,9 +587,60 @@ const loadWorkflowDetail = async (id) => {
       // 确保节点有正确的方法信息
       nodes.value.forEach(node => {
         console.log('原始节点数据:', node)
-        // 确保节点有 method 属性
-        if (!node.method) {
-          // 尝试从不同的字段获取方法信息
+        let methodInitialized = false
+        
+        // 根据节点类型和 botEventName/botActionName 补全 BOT 节点信息
+        if (node.nodeType === 'botEvent' && node.botEventName) {
+          // 从 botEvents 中匹配事件信息
+          const matchedEvent = botEvents.value.find(event => event.eventName === node.botEventName)
+          if (matchedEvent) {
+            node.eventType = matchedEvent.eventType
+            node.method = {
+              name: matchedEvent.eventName,
+              description: matchedEvent.description,
+              returnType: 'object',
+              parameters: []
+            }
+            node.methodInfo = {
+              name: matchedEvent.eventName,
+              description: matchedEvent.description,
+              returnType: 'object',
+              parameters: []
+            }
+            methodInitialized = true
+          }
+        } else if (node.nodeType === 'botAction' && node.botActionName) {
+          // 从 botActions 中匹配动作信息
+          const matchedAction = botActions.value.find(action => action.actionName === node.botActionName)
+          if (matchedAction) {
+            node.method = {
+              name: matchedAction.actionDisplayName,
+              description: matchedAction.description,
+              returnType: 'void',
+              parameters: matchedAction.parameters || []
+            }
+            node.methodInfo = {
+              name: matchedAction.actionDisplayName,
+              description: matchedAction.description,
+              returnType: 'void',
+              parameters: matchedAction.parameters || []
+            }
+            // 对方法参数按照 order 字段排序
+            if (node.method.parameters) {
+              node.method.parameters.sort((a, b) => {
+                const orderDiff = (a.order || 0) - (b.order || 0)
+                if (orderDiff !== 0) {
+                  return orderDiff
+                }
+                return a.name.localeCompare(b.name)
+              })
+            }
+            methodInitialized = true
+          }
+        }
+        
+        // 如果没有初始化 method，尝试从不同的字段获取方法信息
+        if (!methodInitialized && !node.method) {
           if (node.methodInfo) {
             node.method = node.methodInfo
           } else if (node.methodInfoList && node.methodInfoList.length > 0) {
@@ -346,11 +648,25 @@ const loadWorkflowDetail = async (id) => {
           } else if (node.methodData) {
             node.method = node.methodData
           } else {
-            // 如果没有方法信息，创建一个默认的方法对象
-            node.method = {
-              name: '未知方法',
-              returnType: 'void',
-              parameters: []
+            // 如果没有方法信息，根据节点类型创建默认的方法对象
+            if (node.nodeType === 'botEvent') {
+              node.method = {
+                name: node.botEventName || 'BOT 事件',
+                returnType: 'object',
+                parameters: []
+              }
+            } else if (node.nodeType === 'botAction') {
+              node.method = {
+                name: node.botActionName || 'BOT 动作',
+                returnType: 'void',
+                parameters: []
+              }
+            } else {
+              node.method = {
+                name: '未知方法',
+                returnType: 'void',
+                parameters: []
+              }
             }
           }
         }
@@ -447,10 +763,13 @@ const saveAndTestWorkflow = async () => {
         x: node.x || 0,
         y: node.y || 0,
         workflowId: workflowInfo.value.id || workflowId || '',
-        pluginId: node.pluginId || '',
-        pluginVersionId: node.pluginVersionId || '',
-        methodClassId: node.methodClassId || '',
-        methodId: node.methodId || '',
+        pluginId: node.pluginId,
+        pluginVersionId: node.pluginVersionId,
+        methodClassId: node.methodClassId,
+        methodId: node.methodId,
+        nodeType: node.nodeType || 'pluginMethod',
+        eventType: node.eventType || null,
+        botQQ: node.botQQ || null,
         inDegree: node.inDegree || 0,
         dataMaps: node.dataMaps || [],
         preNodeId: node.preNodeId || [],
@@ -469,36 +788,81 @@ const saveAndTestWorkflow = async () => {
   
   loading.value = true
   try {
-    // 计算超时时间：节点数量 * 5秒
-    const nodeCount = workflowData.nodes.length
-    const timeout = nodeCount * 5000
+    // 先保存工作流
+    let saveResponse
+    if (workflowInfo.value.id) {
+      // 有UUID，调用更新接口
+      saveResponse = await request({
+        url: '/workflow',
+        method: 'put',
+        data: workflowData
+      })
+    } else {
+      // 无UUID，调用保存接口
+      saveResponse = await request({
+        url: '/workflow',
+        method: 'post',
+        data: workflowData
+      })
+    }
     
-    const response = await request({
+    if (saveResponse.code !== 200) {
+      ElMessage.error(saveResponse.message || (workflowInfo.value.id ? '更新工作流失败' : '创建工作流失败'))
+      return
+    }
+    
+    // 保存成功，更新完整工作流信息
+    if (saveResponse.data) {
+      // 更新工作流信息
+      workflowInfo.value = saveResponse.data
+      // 更新节点数据
+      nodes.value = saveResponse.data.nodes || []
+      // 为每个节点添加 method 属性，指向 methodInfo
+      nodes.value.forEach(node => {
+        node.method = node.methodInfo
+        // 对参数按照order字段排序，当order相同或不存在时按照参数名排序
+        if (node.method && node.method.parameters) {
+          node.method.parameters.sort((a, b) => {
+            // 首先按照order字段排序
+            const orderDiff = (a.order || 0) - (b.order || 0)
+            if (orderDiff !== 0) {
+              return orderDiff
+            }
+            // 如果order相同，按照参数名排序
+            return a.name.localeCompare(b.name)
+          })
+        }
+        // 确保 preNodeId 和 nextNodeId 是数组
+        if (!node.preNodeId) node.preNodeId = []
+        if (!node.nextNodeId) node.nextNodeId = []
+        // 确保 dataMaps 是数组
+        if (!node.dataMaps) node.dataMaps = []
+      })
+      // 生成连线
+      generateConnections()
+      // 更新浏览器URL，添加工作流ID
+      if (workflowInfo.value.id) {
+        router.replace(`/workflow/edit/${workflowInfo.value.id}`)
+      }
+    }
+    
+    // 调用测试接口
+    const testResponse = await request({
       url: '/workflow/test',
       method: 'post',
-      data: workflowData,
-      timeout: timeout
+      params: {
+        workflowId: workflowInfo.value.id
+      }
     })
     
-    if (response.code === 200) {
-      // 检查返回的工作流ID是否与当前ID一致
-      if (response.data && response.data.workflowId && response.data.workflowId !== workflowInfo.value.id) {
-        // 更新前端的工作流ID
-        workflowInfo.value.id = response.data.workflowId
-        // 更新所有节点的workflowId
-        nodes.value.forEach(node => {
-          node.workflowId = response.data.workflowId
-        })
-        // 重新查询工作流并更新画布
-        await loadWorkflowDetail(response.data.workflowId)
-      }
+    if (testResponse.code === 200) {
       ElMessage.success('测试工作流成功')
-      testResult.value = response.data.testResult
+      testResult.value = testResponse.data
       showTestResult.value = true
       // 清除工作流缓存
       clearWorkflowCache()
     } else {
-      ElMessage.error(response.message || '测试工作流失败')
+      ElMessage.error(testResponse.message || '测试工作流失败')
     }
   } catch (error) {
     ElMessage.error('测试工作流失败')
@@ -542,7 +906,12 @@ const validateWorkflowNodes = () => {
         node.nodeDefaults.forEach(def => {
           // 提取参数名（处理子属性，如param.subparam）
           const paramName = def.paramName.split('.')[0]
-          mappedParams.add(paramName)
+          // 检查是否有默认值（支持value和defaultValue字段）
+          const hasValue = def.value !== undefined && def.value !== ''
+          const hasDefaultValue = def.defaultValue !== undefined && def.defaultValue !== ''
+          if (hasValue || hasDefaultValue) {
+            mappedParams.add(paramName)
+          }
         })
       }
       
@@ -864,6 +1233,17 @@ const handlePortMouseDown = (e, node, port) => {
     fromPort: port,
     toX: e.clientX - rect.left,
     toY: e.clientY - rect.top
+  }
+}
+
+// 获取节点名称
+const getNodeName = (node) => {
+  if (node.nodeType === 'botEvent') {
+    return node.botEventName || 'BOT 事件'
+  } else if (node.nodeType === 'botAction') {
+    return node.botActionName || 'BOT 动作'
+  } else {
+    return node.method ? node.method.name : '未知方法'
   }
 }
 
@@ -1237,6 +1617,54 @@ const disconnectSelectedNodes = () => {
 
 // 打开映射配置弹窗
 const openMappingConfig = (node) => {
+  // 补全 BOT 节点的方法信息
+  if (node.nodeType === 'botEvent' && node.botEventName) {
+    // 从 botEvents 中匹配事件信息
+    const matchedEvent = botEvents.value.find(event => event.eventName === node.botEventName)
+    if (matchedEvent) {
+      node.eventType = matchedEvent.eventType
+      node.method = {
+        name: matchedEvent.eventName,
+        description: matchedEvent.description,
+        returnType: 'object',
+        parameters: []
+      }
+      node.methodInfo = {
+        name: matchedEvent.eventName,
+        description: matchedEvent.description,
+        returnType: 'object',
+        parameters: []
+      }
+    }
+  } else if (node.nodeType === 'botAction' && node.botActionName) {
+    // 从 botActions 中匹配动作信息
+    const matchedAction = botActions.value.find(action => action.actionName === node.botActionName)
+    if (matchedAction) {
+      node.method = {
+        name: matchedAction.actionDisplayName,
+        description: matchedAction.description,
+        returnType: 'void',
+        parameters: matchedAction.parameters || []
+      }
+      node.methodInfo = {
+        name: matchedAction.actionDisplayName,
+        description: matchedAction.description,
+        returnType: 'void',
+        parameters: matchedAction.parameters || []
+      }
+      // 对方法参数按照 order 字段排序
+      if (node.method.parameters) {
+        node.method.parameters.sort((a, b) => {
+          const orderDiff = (a.order || 0) - (b.order || 0)
+          if (orderDiff !== 0) {
+            return orderDiff
+          }
+          return a.name.localeCompare(b.name)
+        })
+      }
+    }
+  }
+  
   currentNode.value = node
   showMappingConfig.value = true
   hideContextMenu()
@@ -1306,6 +1734,34 @@ const startDrag = (e, method, methodClass, plugin, version) => {
   e.dataTransfer.effectAllowed = 'copy'
 }
 
+// 开始拖动 BOT 事件
+const startDragBotEvent = (e, event) => {
+  draggingElement.value = {
+    event,
+    type: 'botEvent'
+  }
+  dragStart.value = {
+    x: e.clientX,
+    y: e.clientY
+  }
+  document.body.style.cursor = 'grabbing'
+  e.dataTransfer.effectAllowed = 'copy'
+}
+
+// 开始拖动 BOT 动作
+const startDragBotAction = (e, action) => {
+  draggingElement.value = {
+    action,
+    type: 'botAction'
+  }
+  dragStart.value = {
+    x: e.clientX,
+    y: e.clientY
+  }
+  document.body.style.cursor = 'grabbing'
+  e.dataTransfer.effectAllowed = 'copy'
+}
+
 // 拖动结束
 const endDrag = () => {
   draggingElement.value = null
@@ -1315,7 +1771,7 @@ const endDrag = () => {
 // 画布上放置节点
 const dropNode = (e) => {
   e.preventDefault()
-  if (draggingElement.value && draggingElement.value.type === 'method') {
+  if (draggingElement.value) {
     // 计算节点在画布上的位置（相对于画布的偏移）
     const rect = canvasRef.value.getBoundingClientRect()
     // 直接使用鼠标相对于画布的位置，不需要减去 canvasX 和 canvasY
@@ -1323,50 +1779,163 @@ const dropNode = (e) => {
     const nodeX = e.clientX - rect.left
     const nodeY = e.clientY - rect.top
     
-    // 对方法参数按照order字段排序，当order相同或不存在时按照参数名排序
-    const method = draggingElement.value.method
-    if (method && method.parameters) {
-      method.parameters.sort((a, b) => {
-        // 首先按照order字段排序
-        const orderDiff = (a.order || 0) - (b.order || 0)
-        if (orderDiff !== 0) {
-          return orderDiff
+    let newNode
+    
+    if (draggingElement.value.type === 'method') {
+      // 对方法参数按照order字段排序，当order相同或不存在时按照参数名排序
+      const method = draggingElement.value.method
+      if (method && method.parameters) {
+        method.parameters.sort((a, b) => {
+          // 首先按照order字段排序
+          const orderDiff = (a.order || 0) - (b.order || 0)
+          if (orderDiff !== 0) {
+            return orderDiff
+          }
+          // 如果order相同，按照参数名排序
+          return a.name.localeCompare(b.name)
+        })
+      }
+      
+      // 创建新节点
+      newNode = {
+        id: Date.now().toString(),
+        x: nodeX,
+        y: nodeY,
+        workflowId: workflowInfo.value.id || workflowId,
+        pluginId: draggingElement.value.plugin?.id || '',
+        pluginVersionId: draggingElement.value.version?.id || '',
+        methodClassId: draggingElement.value.methodClass?.id || '',
+        methodId: draggingElement.value.method?.id || '',
+        nodeType: 'pluginMethod',
+        eventType: null,
+        botQQ: null,
+        inDegree: 0,
+        dataMaps: [],
+        preNodeId: [],
+        nextNodeId: [],
+        nodeDefaults: [],
+        condition: null,
+        pluginInfo: draggingElement.value.plugin || null,
+        pluginVersion: draggingElement.value.version || null,
+        methodClassInfo: draggingElement.value.methodClass || null,
+        methodInfo: method,
+        method: method,
+        methodClass: draggingElement.value.methodClass,
+        plugin: draggingElement.value.plugin
+      }
+    } else if (draggingElement.value.type === 'botEvent') {
+      const event = draggingElement.value.event
+      // 获取用户注册的机器人QQ号
+      const botQQ = localStorage.getItem('botQQ')
+      
+      // 创建 BOT 事件节点
+      newNode = {
+        id: Date.now().toString(),
+        x: nodeX,
+        y: nodeY,
+        workflowId: workflowInfo.value.id || workflowId,
+        pluginId: null,
+        pluginVersionId: null,
+        methodClassId: null,
+        methodId: null,
+        nodeType: 'botEvent',
+        eventType: event.eventType,
+        botQQ: botQQ,
+        botEventName: event.eventName,
+        inDegree: 0,
+        dataMaps: [],
+        preNodeId: [],
+        nextNodeId: [],
+        nodeDefaults: [],
+        condition: null,
+        pluginInfo: null,
+        pluginVersion: null,
+        methodClassInfo: null,
+        methodInfo: {
+          name: event.eventName,
+          returnType: 'object',
+          parameters: []
+        },
+        method: {
+          name: event.eventName,
+          returnType: 'object',
+          parameters: []
         }
-        // 如果order相同，按照参数名排序
-        return a.name.localeCompare(b.name)
-      })
+      }
+    } else if (draggingElement.value.type === 'botAction') {
+      const action = draggingElement.value.action
+      // 对方法参数按照order字段排序，当order相同或不存在时按照参数名排序
+      if (action.parameters) {
+        action.parameters.sort((a, b) => {
+          // 首先按照order字段排序
+          const orderDiff = (a.order || 0) - (b.order || 0)
+          if (orderDiff !== 0) {
+            return orderDiff
+          }
+          // 如果order相同，按照参数名排序
+          return a.name.localeCompare(b.name)
+        })
+      }
+      
+      // 获取用户注册的机器人QQ号
+      const botQQ = localStorage.getItem('botQQ')
+      
+      // 创建 BOT 动作节点
+      newNode = {
+        id: Date.now().toString(),
+        x: nodeX,
+        y: nodeY,
+        workflowId: workflowInfo.value.id || workflowId,
+        pluginId: null,
+        pluginVersionId: null,
+        methodClassId: null,
+        methodId: null,
+        nodeType: 'botAction',
+        botQQ: botQQ,
+        botActionName: action.actionName,
+        inDegree: 0,
+        dataMaps: [],
+        preNodeId: [],
+        nextNodeId: [],
+        nodeDefaults: [],
+        condition: null,
+        pluginInfo: null,
+        pluginVersion: null,
+        methodClassInfo: null,
+        methodInfo: {
+          name: action.actionDisplayName,
+          description: action.description,
+          returnType: 'void',
+          parameters: action.parameters || []
+        },
+        method: {
+          name: action.actionDisplayName,
+          description: action.description,
+          returnType: 'void',
+          parameters: action.parameters || []
+        }
+      }
+      
+      // 为botQQ参数预填充值
+      if (botQQ && action.parameters) {
+        const botQQParam = action.parameters.find(p => p.name === 'botQQ')
+        if (botQQParam) {
+          newNode.nodeDefaults.push({
+            paramName: 'botQQ',
+            defaultValue: botQQ,
+            defaultValueType: 'Long'
+          })
+        }
+      }
     }
     
-    // 创建新节点
-    const newNode = {
-      id: Date.now().toString(),
-      x: nodeX,
-      y: nodeY,
-      workflowId: workflowInfo.value.id || workflowId,
-      pluginId: draggingElement.value.plugin?.id || '',
-      pluginVersionId: draggingElement.value.version?.id || '',
-      methodClassId: draggingElement.value.methodClass?.id || '',
-      methodId: draggingElement.value.method?.id || '',
-      inDegree: 0,
-      dataMaps: [],
-      preNodeId: [],
-      nextNodeId: [],
-      nodeDefaults: [],
-      condition: null,
-      pluginInfo: draggingElement.value.plugin || null,
-      pluginVersion: draggingElement.value.version || null,
-      methodClassInfo: draggingElement.value.methodClass || null,
-      methodInfo: method,
-      method: method,
-      methodClass: draggingElement.value.methodClass,
-      plugin: draggingElement.value.plugin
+    if (newNode) {
+      // 添加到节点列表
+      nodes.value.push(newNode)
+      
+      // 隐藏提示信息
+      showCanvasPlaceholder.value = false
     }
-    
-    // 添加到节点列表
-    nodes.value.push(newNode)
-    
-    // 隐藏提示信息
-    showCanvasPlaceholder.value = false
   }
   endDrag()
 }
@@ -1382,10 +1951,45 @@ const handlePopState = () => {
   loadPlugins()
 }
 
+// 同步机器人信息到localStorage
+const syncBotInfo = async () => {
+  try {
+    const response = await request({
+      url: '/bot/info',
+      method: 'get'
+    })
+    if (response.code === 200 && response.data && response.data.botQQ) {
+      localStorage.setItem('botQQ', response.data.botQQ)
+      hasBotQQ.value = true
+      loadBotEvents()
+      loadBotActions()
+    } else {
+      localStorage.removeItem('botQQ')
+      hasBotQQ.value = false
+    }
+  } catch (error) {
+    console.error('同步机器人信息失败:', error)
+  }
+}
+
 // 初始化加载
-onMounted(() => {
-  loadWorkflowInfo()
+onMounted(async () => {
+  // 先加载 BOT 事件和动作列表
+  const botQQ = localStorage.getItem('botQQ')
+  hasBotQQ.value = botQQ !== null
+  if (botQQ) {
+    await Promise.all([
+      loadBotEvents(),
+      loadBotActions()
+    ])
+  }
+  
+  // 然后加载工作流信息和插件列表
+  await loadWorkflowInfo()
   loadPlugins()
+  
+  // 同步机器人信息
+  syncBotInfo()
   
   // 检查是否是从插件详情页返回的
   let fromPluginDetail = false
@@ -1414,6 +2018,116 @@ onMounted(() => {
     
     if (savedNodes) {
       nodes.value = JSON.parse(savedNodes)
+      // 处理恢复的节点信息
+      nodes.value.forEach(node => {
+        let methodInitialized = false
+        
+        // 根据节点类型和 botEventName/botActionName 补全 BOT 节点信息
+        if (node.nodeType === 'botEvent' && node.botEventName) {
+          // 从 botEvents 中匹配事件信息
+          const matchedEvent = botEvents.value.find(event => event.eventName === node.botEventName)
+          if (matchedEvent) {
+            node.eventType = matchedEvent.eventType
+            node.method = {
+              name: matchedEvent.eventName,
+              description: matchedEvent.description,
+              returnType: 'object',
+              parameters: []
+            }
+            node.methodInfo = {
+              name: matchedEvent.eventName,
+              description: matchedEvent.description,
+              returnType: 'object',
+              parameters: []
+            }
+            methodInitialized = true
+          }
+        } else if (node.nodeType === 'botAction' && node.botActionName) {
+          // 从 botActions 中匹配动作信息
+          const matchedAction = botActions.value.find(action => action.actionName === node.botActionName)
+          if (matchedAction) {
+            node.method = {
+              name: matchedAction.actionDisplayName,
+              description: matchedAction.description,
+              returnType: 'void',
+              parameters: matchedAction.parameters || []
+            }
+            node.methodInfo = {
+              name: matchedAction.actionDisplayName,
+              description: matchedAction.description,
+              returnType: 'void',
+              parameters: matchedAction.parameters || []
+            }
+            // 对方法参数按照 order 字段排序
+            if (node.method.parameters) {
+              node.method.parameters.sort((a, b) => {
+                const orderDiff = (a.order || 0) - (b.order || 0)
+                if (orderDiff !== 0) {
+                  return orderDiff
+                }
+                return a.name.localeCompare(b.name)
+              })
+            }
+            methodInitialized = true
+          }
+        }
+        
+        // 如果没有初始化 method，尝试从不同的字段获取方法信息
+        if (!methodInitialized && !node.method) {
+          if (node.methodInfo) {
+            node.method = node.methodInfo
+          } else if (node.methodInfoList && node.methodInfoList.length > 0) {
+            node.method = node.methodInfoList[0]
+          } else if (node.methodData) {
+            node.method = node.methodData
+          } else {
+            // 如果没有方法信息，根据节点类型创建默认的方法对象
+            if (node.nodeType === 'botEvent') {
+              node.method = {
+                name: node.botEventName || 'BOT 事件',
+                returnType: 'object',
+                parameters: []
+              }
+            } else if (node.nodeType === 'botAction') {
+              node.method = {
+                name: node.botActionName || 'BOT 动作',
+                returnType: 'void',
+                parameters: []
+              }
+            } else {
+              node.method = {
+                name: '未知方法',
+                returnType: 'void',
+                parameters: []
+              }
+            }
+          }
+        } else if (!methodInitialized && node.methodInfo) {
+          // 对于非 BOT 节点，使用 methodInfo
+          node.method = node.methodInfo
+        }
+        
+        // 对参数按照 order 字段排序，当 order 相同或不存在时按照参数名排序
+        if (node.method && node.method.parameters) {
+          node.method.parameters.sort((a, b) => {
+            // 首先按照 order 字段排序
+            const orderDiff = (a.order || 0) - (b.order || 0)
+            if (orderDiff !== 0) {
+              return orderDiff
+            }
+            // 如果 order 相同，按照参数名排序
+            return a.name.localeCompare(b.name)
+          })
+        }
+        
+        // 确保 preNodeId 和 nextNodeId 是数组
+        if (!node.preNodeId) node.preNodeId = []
+        if (!node.nextNodeId) node.nextNodeId = []
+        // 确保 dataMaps 是数组
+        if (!node.dataMaps) node.dataMaps = []
+        // 确保 nodeDefaults 是数组
+        if (!node.nodeDefaults) node.nodeDefaults = []
+      })
     }
     
     if (savedConnections) {
@@ -1442,9 +2156,7 @@ onMounted(() => {
     // 不是从插件详情页返回，清除缓存
     localStorage.removeItem(`workflow_${workflowId}_nodes`)
     localStorage.removeItem(`workflow_${workflowId}_connections`)
-    // 重置节点和连线
-    nodes.value = []
-    connections.value = []
+    // 不重置节点和连线，因为 loadWorkflowInfo() 已经加载了正确的数据
   }
   
   // 检查是否需要重新加载插件列表
@@ -1652,6 +2364,79 @@ onUnmounted(() => {
               <el-empty description="暂无公开插件" />
             </div>
           </el-tab-pane>
+          <el-tab-pane v-if="hasBotQQ" label="BOT 系统" name="bot">
+            <div class="plugin-list">
+              <!-- BOT 事件 -->
+              <el-card class="plugin-item-card">
+                <div class="plugin-card-content">
+                  <div class="plugin-card-header">
+                    <h3 class="plugin-name">BOT 事件</h3>
+                  </div>
+                  <div class="plugin-card-description">
+                    触发工作流的 BOT 事件
+                  </div>
+                  <div class="plugin-card-methods">
+                    <h4>事件列表</h4>
+                    <div class="methods-list">
+                      <div v-for="event in botEvents" :key="event.eventType" class="method-item">
+                        <span 
+                          class="method-signature"
+                          draggable="true"
+                          @dragstart="startDragBotEvent($event, event)"
+                          @dragend="endDrag"
+                        >
+                          {{ event.eventName }}
+                        </span>
+                        <p v-if="event.description" class="method-item-description">{{ event.description }}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </el-card>
+              
+              <!-- BOT 动作 -->
+              <el-card class="plugin-item-card" style="margin-top: 16px;">
+                <div class="plugin-card-content">
+                  <div class="plugin-card-header">
+                    <h3 class="plugin-name">BOT 动作</h3>
+                  </div>
+                  <div class="plugin-card-description">
+                    BOT 执行的动作
+                  </div>
+                  <div class="plugin-card-methods">
+                    <h4>动作列表</h4>
+                    <div class="methods-list">
+                      <div v-for="action in botActions" :key="action.actionName" class="method-item">
+                        <span 
+                          class="method-signature"
+                          draggable="true"
+                          @dragstart="startDragBotAction($event, action)"
+                          @dragend="endDrag"
+                        >
+                          {{ action.actionDisplayName }}(
+                            <template v-if="action.parameters && action.parameters.length > 0">
+                              <span v-for="(param, index) in [...action.parameters].sort((a, b) => {
+                                // 首先按照order字段排序
+                                const orderDiff = (a.order || 0) - (b.order || 0)
+                                if (orderDiff !== 0) {
+                                  return orderDiff
+                                }
+                                // 如果order相同，按照参数名排序
+                                return a.name.localeCompare(b.name)
+                              })" :key="param.id">
+                                {{ param.type }} {{ param.name }}{{ index < action.parameters.length - 1 ? ', ' : '' }}
+                              </span>
+                            </template>
+                          )
+                        </span>
+                        <p v-if="action.description" class="method-item-description">{{ action.description }}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </el-card>
+            </div>
+          </el-tab-pane>
         </el-tabs>
       </div>
       
@@ -1687,11 +2472,11 @@ onUnmounted(() => {
             />
             <!-- 绘制临时连线 -->
             <line 
-              v-if="tempConnection"
+              v-if="tempConnection && tempConnection.fromNode && tempConnection.fromPort"
               :x1="getPortPosition(tempConnection.fromNode, tempConnection.fromPort).x"
               :y1="getPortPosition(tempConnection.fromNode, tempConnection.fromPort).y"
-              :x2="tempConnection.toX"
-              :y2="tempConnection.toY"
+              :x2="tempConnection.toX || 0"
+              :y2="tempConnection.toY || 0"
               stroke="#409eff"
               stroke-width="2"
               stroke-dasharray="5,5"
@@ -1745,7 +2530,7 @@ onUnmounted(() => {
                 ></div>
                 <div class="node-content-inner">
                   <div class="node-header">
-                    <span class="node-method-name">{{ node.method ? node.method.name : '未知方法' }}</span>
+                    <span class="node-method-name">{{ getNodeName(node) }}</span>
                   </div>
                   <div v-if="node.method && node.method.description" class="node-description">
                     {{ node.method.description }}

@@ -475,11 +475,17 @@ const computeLeftTreeData = () => {
 const computeRightTreeData = () => {
   const treeData = []
   
+  console.log('computeRightTreeData - node:', props.node)
+  console.log('computeRightTreeData - method:', props.node?.method)
+  console.log('computeRightTreeData - parameters:', props.node?.method?.parameters)
+  
   if (props.node && props.node.method && props.node.method.parameters) {
-    // 只按照order字段排序
+    // 只按照 order 字段排序
     const sortedParameters = [...props.node.method.parameters].sort((a, b) => {
       return (a.order || 0) - (b.order || 0)
     })
+    
+    console.log('computeRightTreeData - sortedParameters:', sortedParameters)
     
     sortedParameters.forEach((param, index) => {
       const paramData = {
@@ -509,6 +515,7 @@ const computeRightTreeData = () => {
   }
   
   rightTreeData.value = treeData
+  console.log('computeRightTreeData - rightTreeData:', rightTreeData.value)
 }
 
 // 选择左侧节点
@@ -1492,8 +1499,9 @@ watch(dialogVisible, (newValue, oldValue) => {
                     placeholder="默认值"
                     size="small"
                     style="width: 180px; margin-left: 10px;"
-                    :disabled="hasMapping(child.paramIndex) || !isBasicType(child.paramTypeName)"
+                    :disabled="hasMapping(child.paramIndex) || !isBasicType(child.paramTypeName) || child.path === 'botQQ'"
                   />
+                  <span v-if="child.path === 'botQQ'" style="margin-left: 10px; color: #606266; font-size: 12px;">已预填充，不可修改</span>
                 </div>
               </div>
             </div>
