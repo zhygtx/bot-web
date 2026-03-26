@@ -85,7 +85,6 @@ const isPathFilled = (path) => {
     
     return false
   } catch (error) {
-    console.error('isPathFilled 函数错误:', error)
     return false
   }
 }
@@ -97,7 +96,7 @@ const updateFilledStatus = (path) => {
     const isFilled = isPathFilled(path)
     filledStatus.value[path] = isFilled
   } catch (error) {
-    console.error('updateFilledStatus 函数错误:', error)
+    // 忽略错误
   }
 }
 
@@ -148,7 +147,7 @@ watch(defaultValues, (newValues) => {
       updateFilledStatus(path)
     })
   } catch (error) {
-    console.error('defaultValues watcher 错误:', error)
+    // 忽略错误
   }
 }, { deep: true, immediate: true })
 
@@ -171,18 +170,15 @@ const areAllParamsFilled = () => {
   for (const param of props.node.method.parameters) {
     // 检查参数是否已填充
     if (!filledStatus.value[param.name]) {
-      console.log(`参数 ${param.name} 未填充，填充状态:`, filledStatus.value[param.name])
       return false
     }
   }
   
-  console.log('所有参数已填充，填充状态:', filledStatus.value)
   return true
 }
 
 // 保存配置
 const saveConfig = () => {
-  console.log('保存配置被调用')
   // 检查所有参数是否已填充
   if (!areAllParamsFilled()) {
     ElMessage.error('请为所有参数设置数据映射或默认值')
@@ -198,7 +194,6 @@ const saveConfig = () => {
     return
   }
   
-  console.log('所有参数已填充，开始保存')
   isSaving.value = true
   // 处理默认值
   const newNodeDefaults = []
@@ -208,7 +203,8 @@ const saveConfig = () => {
     if (key.endsWith('_value')) {
       const parts = key.split('_')
       const paramIndex = parseInt(parts[0])
-      const path = parts.slice(1, -1).join('_')
+      // 重新构建参数名，将下划线替换回点号
+      const path = parts.slice(1, -1).join('_').replace(/_/g, '.')
       const value = defaultValues.value[key]
       
       if (value !== undefined && value !== '') {
@@ -260,15 +256,8 @@ const saveConfig = () => {
           defaultValue: value,
           defaultValueType: paramType
         })
-        console.log('保存默认值:', path, value, paramType, '原始索引:', originalIndex)
       }
     }
-  })
-  console.log('准备保存的 nodeDefaults:', newNodeDefaults)
-  
-  console.log('准备保存的数据:', {
-    dataMaps: dataMaps.value,
-    nodeDefaults: newNodeDefaults
   })
   
   emit('save', {
@@ -277,6 +266,8 @@ const saveConfig = () => {
   })
   // 保存后关闭弹窗
   dialogVisible.value = false
+  // 直接通知父组件关闭弹窗
+  emit('update:visible', false)
   // 重置标志
   setTimeout(() => {
     isSaving.value = false
@@ -398,7 +389,6 @@ const parseEntityAttributes = (entityName, attributes) => {
     }
     return children
   } catch (e) {
-    console.error('解析实体类属性失败:', e)
     return []
   }
 }
@@ -423,7 +413,27 @@ const computeLeftTreeData = () => {
       
       // 尝试从插件信息中找到实体类信息
       let isEntity = false
-      if (preNode.pluginInfo && preNode.pluginInfo.pluginVersionList) {
+      
+      // 处理 BOT 事件的实体类信息
+      if (preNode.entityInfo && preNode.entityInfo.fields) {
+        // 是 BOT 事件实体类，直接添加属性作为子节点
+        const attributes = []
+        preNode.entityInfo.fields.forEach(field => {
+          attributes.push({
+            id: `attr_${preNode.entityInfo.entityName}_${field.fieldName}`,
+            label: field.fieldName,
+            type: 'value',
+            nodeId: preNode.id,
+            attrName: field.fieldName,
+            typeName: field.fieldType,
+            path: `value.${field.fieldName}`,
+            labelWithType: `${field.fieldType} ${field.fieldName}`
+          })
+        })
+        nodeData.children = attributes
+        isEntity = true
+      } else if (preNode.pluginInfo && preNode.pluginInfo.pluginVersionList) {
+        // 处理普通插件的实体类信息
         for (const version of preNode.pluginInfo.pluginVersionList) {
           if (version.entityInfoList) {
             const entityInfo = version.entityInfoList.find(e => 
@@ -475,17 +485,11 @@ const computeLeftTreeData = () => {
 const computeRightTreeData = () => {
   const treeData = []
   
-  console.log('computeRightTreeData - node:', props.node)
-  console.log('computeRightTreeData - method:', props.node?.method)
-  console.log('computeRightTreeData - parameters:', props.node?.method?.parameters)
-  
   if (props.node && props.node.method && props.node.method.parameters) {
     // 只按照 order 字段排序
     const sortedParameters = [...props.node.method.parameters].sort((a, b) => {
       return (a.order || 0) - (b.order || 0)
     })
-    
-    console.log('computeRightTreeData - sortedParameters:', sortedParameters)
     
     sortedParameters.forEach((param, index) => {
       const paramData = {
@@ -515,7 +519,6 @@ const computeRightTreeData = () => {
   }
   
   rightTreeData.value = treeData
-  console.log('computeRightTreeData - rightTreeData:', rightTreeData.value)
 }
 
 // 选择左侧节点
@@ -591,7 +594,6 @@ const initEvents = () => {
 
 // 组件挂载时初始化事件
 onMounted(() => {
-  console.log('WorkflowMappingConfig mounted with props:', props)
   computeLeftTreeData()
   computeRightTreeData()
   initEvents()
@@ -1123,7 +1125,6 @@ const deleteSelectedConnection = () => {
 
 // 关闭弹窗
 const closeDialog = () => {
-  console.log('closeDialog called')
   // 直接关闭弹窗，不进行验证
   emit('update:visible', false)
 }
@@ -1311,7 +1312,6 @@ watch(() => props.visible, (newValue) => {
       
       if (props.node && props.node.nodeDefaults) {
         nodeDefaults.value = props.node.nodeDefaults
-        console.log('加载的 nodeDefaults:', nodeDefaults.value)
         // 将nodeDefaults中的默认值填充到defaultValues中
         
         // 然后设置所有默认值
@@ -1329,13 +1329,11 @@ watch(() => props.visible, (newValue) => {
               paramIndex = sortedParameters.indexOf(param)
             }
           }
-          // 构建默认值的键
-          const key = `${paramIndex}_${paramName}_value`
+          // 构建默认值的键，将参数名中的点号替换为下划线
+          const key = `${paramIndex}_${paramName.replace(/\./g, '_')}_value`
           // 设置默认值
           defaultValues.value[key] = defaultValue
-          console.log('恢复默认值:', key, defaultValue, '参数索引:', paramIndex)
         })
-        console.log('恢复后的 defaultValues:', defaultValues.value)
       }
       
       // 再次延迟，确保DOM元素已经完全渲染，然后触发一次更新
@@ -1354,11 +1352,8 @@ watch(() => props.visible, (newValue) => {
 
 // 监听dialogVisible变化
 watch(dialogVisible, (newValue, oldValue) => {
-  // 只有当dialogVisible的值与props.visible的值一致时，才更新props.visible
-  // 这样可以避免当用户强制关闭弹窗时的状态混乱
-  if (newValue === props.visible) {
-    emit('update:visible', newValue)
-  }
+  // 总是通知父组件更新visible状态
+  emit('update:visible', newValue)
   
   // 当弹窗从打开状态变为关闭状态时，不自动保存配置
   // 只有当点击保存按钮时才进行验证和保存

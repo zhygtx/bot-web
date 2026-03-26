@@ -1,0 +1,57 @@
+WorkflowEditView.vue:183 goToPluginDetail called with pluginId: 4b9af7cd-b322-413b-9c7f-5986a93efe69
+WorkflowEditView.vue:184 Current workflowId: undefined
+WorkflowEditView.vue:185 Current nodes: Proxy(Array) {0: {…}, 1: {…}}
+WorkflowEditView.vue:186 Current connections: Proxy(Array) {}
+WorkflowEditView.vue:190 Generated tempWorkflowId: temp_1774523094901
+WorkflowEditView.vue:195 Saving to localStorage with keys: workflow_temp_1774523094901_nodes workflow_temp_1774523094901_connections
+WorkflowEditView.vue:203 Saved nodes to localStorage: [{"id":"1774523092328","x":867,"y":242,"workflowId":"","pluginId":"4b9af7cd-b322-413b-9c7f-5986a93efe69","pluginVersionId":"6ac2d158-8ced-471d-991e-8e118c9aa7b2","methodClassId":"1345823d-cd6a-4a67-92ad-41cc1847237b","methodId":"94856f33-89cc-43da-9819-bf873bdc43cf","nodeType":"pluginMethod","eventType":null,"botQQ":null,"inDegree":0,"dataMaps":[],"preNodeId":[],"nextNodeId":[],"nodeDefaults":[],"condition":null,"pluginInfo":{"id":"4b9af7cd-b322-413b-9c7f-5986a93efe69","name":"1","description":"","authorId":"fa74a466-cb2a-4e32-9f0a-60277bfd2731","authorName":"test","latestVersion":"1","versionCount":1,"isPublic":true,"createTime":"2026-03-24 16:52:34","updateTime":"2026-03-24 16:52:34","pluginVersionList":[{"id":"6ac2d158-8ced-471d-991e-8e118c9aa7b2","pluginId":"4b9af7cd-b322-413b-9c7f-5986a93efe69","version":"1","path":"D:\\GeneralBot\\demoTest/upload/plugins\\fa74a466-cb2a-4e32-9f0a-60277bfd2731\\1\\a7604434-fa98-4ffc-b5ec-0e8f30f9d7b0.jar","fileSize":5435,"fileMd5":"1b643edf77e92cd71f1a55dd76cd7e78","createTime":"2026-03-24 16:52:34","changelog":"","entityPackage":"pojo","methodPackage":"test","compatibleVersion":"[\"1\"]","entityInfoList":[{"id":"97f222c7-a56c-4eb4-9c45-586fbe97c70e","description":null,"name":"User","pluginVersionId":"6ac2d158-8ced-471d-991e-8e118c9aa7b2","entityName":"io.github.zhygtx.pojo.User","attributes":"{\"sex\":\"String\",\"name\":\"String\",\"age\":\"int\"}"}],"methodClassInfoList":[{"id":"1345823d-cd6a-4a67-92ad-41cc1847237b","description":null,"pluginVersionId":"6ac2d158-8ced-471d-991e-8e118c9aa7b2","className":"io.github.zhygtx.test.Test","simpleClassName":"Test","packageName":"io.github.zhygtx.test","methods":[{"id":"94856f33-89cc-43da-9819-bf873bdc43cf","description":null,"methodClassId":"1345823d-cd6a-4a67-92ad-41cc1847237b","name":"test","parameters":[{"id":"e7a88168-34b6-4d94-be6f-eda32d18b1c0","order":1,"description":null,"methodId":"94856f33-89cc-43da-9819-bf873bdc43cf","name":"test","type":"String","validType":true,"invalidTypeMessage":""}],"returnType":"String"}]},{"id":"8ae11239-65c5-4c66-9245-fbe760cb6aec","description":null,"pluginVersionId":"6ac2d158-8ced-471d-991e-8e118c9aa7b2","className":"io.github.zhygtx.test.ObjectTest","simpleClassName":"ObjectTest","packageName":"io.github.zhygtx.test","methods":[{"id":"93e840e6-21c9-400a-b884-465e924aa1eb","description":null,"methodClassId":"8ae11239-65c5-4c66-9245-fbe760cb6aec","name":"test","parameters":[{"id":"689f5c7e-1f2c-43f6-be4c-81998ff83fc6","order":2,"description":null,"methodId":"93e840e6-21c9-400a-b884-465e924aa1eb","name":"sex","type":"String","validType":true,"invalidTypeMessage":""},{"id":"f877b657-ce3d-4365-991a-973449607298","order":1,"description":null,"methodId":"93e840e6-21c9-400a-b884-465e924aa1eb","name":"name","type":"String","validType":true,"invalidTypeMessage":""}],"returnType":"User"}]},{"id":"b53bc35d-a602-4312-966a-68b55ce796fe","description":null,"pluginVersionId":"6ac2d158-8ced-471d-991e-8e118c9aa7b2","className":"io.github.zhygtx.test.ApiTest","simpleClassName":"ApiTest","packageName":"io.github.zhygtx.test","methods":[{"id":"ffc9ddc2-f588-4779-a523-dedf9b30c436","description":null,"methodClassId":"b53bc35d-a602-4312-966a-68b55ce796fe","name":"test","parameters":[{"id":"2134382b-b80f-4afd-ad56-4dc6d0cb4f53","order":1,"description":null,"methodId":"ffc9ddc2-f588-4779-a523-dedf9b30c436","name":"s","type":"String","validType":true,"invalidTypeMessage":""}],"returnType":"String"}]}]}]},"pluginVersion":{"id":"6ac2d158-8ced-471d-991e-8e118c9aa7b2","pluginId":"4b9af7cd-b322-413b-9c7f-5986a93efe69","version":"1","path":"D:\\GeneralBot\\demoTest/upload/plugins\\fa74a466-cb2a-4e32-9f0a-60277bfd2731\\1\\a7604434-fa98-4ffc-b5ec-0e8f30f9d7b0.jar","fileSize":5435,"fileMd5":"1b643edf77e92cd71f1a55dd76cd7e78","createTime":"2026-03-24 16:52:34","changelog":"","entityPackage":"pojo","methodPackage":"test","compatibleVersion":"[\"1\"]","entityInfoList":[{"id":"97f222c7-a56c-4eb4-9c45-586fbe97c70e","description":null,"name":"User","pluginVersionId":"6ac2d158-8ced-471d-991e-8e118c9aa7b2","entityName":"io.github.zhygtx.pojo.User","attributes":"{\"sex\":\"String\",\"name\":\"String\",\"age\":\"int\"}"}],"methodClassInfoList":[{"id":"1345823d-cd6a-4a67-92ad-41cc1847237b","description":null,"pluginVersionId":"6ac2d158-8ced-471d-991e-8e118c9aa7b2","className":"io.github.zhygtx.test.Test","simpleClassName":"Test","packageName":"io.github.zhygtx.test","methods":[{"id":"94856f33-89cc-43da-9819-bf873bdc43cf","description":null,"methodClassId":"1345823d-cd6a-4a67-92ad-41cc1847237b","name":"test","parameters":[{"id":"e7a88168-34b6-4d94-be6f-eda32d18b1c0","order":1,"description":null,"methodId":"94856f33-89cc-43da-9819-bf873bdc43cf","name":"test","type":"String","validType":true,"invalidTypeMessage":""}],"returnType":"String"}]},{"id":"8ae11239-65c5-4c66-9245-fbe760cb6aec","description":null,"pluginVersionId":"6ac2d158-8ced-471d-991e-8e118c9aa7b2","className":"io.github.zhygtx.test.ObjectTest","simpleClassName":"ObjectTes
+WorkflowEditView.vue:204 Saved connections to localStorage: []
+WorkflowEditView.vue:210 Return path: /workflow/edit
+WorkflowEditView.vue:211 Encoded return path: %2Fworkflow%2Fedit
+WorkflowEditView.vue:214 Navigating to: /plugin/4b9af7cd-b322-413b-9c7f-5986a93efe69?fromWorkflowEdit=true&workflowId=temp_1774523094901&returnUrl=%2Fworkflow%2Fedit
+WorkflowEditView.vue:917 Clearing workflow cache on unmount...
+WorkflowEditView.vue:462 clearWorkflowCache called
+WorkflowEditView.vue:463 Current workflowId: undefined
+WorkflowEditView.vue:473 Removing all workflow cache keys...
+WorkflowEditView.vue:481 Keys to remove: (2) ['workflow_temp_1774523094901_nodes', 'workflow_temp_1774523094901_connections']
+WorkflowEditView.vue:483 All localStorage keys after clearing: (8) ['name', 'token', '__VUE_DEVTOOLS_CLIENT_STATE__', 'botQQ', '__vue-devtools-theme__', 'account', '__vue-devtools-frame-state__', 'userId']
+
+
+
+client:733 [vite] connecting...
+index.ts-e02f440a.js:11393 自动拉取配置
+PluginListComponent.vue:252 PluginListComponent - hasBotQQ: false
+PluginListComponent.vue:247 PluginListComponent - botQQ from localStorage: 3845884126
+PluginListComponent.vue:253 PluginListComponent - hasBotQQFromLocalStorage: true
+PluginListComponent.vue:254 PluginListComponent - botEvents: 0
+PluginListComponent.vue:255 PluginListComponent - botActions: 0
+WorkflowMappingConfig.vue:617 WorkflowMappingConfig mounted with props: Proxy(Object) {visible: false, node: null, preNodes: Array(0), plugins: Proxy(Array)}
+WorkflowMappingConfig.vue:501 computeRightTreeData - node: null
+WorkflowMappingConfig.vue:502 computeRightTreeData - method: undefined
+WorkflowMappingConfig.vue:503 computeRightTreeData - parameters: undefined
+WorkflowMappingConfig.vue:541 computeRightTreeData - rightTreeData: Proxy(Array) {}
+WorkflowMappingConfig.vue:501 computeRightTreeData - node: null
+WorkflowMappingConfig.vue:502 computeRightTreeData - method: undefined
+WorkflowMappingConfig.vue:503 computeRightTreeData - parameters: undefined
+WorkflowMappingConfig.vue:541 computeRightTreeData - rightTreeData: Proxy(Array) {}
+WorkflowEditView.vue:776 Initializing workflow editor...
+WorkflowEditView.vue:797 Clearing workflow cache...
+WorkflowEditView.vue:462 clearWorkflowCache called
+WorkflowEditView.vue:463 Current workflowId: undefined
+WorkflowEditView.vue:473 Removing all workflow cache keys...
+WorkflowEditView.vue:481 Keys to remove: []
+WorkflowEditView.vue:483 All localStorage keys after clearing: (8) ['name', 'token', '__VUE_DEVTOOLS_CLIENT_STATE__', 'botQQ', '__vue-devtools-theme__', 'account', '__vue-devtools-frame-state__', 'userId']
+WorkflowEditView.vue:802 Bot QQ from localStorage: 3845884126
+WorkflowEditView.vue:804 hasBotQQ value: true
+WorkflowEditView.vue:806 Loading bot events and actions...
+PluginListComponent.vue:271 PluginListComponent - botEvents changed: 5
+PluginListComponent.vue:276 PluginListComponent - botActions changed: 2
+WorkflowEditView.vue:811 Bot events loaded: 5
+WorkflowEditView.vue:812 Bot actions loaded: 2
+WorkflowEditView.vue:822 Calling syncBotInfo...
+WorkflowEditView.vue:824 After syncBotInfo - hasBotQQ: true
+WorkflowEditView.vue:825 After syncBotInfo - bot events: 5
+WorkflowEditView.vue:826 After syncBotInfo - bot actions: 2
+PluginListComponent.vue:271 PluginListComponent - botEvents changed: 5
+PluginListComponent.vue:276 PluginListComponent - botActions changed: 2
+client:827 [vite] connected.

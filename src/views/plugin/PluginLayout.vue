@@ -15,6 +15,11 @@ const activeMenu = computed(() => {
   return route.name
 })
 
+// 判断是否从工作流编辑页面跳转过来
+const isFromWorkflowEdit = computed(() => {
+  return route.query.fromWorkflowEdit === 'true'
+})
+
 // 处理菜单点击
 const handleMenuClick = (path) => {
   router.push(path)
@@ -22,9 +27,9 @@ const handleMenuClick = (path) => {
 </script>
 
 <template>
-  <div class="plugin-layout">
+  <div class="plugin-layout" :class="{ 'plugin-layout-full': isFromWorkflowEdit }">
     <!-- 侧边栏 -->
-    <el-aside :width="'auto'" class="plugin-layout-aside">
+    <el-aside v-if="!isFromWorkflowEdit" :width="'auto'" class="plugin-layout-aside">
       <GlobalMenu />
     </el-aside>
     
@@ -55,5 +60,9 @@ const handleMenuClick = (path) => {
   flex: 1;
   padding: 0;
   overflow-y: hidden;
+}
+
+.plugin-layout-full .plugin-layout-main {
+  width: 100%;
 }
 </style>

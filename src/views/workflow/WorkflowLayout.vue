@@ -15,6 +15,11 @@ const activeMenu = computed(() => {
   return route.name
 })
 
+// 判断是否是工作流编辑页面
+const isEditPage = computed(() => {
+  return route.name === 'workflow-edit' || route.name === 'workflow-create'
+})
+
 // 处理菜单点击
 const handleMenuClick = (path) => {
   router.push(path)
@@ -22,9 +27,9 @@ const handleMenuClick = (path) => {
 </script>
 
 <template>
-  <div class="workflow-layout">
+  <div class="workflow-layout" :class="{ 'workflow-layout-full': isEditPage }">
     <!-- 侧边栏 -->
-    <el-aside :width="'auto'" class="workflow-layout-aside">
+    <el-aside v-if="!isEditPage" :width="'auto'" class="workflow-layout-aside">
       <GlobalMenu />
     </el-aside>
     
