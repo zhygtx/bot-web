@@ -11,16 +11,18 @@ export function useDataMapping() {
       if (matchedEvent) {
         node.eventType = matchedEvent.eventType
         node.entityInfo = matchedEvent.entityInfo
+        // 使用实体类名称作为返回类型
+        const returnType = matchedEvent.entityInfo ? matchedEvent.entityInfo.entityName : 'object'
         node.method = {
           name: matchedEvent.eventName,
           description: matchedEvent.description,
-          returnType: 'object',
+          returnType: returnType,
           parameters: []
         }
         node.methodInfo = {
           name: matchedEvent.eventName,
           description: matchedEvent.description,
-          returnType: 'object',
+          returnType: returnType,
           parameters: []
         }
         methodInitialized = true

@@ -494,6 +494,22 @@ const handleSaveAndTest = async () => {
     return
   }
   
+  // 检查是否有 BOT 动作节点
+  const hasBotActionNode = nodes.value.some(node => node.nodeType === 'botAction')
+  
+  // 检查 BOT 是否在线
+  let isBotOnline = true
+  try {
+    const botStatusResponse = await request({
+      url: '/bot/info',
+      method: 'get'
+    })
+    isBotOnline = botStatusResponse.code === 200 && botStatusResponse.data?.online === true
+  } catch (error) {
+    // 如果检查失败，默认认为 BOT 不在线
+    isBotOnline = false
+  }
+  
   try {
     // 先保存工作流
     const saveResponse = await saveWorkflow(workflowInfo.value, nodes, validateWorkflowNodes, router, workflowId, clearWorkflowCache, generateConnections, loadWorkflowInfo, connections, botEvents, botActions, processNodeInfo)
@@ -503,6 +519,13 @@ const handleSaveAndTest = async () => {
     
     if (!currentWorkflowId) {
       ElMessage.error('工作流保存失败，无法进行测试')
+      return
+    }
+    
+    // 检查是否需要测试
+    if (hasBotActionNode && !isBotOnline) {
+      // BOT 不在线且有 BOT 动作节点，只保存不测试
+      ElMessage.warning('您的BOT并未在线无法使用BOT动作节点进行测试，工作流已保存')
       return
     }
     

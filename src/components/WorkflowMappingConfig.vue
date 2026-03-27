@@ -398,18 +398,23 @@ const computeLeftTreeData = () => {
   const treeData = []
   
   props.preNodes.forEach(preNode => {
-    if (preNode.method && preNode.method.returnType && preNode.method.returnType !== 'void') {
-      const nodeData = {
-        id: `node_${preNode.id}`,
-        label: `${preNode.method.name} (${preNode.method.returnType})`,
-        type: 'node',
-        nodeId: preNode.id,
-        children: []
-      }
+        if (preNode.method && preNode.method.returnType && preNode.method.returnType !== 'void') {
+          // 对于 BOT 事件，使用实体类名称作为返回类型显示
+          let returnType = preNode.method.returnType
+          if (preNode.entityInfo && preNode.entityInfo.entityName) {
+            returnType = preNode.entityInfo.entityName
+          }
+          const nodeData = {
+            id: `node_${preNode.id}`,
+            label: `${preNode.method.name} (${returnType})`,
+            type: 'node',
+            nodeId: preNode.id,
+            children: []
+          }
       
       // 检查是否是实体类，尝试解析属性
-      const returnType = preNode.method.returnType
-      const returnTypeBase = getBaseType(returnType)
+      const originalReturnType = preNode.method.returnType
+      const returnTypeBase = getBaseType(originalReturnType)
       
       // 尝试从插件信息中找到实体类信息
       let isEntity = false
@@ -1551,6 +1556,13 @@ watch(dialogVisible, (newValue, oldValue) => {
   box-sizing: border-box;
   z-index: 10;
   pointer-events: auto;
+  /* 隐藏滚动条但保持滚动功能 */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.left-panel::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
 }
 
 .right-panel {
@@ -1566,6 +1578,13 @@ watch(dialogVisible, (newValue, oldValue) => {
   box-sizing: border-box;
   z-index: 10;
   pointer-events: auto;
+  /* 隐藏滚动条但保持滚动功能 */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.right-panel::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
 }
 
 .left-panel h3,

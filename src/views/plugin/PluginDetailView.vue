@@ -27,7 +27,7 @@ const compatibleVersions = ref([])
 const pluginId = computed(() => route.params.id)
 
 // 只读模式
-const isReadOnly = computed(() => route.query.readOnly === 'true')
+const isReadOnly = computed(() => route.query.readOnly === 'true' || route.query.fromWorkflowEdit === 'true')
 
 // 返回路径
 const returnUrl = computed(() => route.query.returnUrl)

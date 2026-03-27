@@ -15,9 +15,9 @@ const activeMenu = computed(() => {
   return route.name
 })
 
-// 判断是否从工作流编辑页面跳转过来
+// 判断是否从工作流编辑页面跳转过来或是否是插件详情页
 const isFromWorkflowEdit = computed(() => {
-  return route.query.fromWorkflowEdit === 'true'
+  return route.query.fromWorkflowEdit === 'true' || route.name === 'plugin-detail'
 })
 
 // 处理菜单点击

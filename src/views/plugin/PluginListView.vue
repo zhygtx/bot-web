@@ -54,7 +54,7 @@ const goToCreate = () => {
 
 // 跳转到插件详情页
 const goToDetail = (pluginId) => {
-  router.push(`/plugin/detail/${pluginId}`)
+  router.push(`/plugin/${pluginId}`)
 }
 
 // 打开编辑插件弹窗

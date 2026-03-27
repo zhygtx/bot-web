@@ -260,6 +260,8 @@ export function useEventHandling() {
         const botQQ = localStorage.getItem('botQQ')
         
         // 创建 BOT 事件节点
+        // 使用实体类名称作为返回类型
+        const returnType = event.entityInfo ? event.entityInfo.entityName : 'object'
         newNode = {
           id: Date.now().toString(),
           x: nodeX,
@@ -282,14 +284,17 @@ export function useEventHandling() {
           pluginInfo: null,
           pluginVersion: null,
           methodClassInfo: null,
+          entityInfo: event.entityInfo,
           methodInfo: {
             name: event.eventName,
-            returnType: 'object',
+            description: event.description,
+            returnType: returnType,
             parameters: []
           },
           method: {
             name: event.eventName,
-            returnType: 'object',
+            description: event.description,
+            returnType: returnType,
             parameters: []
           }
         }
