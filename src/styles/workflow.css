@@ -497,3 +497,23 @@
   border-radius: 8px;
   padding: 12px;
 }
+
+/* 测试结果弹窗样式 */
+.test-result-container {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.test-result-content {
+  white-space: pre-wrap; /* 自动换行 */
+  word-break: break-all; /* 单词过长时强制换行 */
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #303133;
+  margin: 0;
+  padding: 10px;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+  border: 1px solid #e6e6e6;
+}

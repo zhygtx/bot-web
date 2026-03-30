@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { ElMessage, ElInput, ElSelect, ElOption, ElButton, ElDialog } from 'element-plus'
 
 // 定义组件属性
@@ -57,27 +57,47 @@ const selectedRightNode = ref(null)
 // 填充状态映射（key: 参数路径, value: 是否填充）
 const filledStatus = ref({})
 
+// 定时时间选项（秒）
+const scheduledTimeOptions = [
+  { label: '5秒', value: 5 },
+  { label: '10秒', value: 10 },
+  { label: '30秒', value: 30 },
+  { label: '1分钟', value: 60 },
+  { label: '2分钟', value: 120 },
+  { label: '5分钟', value: 300 },
+  { label: '10分钟', value: 600 },
+  { label: '30分钟', value: 1800 },
+  { label: '1小时', value: 3600 }
+]
+
+// 选中的定时时间
+const selectedScheduledTime = ref(null)
+
+// 判断当前节点是否为定时事件节点
+const isScheduledEventNode = computed(() => {
+  return props.node && props.node.nodeType === 'botEvent' && props.node.eventType === 'scheduledEvent'
+})
+
 // 检查路径是否已经填充
 const isPathFilled = (path) => {
   try {
+    // 特殊处理：botQQ参数已预填充，不可修改
+    if (path === 'botQQ') {
+      return true
+    }
+    
     // 检查是否有直接的映射
     const hasMapping = dataMaps.value.some(map => map.targetPath === path)
     if (hasMapping) {
       return true
     }
     
-    // 检查是否有直接的默认值
-    const valueKey = path.replace(/\./g, '_') + '_value'
-    if (defaultValues.value[valueKey] !== undefined && defaultValues.value[valueKey] !== '') {
-      return true
-    }
-    
-    // 检查是否有直接的默认值（通过参数索引）
+    // 检查是否有直接的默认值（通过参数索引和路径）
     if (props.node && props.node.method && props.node.method.parameters) {
       const paramIndex = props.node.method.parameters.findIndex(param => param.name === path)
       if (paramIndex !== -1) {
-        const indexValueKey = `${paramIndex}_${path}_value`
-        if (defaultValues.value[indexValueKey] !== undefined && defaultValues.value[indexValueKey] !== '') {
+        const indexValueKey = `${paramIndex}_${path.replace(/\./g, '_')}_value`
+        if (defaultValues.value[indexValueKey] !== undefined) {
           return true
         }
       }
@@ -179,6 +199,32 @@ const areAllParamsFilled = () => {
 
 // 保存配置
 const saveConfig = () => {
+  // 如果是定时事件节点，保存定时时间配置
+  if (isScheduledEventNode.value) {
+    if (!selectedScheduledTime.value) {
+      ElMessage.error('请选择执行间隔')
+      return
+    }
+    
+    isSaving.value = true
+    // 直接设置节点的 scheduledTime 属性
+    props.node.scheduledTime = selectedScheduledTime.value
+    
+    emit('save', {
+      dataMaps: [],
+      nodeDefaults: []
+    })
+    
+    // 保存后关闭弹窗
+    dialogVisible.value = false
+    emit('update:visible', false)
+    
+    setTimeout(() => {
+      isSaving.value = false
+    }, 100)
+    return
+  }
+  
   // 检查所有参数是否已填充
   if (!areAllParamsFilled()) {
     ElMessage.error('请为所有参数设置数据映射或默认值')
@@ -207,26 +253,11 @@ const saveConfig = () => {
       const path = parts.slice(1, -1).join('_').replace(/_/g, '.')
       const value = defaultValues.value[key]
       
-      if (value !== undefined && value !== '') {
-        // 检查参数是否已经设置了映射
-        if (hasMapping(paramIndex, path)) {
-          ElMessage.warning(`参数 ${path} 已经设置了映射，不能再设置默认值`)
-          return
-        }
-        
-        // 检查父级节点是否已经设置了映射
-        const targetNode = {
-          type: 'entity_attr',
-          path: path,
-          paramIndex: paramIndex
-        }
-        if (hasParentMapping(targetNode)) {
-          ElMessage.warning(`父级节点已经设置了映射，子级节点 ${path} 不能再设置默认值`)
-          return
-        }
-        
-        // 查找参数信息，获取实际的数据类型
+      if (value !== undefined) {
+        // 查找参数信息，获取实际的数据类型和索引
         let paramType = 'String'
+        let originalIndex = paramIndex
+        
         if (props.node.method && props.node.method.parameters) {
           // 只按照order字段排序
           const sortedParameters = [...props.node.method.parameters].sort((a, b) => {
@@ -235,7 +266,32 @@ const saveConfig = () => {
           const param = sortedParameters.find(p => p.name === path)
           if (param) {
             paramType = param.type
+            // 确保使用正确的参数索引
+            originalIndex = sortedParameters.indexOf(param)
           }
+        }
+        
+        // 检查参数索引是否有效
+        if (isNaN(originalIndex)) {
+          ElMessage.error(`参数 ${path} 的索引无效`)
+          return
+        }
+        
+        // 检查参数是否已经设置了映射
+        if (hasMapping(originalIndex, path)) {
+          ElMessage.warning(`参数 ${path} 已经设置了映射，不能再设置默认值`)
+          return
+        }
+        
+        // 检查父级节点是否已经设置了映射
+        const targetNode = {
+          type: 'entity_attr',
+          path: path,
+          paramIndex: originalIndex
+        }
+        if (hasParentMapping(targetNode)) {
+          ElMessage.warning(`父级节点已经设置了映射，子级节点 ${path} 不能再设置默认值`)
+          return
         }
         
         // 检查类型是否是基本数据类型或包装类
@@ -243,10 +299,6 @@ const saveConfig = () => {
           ElMessage.warning(`类型 ${paramType} 不是基本数据类型或包装类，不能设置默认值`)
           return
         }
-        
-        // 查找原始参数的索引，确保保存的paramIndex是正确的
-        const originalParam = props.node.method.parameters.find(p => p.name === path)
-        const originalIndex = originalParam ? props.node.method.parameters.indexOf(originalParam) : paramIndex
         
         newNodeDefaults.push({
           id: Date.now().toString(),
@@ -259,6 +311,26 @@ const saveConfig = () => {
       }
     }
   })
+  
+  // 特殊处理：添加botQQ的默认值（预填充，不可修改）
+  if (props.node.nodeType === 'botAction') {
+    const botQQParam = props.node.method.parameters.find(p => p.name === 'botQQ')
+    if (botQQParam) {
+      // 检查是否已经有botQQ的默认值
+      const hasBotQQDefault = newNodeDefaults.some(def => def.paramName === 'botQQ')
+      if (!hasBotQQDefault) {
+        // 添加botQQ的默认值
+        newNodeDefaults.push({
+          id: Date.now().toString(),
+          paramIndex: props.node.method.parameters.indexOf(botQQParam),
+          paramName: 'botQQ',
+          fieldPath: 'botQQ',
+          defaultValue: localStorage.getItem('botQQ') || '',
+          defaultValueType: botQQParam.type
+        })
+      }
+    }
+  }
   
   emit('save', {
     dataMaps: dataMaps.value,
@@ -1251,6 +1323,17 @@ watch(() => props.visible, (newValue) => {
     selectedLeftNode.value = null
     selectedRightNode.value = null
     
+    // 如果是定时事件节点，初始化定时时间
+    if (isScheduledEventNode.value) {
+      // 从节点的 scheduledTime 属性中读取已保存的定时时间
+      if (props.node && props.node.scheduledTime) {
+        selectedScheduledTime.value = props.node.scheduledTime
+      } else {
+        selectedScheduledTime.value = null
+      }
+      return
+    }
+    
     // 延迟初始化数据，确保props.node已经更新
     setTimeout(() => {
       // 先更新树数据
@@ -1317,27 +1400,11 @@ watch(() => props.visible, (newValue) => {
       
       if (props.node && props.node.nodeDefaults) {
         nodeDefaults.value = props.node.nodeDefaults
-        // 将nodeDefaults中的默认值填充到defaultValues中
-        
-        // 然后设置所有默认值
-        nodeDefaults.value.forEach(defaultVal => {
-          const { paramName, defaultValue } = defaultVal
-          // 查找参数在排序后的参数列表中的索引
-          let paramIndex = 0
-          if (props.node.method && props.node.method.parameters) {
-            // 只按照order字段排序
-            const sortedParameters = [...props.node.method.parameters].sort((a, b) => {
-              return (a.order || 0) - (b.order || 0)
-            })
-            const param = sortedParameters.find(p => p.name === paramName)
-            if (param) {
-              paramIndex = sortedParameters.indexOf(param)
-            }
-          }
-          // 构建默认值的键，将参数名中的点号替换为下划线
-          const key = `${paramIndex}_${paramName.replace(/\./g, '_')}_value`
-          // 设置默认值
-          defaultValues.value[key] = defaultValue
+        // 填充默认值到defaultValues中
+        nodeDefaults.value.forEach(def => {
+          const normalizedPath = def.paramName.replace(/\./g, '_')
+          const key = `${def.paramIndex}_${normalizedPath}_value`
+          defaultValues.value[key] = def.defaultValue
         })
       }
       
@@ -1371,59 +1438,80 @@ watch(dialogVisible, (newValue, oldValue) => {
 <template>
   <el-dialog
     v-model="dialogVisible"
-    :title="dialogTitle"
+    :title="isScheduledEventNode ? '配置定时任务' : dialogTitle"
     width="800px"
     @close="closeDialog"
   >
     <div class="mapping-config-container">
-      <!-- 左侧：前置节点数据 -->
-      <div class="left-panel">
-        <h3>前置节点数据</h3>
-        <div class="node-list">
-          <div
-            v-for="nodeData in leftTreeData"
-            :key="nodeData.id"
-            class="source-node"
-          >
-            <div class="node-header">{{ nodeData.label }}</div>
-            <div class="node-ports">
-              <div
-                v-for="child in nodeData.children"
-                :key="child.id"
-                class="port"
-                :data-node-id="child.id"
-                :class="{ 'port-selected': selectedLeftNode?.id === child.id }"
-                @click="selectLeftNode(child)"
-              >
-                <div 
-                  class="port-dot" 
-                  :class="{ 'port-dot-connected': isNodeConnected(child) }"
-                  @mousedown="startDrawing(child, $event)"
-                ></div>
-                <div class="port-label">{{ child.labelWithType || child.label }}</div>
-                <!-- 实体类属性 -->
-                <div v-if="child.children && child.children.length > 0" class="entity-attributes">
-                  <div
-                    v-for="attr in child.children"
-                    :key="attr.id"
-                    class="port port-attr"
-                    :data-node-id="attr.id"
-                    :class="{ 'port-selected': selectedLeftNode?.id === attr.id }"
-                    @click="selectLeftNode(attr)"
-                  >
-                    <div 
-                      class="port-dot" 
-                      :class="{ 'port-dot-connected': isNodeConnected(attr) }"
-                      @mousedown="startDrawing(attr, $event)"
-                    ></div>
-                    <div class="port-label">{{ attr.labelWithType }}</div>
+      <!-- 定时事件节点配置 -->
+      <div v-if="isScheduledEventNode" class="scheduled-event-config">
+        <h3>定时任务配置</h3>
+        <div class="scheduled-time-selector">
+          <label>执行间隔：</label>
+          <el-select v-model="selectedScheduledTime" placeholder="请选择执行间隔" style="width: 200px;">
+            <el-option
+              v-for="option in scheduledTimeOptions"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
+        </div>
+        <div class="scheduled-time-hint">
+          <p>提示：定时任务将按照设定的间隔自动触发工作流执行</p>
+        </div>
+      </div>
+      
+      <!-- 普通节点的数据映射配置 -->
+      <template v-else>
+        <!-- 左侧：前置节点数据 -->
+        <div class="left-panel">
+          <h3>前置节点数据</h3>
+          <div class="node-list">
+            <div
+              v-for="nodeData in leftTreeData"
+              :key="nodeData.id"
+              class="source-node"
+            >
+              <div class="node-header">{{ nodeData.label }}</div>
+              <div class="node-ports">
+                <div
+                  v-for="child in nodeData.children"
+                  :key="child.id"
+                  class="port"
+                  :data-node-id="child.id"
+                  :class="{ 'port-selected': selectedLeftNode?.id === child.id }"
+                  @click="selectLeftNode(child)"
+                >
+                  <div 
+                    class="port-dot" 
+                    :class="{ 'port-dot-connected': isNodeConnected(child) }"
+                    @mousedown="startDrawing(child, $event)"
+                  ></div>
+                  <div class="port-label">{{ child.labelWithType || child.label }}</div>
+                  <!-- 实体类属性 -->
+                  <div v-if="child.children && child.children.length > 0" class="entity-attributes">
+                    <div
+                      v-for="attr in child.children"
+                      :key="attr.id"
+                      class="port port-attr"
+                      :data-node-id="attr.id"
+                      :class="{ 'port-selected': selectedLeftNode?.id === attr.id }"
+                      @click="selectLeftNode(attr)"
+                    >
+                      <div 
+                        class="port-dot" 
+                        :class="{ 'port-dot-connected': isNodeConnected(attr) }"
+                        @mousedown="startDrawing(attr, $event)"
+                      ></div>
+                      <div class="port-label">{{ attr.labelWithType }}</div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
       
       <!-- 中间：连线画布 -->
       <div class="center-panel">
@@ -1508,6 +1596,7 @@ watch(dialogVisible, (newValue, oldValue) => {
           </div>
         </div>
       </div>
+      </template>
     </div>
     
     <!-- 右键菜单 -->
@@ -1780,6 +1869,51 @@ watch(dialogVisible, (newValue, oldValue) => {
 }
 
 .entity-header span {
+  font-size: 13px;
+  color: #606266;
+}
+
+/* 定时事件配置样式 */
+.scheduled-event-config {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 40px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+}
+
+.scheduled-event-config h3 {
+  margin-bottom: 30px;
+  font-size: 18px;
+  color: #303133;
+}
+
+.scheduled-time-selector {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.scheduled-time-selector label {
+  font-size: 14px;
+  color: #606266;
+  font-weight: 500;
+}
+
+.scheduled-time-hint {
+  margin-top: 20px;
+  padding: 15px 20px;
+  background-color: #e6f7ff;
+  border-radius: 4px;
+  border-left: 4px solid #409eff;
+}
+
+.scheduled-time-hint p {
+  margin: 0;
   font-size: 13px;
   color: #606266;
 }

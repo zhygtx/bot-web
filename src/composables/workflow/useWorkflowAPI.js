@@ -116,7 +116,7 @@ export function useWorkflowAPI() {
     }
     
     // 验证所有节点的参数是否都有数据映射或默认值
-    const validationResult = validateWorkflowNodes(nodes.value)
+    const validationResult = validateWorkflowNodes(nodes)
     if (!validationResult.valid) {
       ElMessage.error(validationResult.message)
       return
@@ -136,7 +136,7 @@ export function useWorkflowAPI() {
       description: workflowInfo.description || '',
       createTime: workflowInfo.createTime || null,
       updateTime: workflowInfo.updateTime || null,
-      nodes: (nodes.value || nodes).map(node => {
+      nodes: (nodes || []).map(node => {
         // 构建节点数据
         return {
           id: node.id ? node.id.toString() : '',
@@ -152,6 +152,7 @@ export function useWorkflowAPI() {
           botQQ: node.botQQ || null,
           botActionName: node.botActionName || null,
           botEventName: node.botEventName || null,
+          scheduledTime: node.scheduledTime || null,
           inDegree: node.inDegree || 0,
           dataMaps: node.dataMaps || [],
           preNodeId: node.preNodeId || [],

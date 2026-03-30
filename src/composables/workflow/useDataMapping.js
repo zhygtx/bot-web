@@ -11,8 +11,11 @@ export function useDataMapping() {
       if (matchedEvent) {
         node.eventType = matchedEvent.eventType
         node.entityInfo = matchedEvent.entityInfo
-        // 使用实体类名称作为返回类型
-        const returnType = matchedEvent.entityInfo ? matchedEvent.entityInfo.entityName : 'object'
+        // 使用实体类名称作为返回类型，定时事件返回 void
+        let returnType = 'void'
+        if (matchedEvent.eventType !== 'scheduledEvent' && matchedEvent.entityInfo) {
+          returnType = matchedEvent.entityInfo.entityName
+        }
         node.method = {
           name: matchedEvent.eventName,
           description: matchedEvent.description,
@@ -135,6 +138,10 @@ export function useDataMapping() {
         if (nodeIndex !== -1) {
           nodes[nodeIndex].dataMaps = config.dataMaps
           nodes[nodeIndex].nodeDefaults = config.nodeDefaults
+          // 同步scheduledTime属性
+          if (currentNode.scheduledTime !== undefined) {
+            nodes[nodeIndex].scheduledTime = currentNode.scheduledTime
+          }
         }
         
         // 保存到本地存储
@@ -171,19 +178,18 @@ export function useDataMapping() {
     }
     // 检查所有节点的参数是否都已填充
     for (const node of nodes) {
-      if (node.method && node.method.parameters && node.method.parameters.length > 0) {
-        // 检查节点是否有数据映射或默认值
-        const hasDataMaps = node.dataMaps && node.dataMaps.length > 0
-        const hasNodeDefaults = node.nodeDefaults && node.nodeDefaults.length > 0
-        
-        // 如果没有数据映射和默认值，检查是否有参数
-        if (!hasDataMaps && !hasNodeDefaults) {
+      // 特殊检查：定时任务节点必须配置执行间隔
+      if (node.nodeType === 'botEvent' && node.eventType === 'scheduledEvent') {
+        const hasScheduledTime = node.scheduledTime !== undefined && node.scheduledTime !== '' && node.scheduledTime !== null
+        if (!hasScheduledTime) {
           return {
             valid: false,
-            message: `节点 ${node.method.name} 的参数未设置数据映射或默认值`
+            message: `定时任务节点 ${node.method.name} 未配置执行间隔`
           }
         }
-        
+      }
+      
+      if (node.method && node.method.parameters && node.method.parameters.length > 0) {
         // 检查每个参数是否都有对应的映射或默认值
         const paramNames = node.method.parameters.map(p => p.name)
         const mappedParams = new Set()
@@ -203,8 +209,9 @@ export function useDataMapping() {
             // 提取参数名（处理子属性，如param.subparam）
             const paramName = def.paramName.split('.')[0]
             // 检查是否有默认值（支持value和defaultValue字段）
-            const hasValue = def.value !== undefined && def.value !== ''
-            const hasDefaultValue = def.defaultValue !== undefined && def.defaultValue !== ''
+            // 注意：0和false等falsy值应该被视为有效默认值
+            const hasValue = def.value !== undefined
+            const hasDefaultValue = def.defaultValue !== undefined
             if (hasValue || hasDefaultValue) {
               mappedParams.add(paramName)
             }
@@ -213,6 +220,10 @@ export function useDataMapping() {
         
         // 检查是否所有参数都已映射或设置默认值
         for (const paramName of paramNames) {
+          // 特殊处理：botQQ参数已预填充，不可修改
+          if (paramName === 'botQQ') {
+            continue
+          }
           if (!mappedParams.has(paramName)) {
             return {
               valid: false,

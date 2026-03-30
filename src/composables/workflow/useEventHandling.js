@@ -260,8 +260,11 @@ export function useEventHandling() {
         const botQQ = localStorage.getItem('botQQ')
         
         // 创建 BOT 事件节点
-        // 使用实体类名称作为返回类型
-        const returnType = event.entityInfo ? event.entityInfo.entityName : 'object'
+        // 使用实体类名称作为返回类型，定时事件返回 void
+        let returnType = 'void'
+        if (event.eventType !== 'scheduledEvent' && event.entityInfo) {
+          returnType = event.entityInfo.entityName
+        }
         newNode = {
           id: Date.now().toString(),
           x: nodeX,

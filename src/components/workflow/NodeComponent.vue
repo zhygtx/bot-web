@@ -37,7 +37,7 @@
           </div>
         </div>
         <div 
-          v-if="node.method && node.method.returnType && node.method.returnType !== 'void'"
+          v-if="node.method && (node.method.returnType && node.method.returnType !== 'void' || node.nodeType === 'botEvent' && node.eventType === 'scheduledEvent')"
           class="node-dot node-dot-right"
           :class="{ 'node-dot-filled': isPortConnected(node.id, 'right') }"
           @mousedown="handlePortMouseDown($event, node, 'right')"

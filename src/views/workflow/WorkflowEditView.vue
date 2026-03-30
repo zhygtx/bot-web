@@ -349,7 +349,8 @@ const handlePortMouseDownExtended = (e, node, port) => {
   }
   
   // 检查节点返回值是否为void，如果是则不允许绘制连线
-  if (node.method && (node.method.returnType === 'void' || node.method.returnType === 'Void')) {
+  // 但是定时任务节点特殊处理，即使返回void也允许绘制连线
+  if (node.method && (node.method.returnType === 'void' || node.method.returnType === 'Void') && !(node.nodeType === 'botEvent' && node.eventType === 'scheduledEvent')) {
     return
   }
   
@@ -473,6 +474,29 @@ const clearWorkflowCache = () => {
   }
 }
 
+// 处理保存工作流
+const handleSaveWorkflow = async () => {
+  // 检查工作流名称
+  if (!workflowInfo.value || !workflowInfo.value.name) {
+    ElMessage.error('请输入工作流名称')
+    return
+  }
+  
+  // 验证所有节点的参数是否都有数据映射或默认值
+  const validationResult = validateWorkflowNodes(nodes.value)
+  if (!validationResult.valid) {
+    ElMessage.error(validationResult.message)
+    return
+  }
+  
+  try {
+    // 保存工作流
+    await saveWorkflow(workflowInfo.value, nodes.value, validateWorkflowNodes, router, workflowId, clearWorkflowCache, generateConnections, loadWorkflowInfo, connections, botEvents, botActions, processNodeInfo)
+  } catch (error) {
+    ElMessage.error('保存工作流失败')
+  }
+}
+
 // 处理保存并测试工作流
 const handleSaveAndTest = async () => {
   // 检查工作流名称
@@ -512,7 +536,7 @@ const handleSaveAndTest = async () => {
   
   try {
     // 先保存工作流
-    const saveResponse = await saveWorkflow(workflowInfo.value, nodes, validateWorkflowNodes, router, workflowId, clearWorkflowCache, generateConnections, loadWorkflowInfo, connections, botEvents, botActions, processNodeInfo)
+    const saveResponse = await saveWorkflow(workflowInfo.value, nodes.value, validateWorkflowNodes, router, workflowId, clearWorkflowCache, generateConnections, loadWorkflowInfo, connections, botEvents, botActions, processNodeInfo)
     
     // 获取工作流ID，优先使用保存后返回的ID
     const currentWorkflowId = saveResponse?.id || workflowInfo.value.id || workflowId
@@ -937,7 +961,7 @@ onUnmounted(() => {
       <div class="header-right">
         <el-button @click="() => { clearWorkflowCache(); router.push('/workflow/list'); }">取消</el-button>
         <el-button type="primary" @click="handleSaveAndTest" :disabled="hasBotEventNode" :title="hasBotEventNode ? '存在 BOT 事件节点，无法使用保存并测试功能' : '保存并测试'">保存并测试</el-button>
-        <el-button type="success" @click="saveWorkflow(workflowInfo, nodes, validateWorkflowNodes, router, workflowId, clearWorkflowCache, generateConnections, loadWorkflowInfo, connections, botEvents, botActions, processNodeInfo)">保存</el-button>
+        <el-button type="success" @click="handleSaveWorkflow">保存</el-button>
       </div>
     </div>
     
