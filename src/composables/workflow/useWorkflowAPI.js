@@ -74,6 +74,37 @@ export function useWorkflowAPI() {
     }
   }
 
+  // 加载公开插件列表
+  const loadPublicPlugins = async (publicPlugins, selectedPublicVersions) => {
+    try {
+      const response = await request({
+        url: '/plugin/findByPublic',
+        method: 'get',
+        params: {
+          pageNum: 1,
+          pageSize: 100
+        }
+      })
+      if (response.code === 200) {
+        publicPlugins.value = response.data.list || []
+        // 初始化插件版本选择
+        publicPlugins.value.forEach(plugin => {
+          if (plugin && plugin.pluginVersionList && plugin.pluginVersionList.length > 0) {
+            // 找到第一个有效的版本
+            const validVersion = plugin.pluginVersionList.find(v => v && v.id && v.version)
+            if (validVersion) {
+              selectedPublicVersions.value[plugin.id] = validVersion.id
+            }
+          }
+        })
+      } else {
+        ElMessage.error(response.message || '加载公开插件失败')
+      }
+    } catch (error) {
+      ElMessage.error('加载公开插件失败')
+    }
+  }
+
   // 加载 BOT 事件列表
   const loadBotEvents = async (botEvents) => {
     try {
@@ -402,6 +433,7 @@ export function useWorkflowAPI() {
   return {
     loadWorkflowInfo,
     loadPlugins,
+    loadPublicPlugins,
     loadBotEvents,
     loadBotActions,
     saveWorkflow,

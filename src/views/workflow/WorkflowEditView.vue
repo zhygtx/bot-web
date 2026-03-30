@@ -17,7 +17,7 @@ import { useDataMapping } from '../../composables/workflow/useDataMapping'
 import { useWorkflowAPI } from '../../composables/workflow/useWorkflowAPI'
 
 // 初始化API模块
-const { loadWorkflowInfo, loadPlugins, loadBotEvents, loadBotActions, saveWorkflow, saveAndTestWorkflow, syncBotInfo } = useWorkflowAPI()
+const { loadWorkflowInfo, loadPlugins, loadPublicPlugins, loadBotEvents, loadBotActions, saveWorkflow, saveAndTestWorkflow, syncBotInfo } = useWorkflowAPI()
 
 // 初始化事件处理模块
 const { canvasRef, isDragging, startX, startY, canvasX, canvasY, handleCanvasMouseDown, handleMouseMove, handleMouseUp, handleMouseLeave, handleNodeMouseDown, handleNodeMouseMove, handleNodeMouseUp, handleNodeMouseLeave, handlePortMouseDown, startDrag, startDragBotEvent, startDragBotAction, endDrag, dropNode } = useEventHandling()
@@ -58,6 +58,8 @@ const canvasSize = ref({ width: 4000, height: 3000 })
 const loading = ref(false)
 // 插件列表
 const plugins = ref([])
+// 公开插件列表
+const publicPlugins = ref([])
 // 插件类型（我的插件/公开插件）
 const activeTab = ref('my')
 // 可编辑状态
@@ -66,6 +68,8 @@ const isNameEditable = ref(false)
 const expandedPlugins = ref(new Set())
 // 插件选中版本
 const selectedVersions = ref({})
+// 公开插件选中版本
+const selectedPublicVersions = ref({})
 // 插件列表是否显示
 const showPluginList = ref(true)
 
@@ -813,6 +817,7 @@ const handleDropNode = (e) => {
 // 处理浏览器历史变化的函数
 const handlePopState = () => {
   loadPlugins(plugins, selectedVersions)
+  loadPublicPlugins(publicPlugins, selectedPublicVersions)
 }
 
 // 初始化加载
@@ -851,6 +856,9 @@ onMounted(async () => {
   
   // 加载插件
   loadPlugins(plugins, selectedVersions)
+  
+  // 加载公开插件
+  loadPublicPlugins(publicPlugins, selectedPublicVersions)
   
   // 同步机器人信息
   await syncBotInfo(hasBotQQ, botEvents, botActions, loadBotEvents, loadBotActions)
@@ -897,7 +905,8 @@ onMounted(async () => {
   }
   
   if (reloadPlugins) {
-    loadPlugins()
+    loadPlugins(plugins, selectedVersions)
+    loadPublicPlugins(publicPlugins, selectedPublicVersions)
   }
   
   generateConnections()
@@ -971,14 +980,17 @@ onUnmounted(() => {
       <PluginListComponent
         :key="hasBotQQ"
         :plugins="plugins"
+        :public-plugins="publicPlugins"
         :bot-events="botEvents"
         :bot-actions="botActions"
         :has-bot-qq="hasBotQQ"
         :show-plugin-list="showPluginList"
         :model-value="activeTab"
         :selected-versions="selectedVersions"
+        :selected-public-versions="selectedPublicVersions"
         @update:model-value="updateActiveTab"
         @update:selected-versions="(val) => selectedVersions = val"
+        @update:selected-public-versions="(val) => selectedPublicVersions = val"
         @toggle-plugin-list="togglePluginList"
         @go-to-plugin-detail="goToPluginDetail"
         @start-drag="handleStartDrag"

@@ -119,7 +119,91 @@
       <el-tab-pane label="公开插件" name="public">
         <div class="plugin-list">
           <!-- 公开插件列表 -->
-          <el-empty description="暂无公开插件" />
+          <el-card 
+            v-for="plugin in publicPlugins" 
+            :key="plugin.id" 
+            class="plugin-item-card"
+          >
+            <div class="plugin-card-content">
+                <div class="plugin-card-header">
+                  <h3 class="plugin-name">{{ plugin.name }}</h3>
+                  <div class="plugin-version-selector" v-if="plugin.pluginVersionList && plugin.pluginVersionList.length > 0">
+                    <el-select 
+                      :model-value="selectedPublicVersions[plugin.id]" 
+                      @update:model-value="(val) => updatePublicVersionSelection(plugin.id, val)"
+                      size="small" 
+                      class="version-select"
+                    >
+                      <el-option 
+                        v-for="ver in plugin.pluginVersionList" 
+                        :key="ver.id" 
+                        :label="ver.version" 
+                        :value="ver.id"
+                      />
+                    </el-select>
+                  </div>
+                  <el-icon @click="goToPluginDetail(plugin.id)" title="查看插件详情" class="info-icon">
+                    <Warning />
+                  </el-icon>
+                </div>
+                <div class="plugin-card-description">
+                  {{ plugin.description }}
+                </div>
+                <div class="plugin-card-footer" v-if="!expandedPlugins.has(plugin.id)">
+                  <el-icon @click="togglePluginExpand(plugin.id)" class="expand-icon">
+                    <ArrowDown />
+                  </el-icon>
+                </div>
+                <div class="plugin-card-methods" v-if="expandedPlugins.has(plugin.id)">
+                  <h4>方法类</h4>
+                  <div v-if="plugin && plugin.pluginVersionList && plugin.pluginVersionList.length > 0 && selectedPublicVersions[plugin.id]">
+                    <div v-for="versionItem in plugin.pluginVersionList" :key="versionItem?.id">
+                      <div v-if="versionItem && versionItem.id && versionItem.id === selectedPublicVersions[plugin.id]">
+                        <div v-if="versionItem.methodClassInfoList && versionItem.methodClassInfoList.length > 0">
+                          <div v-for="methodClass in versionItem.methodClassInfoList" :key="methodClass.id" class="method-class-card">
+                            <div class="method-class-header">
+                              <h5 class="method-class-name">{{ methodClass.simpleClassName }}</h5>
+                              <p class="method-class-description">{{ methodClass.description || '无描述' }}</p>
+                            </div>
+                            <div class="methods-list">
+                              <div v-for="method in methodClass.methods" :key="method.id" class="method-item">
+                                <span 
+                                  class="method-signature"
+                                  draggable="true"
+                                  @dragstart="startDrag($event, method, methodClass, plugin, versionItem)"
+                                  @dragend="endDrag"
+                                >
+                                  {{ method.returnType }} {{ method.name }}(
+                                    <template v-if="method.parameters && method.parameters.length > 0">
+                                      <span v-for="(param, index) in sortParameters(method.parameters)" :key="param.id">
+                                        {{ param.type }} {{ param.name }}{{ index < method.parameters.length - 1 ? ', ' : '' }}
+                                      </span>
+                                    </template>
+                                  )
+                                </span>
+                                <p v-if="method.description" class="method-item-description">{{ method.description }}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div v-else class="no-methods">
+                          该版本暂无方法类
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div v-else class="no-methods">
+                    暂无版本或未选择版本
+                  </div>
+                  <div class="plugin-card-footer">
+                    <el-icon @click="togglePluginExpand(plugin.id)" class="expand-icon">
+                      <ArrowUp />
+                    </el-icon>
+                  </div>
+                </div>
+              </div>
+          </el-card>
+          <el-empty v-if="publicPlugins.length === 0" description="暂无公开插件" />
         </div>
       </el-tab-pane>
       <el-tab-pane v-if="hasBotQQFromLocalStorage" label="BOT 系统" name="bot">
@@ -200,6 +284,10 @@ const props = defineProps({
     type: Array,
     default: () => []
   },
+  publicPlugins: {
+    type: Array,
+    default: () => []
+  },
   botEvents: {
     type: Array,
     default: () => []
@@ -223,6 +311,10 @@ const props = defineProps({
   selectedVersions: {
     type: Object,
     default: () => ({})
+  },
+  selectedPublicVersions: {
+    type: Object,
+    default: () => ({})
   }
 })
 
@@ -234,7 +326,8 @@ const emit = defineEmits([
   'start-drag-bot-action',
   'end-drag',
   'update:model-value',
-  'update:selectedVersions'
+  'update:selectedVersions',
+  'update:selectedPublicVersions'
 ])
 
 // 展开的插件卡片
@@ -305,6 +398,41 @@ watch(() => props.plugins, (newPlugins) => {
   }
 }, { immediate: true, deep: true })
 
+// 监听props中的selectedPublicVersions变化，初始化默认选择
+watch(() => props.selectedPublicVersions, (newVersions) => {
+  // 当publicPlugins加载完成后，如果没有选择版本，自动选择第一个版本
+  if (props.publicPlugins && props.publicPlugins.length > 0) {
+    props.publicPlugins.forEach(plugin => {
+      if (plugin && plugin.pluginVersionList && plugin.pluginVersionList.length > 0) {
+        if (!props.selectedPublicVersions[plugin.id]) {
+          // 找到第一个有效的版本
+          const validVersion = plugin.pluginVersionList.find(v => v && v.id && v.version)
+          if (validVersion) {
+            emit('update:selectedPublicVersions', { ...props.selectedPublicVersions, [plugin.id]: validVersion.id })
+          }
+        }
+      }
+    })
+  }
+}, { immediate: true, deep: true })
+
+// 监听publicPlugins变化，自动选择版本
+watch(() => props.publicPlugins, (newPlugins) => {
+  if (newPlugins && newPlugins.length > 0) {
+    newPlugins.forEach(plugin => {
+      if (plugin && plugin.pluginVersionList && plugin.pluginVersionList.length > 0) {
+        if (!props.selectedPublicVersions[plugin.id]) {
+          // 找到第一个有效的版本
+          const validVersion = plugin.pluginVersionList.find(v => v && v.id && v.version)
+          if (validVersion) {
+            emit('update:selectedPublicVersions', { ...props.selectedPublicVersions, [plugin.id]: validVersion.id })
+          }
+        }
+      }
+    })
+  }
+}, { immediate: true, deep: true })
+
 // 更新activeTab
 const updateActiveTab = (value) => {
   localActiveTab.value = value
@@ -367,6 +495,11 @@ const endDrag = () => {
 // 更新版本选择
 const updateVersionSelection = (pluginId, versionId) => {
   emit('update:selectedVersions', { ...props.selectedVersions, [pluginId]: versionId })
+}
+
+// 更新公开插件版本选择
+const updatePublicVersionSelection = (pluginId, versionId) => {
+  emit('update:selectedPublicVersions', { ...props.selectedPublicVersions, [pluginId]: versionId })
 }
 </script>
 

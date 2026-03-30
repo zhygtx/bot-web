@@ -49,8 +49,8 @@ const rules = {
     { type: 'email', message: '请输入有效的邮箱地址', trigger: 'blur' }
   ],
   code: [
-    { required: true, message: '请输入验证码', trigger: 'blur' },
-    { min: 6, max: 6, message: '验证码长度为 6 个字符', trigger: 'blur' }
+    { required: true, message: '请输入验证码', trigger: 'submit' },
+    { min: 6, max: 6, message: '验证码长度为 6 个字符', trigger: 'submit' }
   ]
 }
 
@@ -72,26 +72,27 @@ const sendCode = async () => {
     return
   }
   
+  // 立即开始倒计时，防止重复点击
+  codeCountdown.value = 60
+  const timer = setInterval(() => {
+    codeCountdown.value--
+    if (codeCountdown.value <= 0) {
+      clearInterval(timer)
+    }
+  }, 1000)
+  
   try {
-    // 发送验证码请求
+    // 发送验证码请求，设置超时时间为30秒
     await request({
       url: '/email/sendVerificationCode',
       method: 'post',
       params: {
         email: registerForm.email
-      }
+      },
+      timeout: 30000
     })
     
     ElMessage.success('验证码发送成功')
-    
-    // 开始倒计时
-    codeCountdown.value = 60
-    const timer = setInterval(() => {
-      codeCountdown.value--
-      if (codeCountdown.value <= 0) {
-        clearInterval(timer)
-      }
-    }, 1000)
   } catch (error) {
     ElMessage.error(error.message || '验证码发送失败')
   }
