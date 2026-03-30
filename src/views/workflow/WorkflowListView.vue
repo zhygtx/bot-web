@@ -166,16 +166,20 @@ onMounted(() => {
         <div v-loading="loading" element-loading-text="加载中..." style="width: 100%; height: 100%; min-height: 300px;">
           <el-row :gutter="20" :justify="'start'">
             <el-col :xs="24" :sm="12" :md="8" :lg="6" :xl="6" v-for="workflow in workflows" :key="workflow.id">
-              <el-card class="workflow-item-card" @click="goToDetail(workflow.id)">
-                <div class="workflow-card-content">
-                  <div class="workflow-card-header">
-                    <h3 class="workflow-name">{{ workflow.name }}</h3>
-                    <div class="delete-icon-container">
-                      <el-icon class="delete-icon" @click.stop="deleteWorkflow(workflow.id)">
-                        <Delete />
-                      </el-icon>
+              <div class="workflow-item-wrapper">
+                <el-tag v-if="!workflow.available" size="small" type="danger" effect="dark" class="unavailable-tag">不可用</el-tag>
+                <el-card class="workflow-item-card" @click="goToDetail(workflow.id)">
+                  <div class="workflow-card-content">
+                    <div class="workflow-card-header">
+                      <div class="workflow-name-container">
+                        <h3 class="workflow-name">{{ workflow.name }}</h3>
+                      </div>
+                      <div class="delete-icon-container">
+                        <el-icon class="delete-icon" @click.stop="deleteWorkflow(workflow.id)">
+                          <Delete />
+                        </el-icon>
+                      </div>
                     </div>
-                  </div>
                   <div class="workflow-card-description">
                     {{ workflow.description || '暂无描述' }}
                   </div>
@@ -191,6 +195,7 @@ onMounted(() => {
                   </div>
                 </div>
               </el-card>
+            </div>
             </el-col>
           </el-row>
           
@@ -245,7 +250,6 @@ onMounted(() => {
 }
 
 .workflow-item-card {
-  margin-bottom: 20px;
   height: 280px; /* 固定高度，确保长宽比一致 */
   border: 1px solid #e6e6e6;
   border-radius: 8px;
@@ -256,9 +260,8 @@ onMounted(() => {
   position: relative; /* 添加相对定位，使删除图标容器的绝对定位相对于卡片 */
 }
 
-.workflow-item-card:hover {
+.workflow-item-wrapper:hover .workflow-item-card {
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15); /* 增强hover时的阴影效果 */
-  transform: translateY(-2px);
 }
 
 .workflow-card-content {
@@ -276,13 +279,47 @@ onMounted(() => {
   position: relative;
 }
 
+.workflow-item-wrapper {
+  position: relative;
+  margin-bottom: 20px;
+  transition: all 0.3s ease;
+}
+
+.workflow-item-wrapper:hover {
+  transform: translateY(-2px);
+}
+
+.workflow-name-container {
+  position: relative;
+  flex: 1;
+  margin-right: 40px;
+}
+
+.unavailable-tag {
+  position: absolute;
+  top: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  font-weight: bold;
+  padding: 3px 16px;
+  border-radius: 12px;
+  background-color: #f56c6c;
+  color: white;
+  box-shadow: 0 2px 8px rgba(245, 108, 108, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  z-index: 10;
+  user-select: none;
+  pointer-events: none;
+}
+
 .workflow-name {
   margin: 0;
   font-size: 18px;
   font-weight: bold;
   color: #303133;
-  flex: 1;
-  margin-right: 40px; /* 为删除图标留出空间 */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
