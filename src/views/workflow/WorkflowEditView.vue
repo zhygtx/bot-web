@@ -77,6 +77,7 @@ const showPluginList = ref(true)
 const botEvents = ref([])
 const botActions = ref([])
 const hasBotQQ = ref(localStorage.getItem('botQQ') !== null)
+const isBotOnline = ref(false)
 
 // 连线相关状态
 const connections = ref([])
@@ -133,6 +134,11 @@ const canSetCondition = computed(() => {
 // 检查是否存在 BOT 事件节点
 const hasBotEventNode = computed(() => {
   return nodes.value.some(node => node.nodeType === 'botEvent')
+})
+
+// 检查画布是否为空（没有节点）
+const isCanvasEmpty = computed(() => {
+  return nodes.value.length === 0
 })
 
 // 生成连线
@@ -820,6 +826,24 @@ const handlePopState = () => {
   loadPublicPlugins(publicPlugins, selectedPublicVersions)
 }
 
+// 获取BOT在线状态
+const fetchBotOnlineStatus = async () => {
+  if (hasBotQQ.value) {
+    try {
+      const botStatusResponse = await request({
+        url: '/bot/info',
+        method: 'get'
+      })
+      isBotOnline.value = botStatusResponse.code === 200 && botStatusResponse.data?.online === true
+    } catch (error) {
+      // 如果检查失败，默认认为 BOT 不在线
+      isBotOnline.value = false
+    }
+  } else {
+    isBotOnline.value = false
+  }
+}
+
 // 初始化加载
 onMounted(async () => {
   // 首先检查是否从插件详情页返回
@@ -862,6 +886,9 @@ onMounted(async () => {
   
   // 同步机器人信息
   await syncBotInfo(hasBotQQ, botEvents, botActions, loadBotEvents, loadBotActions)
+  
+  // 获取BOT在线状态
+  await fetchBotOnlineStatus()
   
   // 如果从插件详情页返回，先读取缓存内容
   if (fromPluginDetail && cacheId) {
@@ -969,8 +996,8 @@ onUnmounted(() => {
       </div>
       <div class="header-right">
         <el-button @click="() => { clearWorkflowCache(); router.push('/workflow/list'); }">取消</el-button>
-        <el-button type="primary" @click="handleSaveAndTest" :disabled="hasBotEventNode" :title="hasBotEventNode ? '存在 BOT 事件节点，无法使用保存并测试功能' : '保存并测试'">保存并测试</el-button>
-        <el-button type="success" @click="handleSaveWorkflow">保存</el-button>
+        <el-button type="primary" @click="handleSaveAndTest" :disabled="hasBotEventNode || isCanvasEmpty" :title="isCanvasEmpty ? '画布上没有节点，无法保存并测试' : (hasBotEventNode ? '存在 BOT 事件节点，无法使用保存并测试功能' : '保存并测试')">保存并测试</el-button>
+        <el-button type="success" @click="handleSaveWorkflow" :disabled="isCanvasEmpty" :title="isCanvasEmpty ? '画布上没有节点，无法保存' : '保存'">保存</el-button>
       </div>
     </div>
     
@@ -984,6 +1011,7 @@ onUnmounted(() => {
         :bot-events="botEvents"
         :bot-actions="botActions"
         :has-bot-qq="hasBotQQ"
+        :is-bot-online="isBotOnline"
         :show-plugin-list="showPluginList"
         :model-value="activeTab"
         :selected-versions="selectedVersions"

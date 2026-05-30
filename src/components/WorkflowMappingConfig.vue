@@ -503,8 +503,11 @@ const computeLeftTreeData = () => {
             nodeId: preNode.id,
             attrName: field.fieldName,
             typeName: field.fieldType,
+            description: field.description || '',
+            required: field.required || false,
+            example: field.example || '',
             path: `value.${field.fieldName}`,
-            labelWithType: `${field.fieldType} ${field.fieldName}`
+            labelWithType: field.description ? `${field.fieldType} ${field.fieldName} (${field.description})` : `${field.fieldType} ${field.fieldName}`
           })
         })
         nodeData.children = attributes
@@ -571,7 +574,7 @@ const computeRightTreeData = () => {
     sortedParameters.forEach((param, index) => {
       const paramData = {
         id: `param_${index}`,
-        label: `${param.type} ${param.name}`,
+        label: param.description ? `${param.type} ${param.name} (${param.description})` : `${param.type} ${param.name}`,
         type: 'param',
         paramIndex: index,
         paramName: param.name,

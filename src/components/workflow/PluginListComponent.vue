@@ -206,7 +206,7 @@
           <el-empty v-if="publicPlugins.length === 0" description="暂无公开插件" />
         </div>
       </el-tab-pane>
-      <el-tab-pane v-if="hasBotQQFromLocalStorage" label="BOT 系统" name="bot">
+      <el-tab-pane v-if="hasBotQQFromLocalStorage && isBotOnline" label="BOT 系统" name="bot">
         <div class="plugin-list">
           <!-- BOT 事件 -->
           <el-card class="plugin-item-card">
@@ -297,6 +297,10 @@ const props = defineProps({
     default: () => []
   },
   hasBotQQ: {
+    type: Boolean,
+    default: false
+  },
+  isBotOnline: {
     type: Boolean,
     default: false
   },

@@ -130,6 +130,7 @@ const deleteBot = async () => {
       method: 'get'
     })
     
+    localStorage.removeItem('botQQ')
     ElMessage.success('删除机器人信息成功')
     getBotInfo()
   } catch (error) {

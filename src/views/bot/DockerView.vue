@@ -1,8 +1,11 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete, Plus } from '@element-plus/icons-vue'
 import request from '../../utils/request'
+
+const router = useRouter()
 
 // 容器信息
 const containerInfo = ref({
@@ -95,25 +98,57 @@ const deleteContainer = async () => {
       type: 'warning'
     })
     
+    loading.value = true
+    
     await request({
       url: '/docker/delete',
-      method: 'get'
+      method: 'get',
+      timeout: 30000
     })
     
-    // 更新容器信息
-    await getContainerInfo()
+    containerInfo.value = {
+      containerId: '',
+      name: '',
+      port: null,
+      token: '',
+      createTime: '',
+      updateTime: ''
+    }
     
     ElMessage.success('删除容器成功')
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error(error.message || '删除容器失败')
+      if (error.code === 'ECONNABORTED') {
+        ElMessage.warning('删除请求超时，正在刷新容器信息...')
+      } else {
+        ElMessage.error(error.message || '删除容器失败')
+      }
     }
+  } finally {
+    await getContainerInfo()
+    loading.value = false
   }
 }
 
 // 打开创建对话框
-const openCreateDialog = () => {
-  dialogVisible.value = true
+const openCreateDialog = async () => {
+  try {
+    const response = await request({
+      url: '/bot/info',
+      method: 'get'
+    })
+    
+    if (!response.data || !response.data.id) {
+      ElMessage.warning('请先注册机器人')
+      router.push('/bot/info')
+      return
+    }
+    
+    dialogVisible.value = true
+  } catch (error) {
+    ElMessage.warning('请先注册机器人')
+    router.push('/bot/info')
+  }
 }
 
 // 获取容器信息
