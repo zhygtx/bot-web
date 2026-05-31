@@ -1,6 +1,7 @@
 /**
  * 模型导出文件
  */
+export * from './Attribute';
 export * from './ParameterInfo';
 export * from './MethodInfo';
 export * from './MethodClassInfo';

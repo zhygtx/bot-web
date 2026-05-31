@@ -345,13 +345,17 @@ onMounted(() => {
                     <el-input v-else v-model="entity.description" placeholder="请输入描述" size="small" class="edit-entity-description" />
                   </div>
                 </template>
-                <div v-if="entity.attributes" class="entity-card-body">
+                <div v-if="entity.attributes && entity.attributes.length > 0" class="entity-card-body">
                   <el-collapse class="properties-collapse">
                     <el-collapse-item title="查看属性" class="properties-collapse-item">
                       <div class="properties-list">
-                        <div v-for="(type, name) in JSON.parse(entity.attributes)" :key="name" class="property-item">
-                          <span class="property-name">{{ name }}:</span>
-                          <span class="property-type">{{ type }}</span>
+                        <div v-for="attr in [...entity.attributes].sort((a, b) => {
+                          // 按照属性名排序
+                          return a.name.localeCompare(b.name)
+                        })" :key="attr.id" class="property-item">
+                          <span class="property-name">{{ attr.name }}</span>
+                          <span class="property-type">{{ attr.type }}</span>
+                          <span class="property-description">{{ attr.description || '无描述' }}</span>
                         </div>
                       </div>
                     </el-collapse-item>
@@ -394,6 +398,7 @@ onMounted(() => {
                       <div class="method-card-header">
                         <span class="method-name">{{ method.name }}</span>
                         <span class="method-return-type">返回: {{ method.returnType }}</span>
+                        <span class="method-return-description">{{ method.returnDescription || '' }}</span>
                       </div>
                       <div class="method-card-body">
                         <p v-if="!isEditMode" class="method-description">{{ method.description || '无描述' }}</p>
@@ -411,8 +416,9 @@ onMounted(() => {
                                   // 如果order相同，按照参数名排序
                                   return a.name.localeCompare(b.name)
                                 })" :key="param.id" class="parameter-item">
-                                  <span class="parameter-name">{{ param.name }}:</span>
+                                  <span class="parameter-name">{{ param.name }}</span>
                                   <span class="parameter-type">{{ param.type }}</span>
+                                  <span class="parameter-description">{{ param.description || '无描述' }}</span>
                                 </div>
                               </div>
                             </el-collapse-item>
@@ -721,6 +727,7 @@ onMounted(() => {
   font-size: 13px;
   padding: 4px 0;
   align-items: flex-start;
+  flex-wrap: wrap;
 }
 
 .property-name,
@@ -736,12 +743,34 @@ onMounted(() => {
 .parameter-type {
   color: #606266;
   word-break: break-all;
-  flex: 1;
   font-family: 'Courier New', monospace;
   background-color: #f8f9fa;
   padding: 2px 6px;
   border-radius: 3px;
   border: 1px solid #e9ecef;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.property-description,
+.parameter-description {
+  color: #909399;
+  font-size: 12px;
+  flex: 1;
+  min-width: 150px;
+  font-style: italic;
+}
+
+.method-return-description {
+  font-size: 12px;
+  color: #909399;
+  background-color: #f0f9ff;
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid #e6f7ff;
+  margin-left: 8px;
+  flex-shrink: 0;
+  font-style: italic;
 }
 
 .no-properties,

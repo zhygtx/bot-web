@@ -1,6 +1,8 @@
 /**
  * 实体类信息模型
  */
+import { Attribute } from './Attribute';
+
 export class EntityInfo {
   /**
    * 实体类id
@@ -33,12 +35,15 @@ export class EntityInfo {
   entityName = '';
 
   /**
-   * 实体类属性信息(JSON格式)
+   * 实体类属性信息(对象数组)
    * 系统生成系统与用户均不可修改
    */
-  attributes = '';
+  attributes = [];
 
   constructor(data = {}) {
     Object.assign(this, data);
+    if (data.attributes && Array.isArray(data.attributes)) {
+      this.attributes = data.attributes.map(attr => new Attribute(attr));
+    }
   }
 }

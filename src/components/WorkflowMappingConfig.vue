@@ -476,9 +476,15 @@ const computeLeftTreeData = () => {
           if (preNode.entityInfo && preNode.entityInfo.entityName) {
             returnType = preNode.entityInfo.entityName
           }
+          // 添加返回值描述到节点标签
+          const returnDescription = preNode.method.returnDescription || ''
+          const nodeLabel = returnDescription 
+            ? `${preNode.method.name} (${returnType}) - ${returnDescription}`
+            : `${preNode.method.name} (${returnType})`
+          
           const nodeData = {
             id: `node_${preNode.id}`,
-            label: `${preNode.method.name} (${returnType})`,
+            label: nodeLabel,
             type: 'node',
             nodeId: preNode.id,
             children: []
@@ -487,9 +493,6 @@ const computeLeftTreeData = () => {
       // 检查是否是实体类，尝试解析属性
       const originalReturnType = preNode.method.returnType
       const returnTypeBase = getBaseType(originalReturnType)
-      
-      // 尝试从插件信息中找到实体类信息
-      let isEntity = false
       
       // 处理 BOT 事件的实体类信息
       if (preNode.entityInfo && preNode.entityInfo.fields) {
@@ -507,41 +510,76 @@ const computeLeftTreeData = () => {
             required: field.required || false,
             example: field.example || '',
             path: `value.${field.fieldName}`,
-            labelWithType: field.description ? `${field.fieldType} ${field.fieldName} (${field.description})` : `${field.fieldType} ${field.fieldName}`
+            labelWithType: field.description 
+              ? `${field.fieldType} ${field.fieldName} (${field.description})` 
+              : `${field.fieldType} ${field.fieldName}`
           })
         })
         nodeData.children = attributes
-        isEntity = true
       } else if (preNode.pluginInfo && preNode.pluginInfo.pluginVersionList) {
-        // 处理普通插件的实体类信息
+        // 处理普通插件的实体类信息 - 使用新的 Attribute 对象数组格式
+        let foundEntity = false
         for (const version of preNode.pluginInfo.pluginVersionList) {
           if (version.entityInfoList) {
             const entityInfo = version.entityInfoList.find(e => 
               e.name === returnTypeBase || e.entityName === returnType
             )
-            if (entityInfo && entityInfo.attributes) {
-              // 是实体类，直接添加属性作为子节点
-              const attributes = parseEntityAttributes(returnTypeBase, entityInfo.attributes)
-              // 为每个属性设置正确的path和type
-              attributes.forEach(attr => {
-                attr.type = 'value'; // 改为value类型，以便可以连线
-                attr.nodeId = preNode.id;
-                attr.path = `value.${attr.attrName}`; // 使用value.attrName的形式作为路径
-                // 确保显示时只显示属性名，而不是完整路径
-                attr.label = attr.attrName;
-                // 确保labelWithType也被正确设置，显示类型和属性名
-                attr.labelWithType = `${attr.typeName} ${attr.attrName}`;
-              });
-              nodeData.children = attributes;
-              isEntity = true;
-              break
+            if (entityInfo) {
+              // 检查是否有 attributes 数组（新格式）
+              if (entityInfo.attributes && Array.isArray(entityInfo.attributes)) {
+                // 使用新的属性数组格式
+                const attributes = entityInfo.attributes.map(attr => ({
+                  id: `attr_${entityInfo.name}_${attr.name}`,
+                  label: attr.name,
+                  type: 'value',
+                  nodeId: preNode.id,
+                  attrName: attr.name,
+                  typeName: attr.type,
+                  description: attr.description || '',
+                  path: `value.${attr.name}`,
+                  labelWithType: attr.description 
+                    ? `${attr.type} ${attr.name} (${attr.description})` 
+                    : `${attr.type} ${attr.name}`
+                }))
+                nodeData.children = attributes
+                foundEntity = true
+                break
+              } 
+              // 兼容性处理：旧的 JSON 格式
+              else if (entityInfo.attributes) {
+                const attributes = parseEntityAttributes(returnTypeBase, entityInfo.attributes)
+                // 为每个属性设置正确的path和type
+                attributes.forEach(attr => {
+                  attr.type = 'value';
+                  attr.nodeId = preNode.id;
+                  attr.path = `value.${attr.attrName}`;
+                  attr.label = attr.attrName;
+                  attr.labelWithType = `${attr.typeName} ${attr.attrName}`;
+                })
+                nodeData.children = attributes
+                foundEntity = true
+                break
+              }
             }
           }
         }
-      }
-      
-      // 如果不是实体类，添加返回值根节点
-      if (!isEntity) {
+        
+        // 如果不是实体类，添加返回值根节点
+        if (!foundEntity) {
+          const returnValueNode = {
+            id: `value_${preNode.id}`,
+            label: 'value',
+            type: 'value',
+            nodeId: preNode.id,
+            path: 'value',
+            typeName: preNode.method.returnType,
+            description: returnDescription,
+            children: []
+          }
+          nodeData.children.push(returnValueNode)
+        }
+      } else {
+        // 如果没有插件信息，添加返回值根节点
         const returnValueNode = {
           id: `value_${preNode.id}`,
           label: 'value',
@@ -549,6 +587,7 @@ const computeLeftTreeData = () => {
           nodeId: preNode.id,
           path: 'value',
           typeName: preNode.method.returnType,
+          description: returnDescription,
           children: []
         }
         nodeData.children.push(returnValueNode)
