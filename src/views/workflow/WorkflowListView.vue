@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
-import { User, Clock, Delete } from '@element-plus/icons-vue'
+import { Delete } from '@element-plus/icons-vue'
 import request from '../../utils/request'
 
 const router = useRouter()
@@ -60,42 +60,21 @@ const loadWorkflows = async () => {
   }
 }
 
-// 计算上次更新时间距今的时间
-const getTimeAgo = (updateTime) => {
-  if (!updateTime) return '未知'
-  
-  const now = new Date()
-  const updateDate = new Date(updateTime)
-  const diffTime = Math.abs(now - updateDate)
-  
-  // 计算秒数
-  const diffSeconds = Math.floor(diffTime / 1000)
-  // 计算分钟数
-  const diffMinutes = Math.floor(diffSeconds / 60)
-  // 计算小时数
-  const diffHours = Math.floor(diffMinutes / 60)
-  // 计算天数
-  const diffDays = Math.floor(diffHours / 24)
-  
-  if (diffHours < 1) {
-    return `${diffMinutes}分钟前`
-  } else if (diffHours < 24) {
-    return `${diffHours}小时前`
-  } else if (diffDays === 1) {
-    return '昨天'
-  } else if (diffDays < 7) {
-    return `${diffDays}天前`
-  } else if (diffDays < 30) {
-    const weeks = Math.floor(diffDays / 7)
-    return `${weeks}周前`
-  } else if (diffDays < 365) {
-    const months = Math.floor(diffDays / 30)
-    return `${months}个月前`
-  } else {
-    const years = Math.floor(diffDays / 365)
-    return `${years}年前`
-  }
-}
+// 格式化时间显示
+    const formatTime = (ms) => {
+      if (!ms || ms === 0) return '0ms'
+      
+      if (ms < 1000) {
+        return `${ms}ms`
+      } else if (ms < 60000) {
+        const seconds = (ms / 1000).toFixed(1)
+        return `${seconds}s`
+      } else {
+        const minutes = Math.floor(ms / 60000)
+        const seconds = Math.floor((ms % 60000) / 1000)
+        return `${minutes}m${seconds}s`
+      }
+    }
 
 // 分页处理
 const handlePageChange = (currentPage) => {
@@ -180,22 +159,28 @@ onMounted(() => {
                         </el-icon>
                       </div>
                     </div>
-                  <div class="workflow-card-description">
-                    {{ workflow.description || '暂无描述' }}
-                  </div>
-                  <div class="workflow-card-footer">
-                    <div class="workflow-card-author">
-                      <el-icon class="footer-icon"><User /></el-icon>
-                      <span>{{ workflow.authorName || workflow.userId || '未知' }}</span>
+                    
+                    <div class="workflow-stats">
+                      <div class="stat-item">
+                        <span class="stat-label">执行次数</span>
+                        <span class="stat-value">{{ workflow.executeCount || 0 }}</span>
+                      </div>
+                      <div class="stat-item">
+                        <span class="stat-label">平均耗时</span>
+                        <span class="stat-value">{{ formatTime(workflow.averageExecutionTime) }}</span>
+                      </div>
+                      <div class="stat-item">
+                        <span class="stat-label">节点数</span>
+                        <span class="stat-value">{{ workflow.nodeCount || 0 }}</span>
+                      </div>
+                      <div class="stat-item">
+                        <span class="stat-label">平均执行节点</span>
+                        <span class="stat-value">{{ workflow.averageNodeCount || 0 }}</span>
+                      </div>
                     </div>
-                    <div class="workflow-card-time">
-                      <el-icon class="footer-icon"><Clock /></el-icon>
-                      <span>{{ getTimeAgo(workflow.updateTime) }}</span>
-                    </div>
                   </div>
-                </div>
-              </el-card>
-            </div>
+                </el-card>
+              </div>
             </el-col>
           </el-row>
           
@@ -250,18 +235,18 @@ onMounted(() => {
 }
 
 .workflow-item-card {
-  height: 280px; /* 固定高度，确保长宽比一致 */
+  height: 280px;
   border: 1px solid #e6e6e6;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* 添加阴影效果 */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
   cursor: pointer;
   overflow: hidden;
-  position: relative; /* 添加相对定位，使删除图标容器的绝对定位相对于卡片 */
+  position: relative;
 }
 
 .workflow-item-wrapper:hover .workflow-item-card {
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15); /* 增强hover时的阴影效果 */
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
 }
 
 .workflow-card-content {
@@ -275,7 +260,7 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
   position: relative;
 }
 
@@ -355,35 +340,39 @@ onMounted(() => {
   box-shadow: 0 4px 12px rgba(245, 108, 108, 0.2);
 }
 
-.workflow-card-description {
-  font-size: 14px;
-  color: #606266;
-  line-height: 1.6;
-  margin-bottom: 20px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #e6e6e6;
-  flex: 1;
-  overflow: hidden;
+.workflow-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 8px;
 }
 
-.workflow-card-footer {
+.stat-item {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
+  padding: 16px 8px;
+  background-color: #f5f7fa;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.stat-item:hover {
+  background-color: #e6ebf5;
+  transform: translateY(-2px);
+}
+
+.stat-label {
   font-size: 12px;
   color: #909399;
-  margin-top: auto;
+  margin-bottom: 4px;
 }
 
-.workflow-card-author,
-.workflow-card-time {
-  display: flex;
-  align-items: center;
-}
-
-.footer-icon {
-  font-size: 14px;
-  margin-right: 4px;
+.stat-value {
+  font-size: 18px;
+  font-weight: bold;
+  color: #409eff;
 }
 
 .pagination {

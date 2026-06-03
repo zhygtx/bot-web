@@ -1,19 +1,23 @@
 <script setup>
-// App.vue - 应用入口组件
+import Layout from './components/Layout.vue'
 </script>
 
 <template>
-  <div class="app-container">
-    <router-view />
-  </div>
+  <Layout />
 </template>
 
 <style>
-/* 全局样式 */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
 body {
@@ -24,9 +28,7 @@ body {
   line-height: 1.5;
 }
 
-.app-container {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+#app {
+  height: 100vh;
 }
 </style>
