@@ -4,6 +4,8 @@ import { ElMessage, ElLoading, ElPagination, ElSelect, ElOption, ElDatePicker, E
 import { Clock, VideoPlay, CircleCheck, CircleClose, ArrowRight, Refresh, Filter } from '@element-plus/icons-vue'
 import request from '../../utils/request'
 
+const BIG_TEXT_PREFIX = 'BIG_TEXT:'
+
 // 日志列表
 const logs = ref([])
 // 加载状态
@@ -18,6 +20,10 @@ const filters = ref({
   workflowName: '',
   dateRange: []
 })
+
+// 排序条件
+const sortField = ref('')
+const sortOrder = ref('desc')
 
 // 当前展开的日志详情
 const expandedLogId = ref(null)
@@ -40,6 +46,11 @@ const filteredLogs = computed(() => {
   })
 })
 
+// 判断是否是大数据引用
+const isBigText = (data) => {
+  return data && typeof data === 'string' && data.startsWith(BIG_TEXT_PREFIX)
+}
+
 // 格式化时间
 const formatTime = (timestamp) => {
   if (!timestamp) return '未知'
@@ -54,6 +65,84 @@ const formatTime = (timestamp) => {
   })
 }
 
+// 尝试格式化JSON数据并添加语法高亮
+const formatJsonData = (data) => {
+  if (!data) return data
+  try {
+    const parsed = JSON.parse(data)
+    return JSON.stringify(parsed, null, 2)
+  } catch (e) {
+    // 如果不是JSON，返回原始数据
+    return data
+  }
+}
+
+// 判断是否是JSON数据
+const isJsonData = (data) => {
+  if (!data) return false
+  try {
+    JSON.parse(data)
+    return true
+  } catch (e) {
+    return false
+  }
+}
+
+// 高亮JSON语法
+const highlightJson = (jsonStr) => {
+  if (!jsonStr) return ''
+  try {
+    // 尝试解析验证是否是有效的JSON
+    JSON.parse(jsonStr)
+    
+    return jsonStr
+      .replace(/(".*?")(:)/g, '<span class="json-key">$1</span>$2')
+      .replace(/: ("(?:\\.|[^"\\])*")/g, ': <span class="json-string">$1</span>')
+      .replace(/: (\d+\.?\d*)/g, ': <span class="json-number">$1</span>')
+      .replace(/: (true|false)/g, ': <span class="json-boolean">$1</span>')
+      .replace(/: (null)/g, ': <span class="json-null">$1</span>')
+  } catch (e) {
+    // 不是有效JSON，返回原字符串
+    return jsonStr
+  }
+}
+
+// 弹窗相关
+const showModal = ref(false)
+const modalTitle = ref('')
+const modalContent = ref('')
+
+const openModal = (title, content) => {
+  modalTitle.value = title
+  modalContent.value = formatJsonData(content) || '无数据'
+  showModal.value = true
+}
+
+const closeModal = () => {
+  showModal.value = false
+  modalTitle.value = ''
+  modalContent.value = ''
+}
+
+// 获取大数据内容
+const fetchBigText = async (key, callback) => {
+  try {
+    const response = await request({
+      url: '/workflowLog/findBigText',
+      method: 'get',
+      params: { key }
+    })
+    if (response.code === 200) {
+      callback(response.data)
+    } else {
+      ElMessage.error(response.message || '获取大数据失败')
+    }
+  } catch (error) {
+    console.error('Error:', error)
+    ElMessage.error('获取大数据失败')
+  }
+}
+
 // 加载日志列表
 const loadLogs = async () => {
   loading.value = true
@@ -64,7 +153,9 @@ const loadLogs = async () => {
       userId: localStorage.getItem('userId') || '',
       workflowName: filters.value.workflowName,
       startTime: filters.value.dateRange.length === 2 ? filters.value.dateRange[0].getTime() : null,
-      endTime: filters.value.dateRange.length === 2 ? filters.value.dateRange[1].getTime() : null
+      endTime: filters.value.dateRange.length === 2 ? filters.value.dateRange[1].getTime() : null,
+      sortField: sortField.value,
+      sortOrder: sortOrder.value
     }
     
     const response = await request({
@@ -195,6 +286,17 @@ onMounted(() => {
           />
         </div>
         <div class="filter-item">
+          <span class="filter-label">排序:</span>
+          <el-select v-model="sortField" placeholder="选择排序字段" class="filter-select">
+            <el-option label="执行节点数" value="actualNodeCount" />
+            <el-option label="执行耗时" value="executionTime" />
+          </el-select>
+          <el-select v-model="sortOrder" placeholder="排序方式" class="filter-select">
+            <el-option label="升序" value="asc" />
+            <el-option label="降序" value="desc" />
+          </el-select>
+        </div>
+        <div class="filter-item">
           <el-button @click="resetFilters" type="default">重置</el-button>
           <el-button @click="loadLogs" type="primary">查询</el-button>
         </div>
@@ -243,22 +345,19 @@ onMounted(() => {
             <div v-show="expandedLogId === log.id" class="log-detail">
               <div class="detail-section">
                 <h4>执行摘要</h4>
-                <div class="summary-grid">
-                  <div class="summary-item">
-                    <span class="summary-label">工作流ID</span>
-                    <span class="summary-value">{{ log.workflowId }}</span>
-                  </div>
-                  <div class="summary-item">
-                    <span class="summary-label">用户ID</span>
-                    <span class="summary-value">{{ log.userId }}</span>
-                  </div>
-                  <div class="summary-item">
-                    <span class="summary-label">开始时间</span>
-                    <span class="summary-value">{{ formatTime(log.startTime) }}</span>
-                  </div>
-                  <div class="summary-item">
-                    <span class="summary-label">初始上下文</span>
-                    <span class="summary-value">{{ log.initialContext || '无' }}</span>
+                <div class="summary-context">
+                  <div class="summary-label">初始上下文</div>
+                  <div 
+                    class="json-viewer" 
+                    @click="isBigText(log.initialContext) ? fetchBigText(log.initialContext, (data) => openModal('初始上下文', data)) : openModal('初始上下文', formatJsonData(log.initialContext) || '无')"
+                  >
+                    <template v-if="isBigText(log.initialContext)">
+                      <pre class="big-text-placeholder">数据过大，请点击查看</pre>
+                    </template>
+                    <template v-else>
+                      <pre v-html="highlightJson(formatJsonData(log.initialContext)) || '无'"></pre>
+                    </template>
+                    <div class="viewer-hint">点击查看完整数据</div>
                   </div>
                 </div>
               </div>
@@ -290,11 +389,33 @@ onMounted(() => {
                       <div class="node-details">
                         <div class="detail-row" v-if="nodeLog.input">
                           <span class="detail-label">输入:</span>
-                          <pre class="detail-value">{{ nodeLog.input }}</pre>
+                          <div 
+                            class="json-viewer"
+                            @click="isBigText(nodeLog.input) ? fetchBigText(nodeLog.input, (data) => openModal('输入 - ' + (nodeLog.methodName || '未知方法'), data)) : openModal('输入 - ' + (nodeLog.methodName || '未知方法'), formatJsonData(nodeLog.input))"
+                          >
+                            <template v-if="isBigText(nodeLog.input)">
+                              <pre class="big-text-placeholder">数据过大，请点击查看</pre>
+                            </template>
+                            <template v-else>
+                              <pre v-html="highlightJson(formatJsonData(nodeLog.input))"></pre>
+                            </template>
+                            <div class="viewer-hint">点击查看完整数据</div>
+                          </div>
                         </div>
                         <div class="detail-row" v-if="nodeLog.output">
                           <span class="detail-label">输出:</span>
-                          <pre class="detail-value">{{ nodeLog.output }}</pre>
+                          <div 
+                            class="json-viewer"
+                            @click="isBigText(nodeLog.output) ? fetchBigText(nodeLog.output, (data) => openModal('输出 - ' + (nodeLog.methodName || '未知方法'), data)) : openModal('输出 - ' + (nodeLog.methodName || '未知方法'), formatJsonData(nodeLog.output))"
+                          >
+                            <template v-if="isBigText(nodeLog.output)">
+                              <pre class="big-text-placeholder">数据过大，请点击查看</pre>
+                            </template>
+                            <template v-else>
+                              <pre v-html="highlightJson(formatJsonData(nodeLog.output))"></pre>
+                            </template>
+                            <div class="viewer-hint">点击查看完整数据</div>
+                          </div>
                         </div>
                         <div class="detail-row error" v-if="nodeLog.error">
                           <span class="detail-label">错误:</span>
@@ -332,6 +453,19 @@ onMounted(() => {
           />
         </div>
       </div>
+      
+      <!-- JSON查看弹窗 -->
+      <el-dialog 
+        v-model="showModal" 
+        :title="modalTitle" 
+        width="80%" 
+        :close-on-click-modal="true"
+        @close="closeModal"
+      >
+        <div class="modal-json-viewer">
+          <pre v-html="highlightJson(modalContent)"></pre>
+        </div>
+      </el-dialog>
     </el-card>
   </div>
 </template>
@@ -537,40 +671,98 @@ onMounted(() => {
   margin-bottom: 12px;
 }
 
-.summary-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+.summary-context {
   background: #fff;
   padding: 16px;
   border-radius: 8px;
 }
 
-.summary-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.summary-item:last-child {
-  border-bottom: none;
-}
-
-.summary-label {
+.summary-context .summary-label {
   font-size: 12px;
   color: #909399;
+  margin-bottom: 8px;
+  display: block;
 }
 
-.summary-value {
-  font-size: 12px;
-  color: #303133;
-  font-weight: 500;
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.json-viewer {
+  background-color: #304156;
+  padding: 12px;
+  border-radius: 4px;
+  max-height: 120px;
+  overflow-y: auto;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.json-viewer:hover {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+}
+
+.json-viewer pre {
+  margin: 0;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #e6e6e6;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.json-viewer .viewer-hint {
+  position: absolute;
+  bottom: 4px;
+  right: 8px;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* JSON语法高亮 */
+:deep(.json-key) {
+  color: #ffa07a;
+}
+
+:deep(.json-string) {
+  color: #98fb98;
+}
+
+:deep(.json-number) {
+  color: #ffa500;
+}
+
+:deep(.json-boolean) {
+  color: #87ceeb;
+}
+
+:deep(.json-null) {
+  color: #9370db;
+}
+
+/* 大数据占位符样式 */
+.big-text-placeholder {
+  color: #909399 !important;
+  font-style: italic;
+  text-align: center;
+  padding: 20px 0;
+}
+
+/* 弹窗样式 */
+.modal-json-viewer {
+  background-color: #304156;
+  padding: 16px;
+  border-radius: 8px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.modal-json-viewer pre {
+  margin: 0;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #e6e6e6;
+  white-space: pre-wrap;
+  word-break: break-all;
 }
 
 .node-timeline {
@@ -679,20 +871,17 @@ onMounted(() => {
   margin-bottom: 4px;
 }
 
-.detail-value {
+.detail-value.error-text {
   font-size: 12px;
-  color: #606266;
-  background: #fff;
+  color: #f56c6c;
+  background-color: #304156;
   padding: 8px;
   border-radius: 4px;
-  max-height: 100px;
+  max-height: 120px;
   overflow-y: auto;
   white-space: pre-wrap;
   word-break: break-all;
-}
-
-.detail-value.error-text {
-  color: #f56c6c;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
 }
 
 .pagination {
