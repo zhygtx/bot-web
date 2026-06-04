@@ -117,6 +117,29 @@ const deleteWorkflow = async (workflowId) => {
   }
 }
 
+// 切换工作流启用状态
+const toggleWorkflowEnabled = async (workflow) => {
+  try {
+    const response = await request({
+      url: '/workflow/editEnabled',
+      method: 'put',
+      params: {
+        id: workflow.id,
+        enabled: !workflow.enabled
+      }
+    })
+    
+    if (response.code === 200) {
+      workflow.enabled = !workflow.enabled
+      ElMessage.success('状态修改成功')
+    } else {
+      ElMessage.error(response.message || '修改失败')
+    }
+  } catch (error) {
+    ElMessage.error('修改失败')
+  }
+}
+
 // 跳转到新建工作流页面
 const goToCreate = () => {
   router.push('/workflow/edit')
@@ -150,14 +173,22 @@ onMounted(() => {
                 <el-card class="workflow-item-card" @click="goToDetail(workflow.id)">
                   <div class="workflow-card-content">
                     <div class="workflow-card-header">
-                      <div class="workflow-name-container">
-                        <h3 class="workflow-name">{{ workflow.name }}</h3>
+                      <h3 class="workflow-name">{{ workflow.name }}</h3>
+                      <div class="workflow-status">
+                        <el-button 
+                          :type="workflow.enabled ? 'success' : 'danger'" 
+                          size="small"
+                          @click.stop="toggleWorkflowEnabled(workflow)"
+                          class="enabled-btn"
+                        >
+                          {{ workflow.enabled ? '已启用' : '已禁用' }}
+                        </el-button>
                       </div>
-                      <div class="delete-icon-container">
-                        <el-icon class="delete-icon" @click.stop="deleteWorkflow(workflow.id)">
-                          <Delete />
-                        </el-icon>
-                      </div>
+                    </div>
+                    <div class="delete-icon-container">
+                      <el-icon class="delete-icon" @click.stop="deleteWorkflow(workflow.id)">
+                        <Delete />
+                      </el-icon>
                     </div>
                     
                     <div class="workflow-stats">
@@ -260,8 +291,7 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 16px;
-  position: relative;
+  margin-bottom: 12px;
 }
 
 .workflow-item-wrapper {
@@ -272,12 +302,6 @@ onMounted(() => {
 
 .workflow-item-wrapper:hover {
   transform: translateY(-2px);
-}
-
-.workflow-name-container {
-  position: relative;
-  flex: 1;
-  margin-right: 40px;
 }
 
 .unavailable-tag {
@@ -305,15 +329,27 @@ onMounted(() => {
   font-size: 18px;
   font-weight: bold;
   color: #303133;
+  flex: 1;
+  margin-right: 10px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.workflow-status {
+  flex-shrink: 0;
+}
+
+.enabled-btn {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+
 .delete-icon-container {
   position: absolute;
-  top: -5px;
-  right: -5px;
+  top: 8px;
+  right: 8px;
   z-index: 10;
 }
 

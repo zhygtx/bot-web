@@ -29,6 +29,9 @@ const sortOrder = ref('desc')
 const expandedLogId = ref(null)
 const loadingNodeLogIds = ref(new Set())
 
+// 大数据缓存（点击后替换显示，切换日志时清理）
+const bigTextDisplayCache = ref({})
+
 const normalizeLog = (log) => ({
   ...log,
   nodeLogs: log.nodeLogs || []
@@ -88,6 +91,14 @@ const isJsonData = (data) => {
   }
 }
 
+// HTML转义函数
+const escapeHtml = (str) => {
+  if (!str) return str
+  const div = document.createElement('div')
+  div.textContent = str
+  return div.innerHTML
+}
+
 // 高亮JSON语法
 const highlightJson = (jsonStr) => {
   if (!jsonStr) return ''
@@ -95,15 +106,18 @@ const highlightJson = (jsonStr) => {
     // 尝试解析验证是否是有效的JSON
     JSON.parse(jsonStr)
     
-    return jsonStr
+    // 先转义HTML特殊字符，防止HTML内容被渲染
+    const escapedStr = escapeHtml(jsonStr)
+    
+    return escapedStr
       .replace(/(".*?")(:)/g, '<span class="json-key">$1</span>$2')
       .replace(/: ("(?:\\.|[^"\\])*")/g, ': <span class="json-string">$1</span>')
       .replace(/: (\d+\.?\d*)/g, ': <span class="json-number">$1</span>')
       .replace(/: (true|false)/g, ': <span class="json-boolean">$1</span>')
       .replace(/: (null)/g, ': <span class="json-null">$1</span>')
   } catch (e) {
-    // 不是有效JSON，返回原字符串
-    return jsonStr
+    // 不是有效JSON，返回转义后的字符串
+    return escapeHtml(jsonStr)
   }
 }
 
@@ -124,8 +138,24 @@ const closeModal = () => {
   modalContent.value = ''
 }
 
-// 获取大数据内容
+// 复制弹窗内容
+const copyModalContent = async () => {
+  try {
+    await navigator.clipboard.writeText(modalContent.value)
+    ElMessage.success('复制成功')
+  } catch (error) {
+    console.error('复制失败:', error)
+    ElMessage.error('复制失败')
+  }
+}
+
+// 获取大数据内容（带缓存）
 const fetchBigText = async (key, callback) => {
+  if (bigTextDisplayCache.value[key]) {
+    callback(bigTextDisplayCache.value[key])
+    return
+  }
+  
   try {
     const response = await request({
       url: '/workflowLog/findBigText',
@@ -133,6 +163,7 @@ const fetchBigText = async (key, callback) => {
       params: { key }
     })
     if (response.code === 200) {
+      bigTextDisplayCache.value[key] = response.data
       callback(response.data)
     } else {
       ElMessage.error(response.message || '获取大数据失败')
@@ -221,6 +252,8 @@ const toggleLogDetail = async (log) => {
   if (expandedLogId.value === log.id) {
     expandedLogId.value = null
   } else {
+    // 切换日志时清理大数据缓存，防止数据溢出
+    bigTextDisplayCache.value = {}
     expandedLogId.value = log.id
     await loadNodeLogs(log)
   }
@@ -228,7 +261,13 @@ const toggleLogDetail = async (log) => {
 
 // 刷新日志列表
 const refreshLogs = () => {
+  // 收起所有展开的日志
+  expandedLogId.value = null
+  // 清空大数据缓存
+  bigTextDisplayCache.value = {}
+  // 重置页码
   pageNum.value = 1
+  // 重新加载日志
   loadLogs()
 }
 
@@ -238,6 +277,8 @@ const resetFilters = () => {
     workflowName: '',
     dateRange: []
   }
+  sortField.value = ''
+  sortOrder.value = 'desc'
   pageNum.value = 1
   loadLogs()
 }
@@ -352,7 +393,12 @@ onMounted(() => {
                     @click="isBigText(log.initialContext) ? fetchBigText(log.initialContext, (data) => openModal('初始上下文', data)) : openModal('初始上下文', formatJsonData(log.initialContext) || '无')"
                   >
                     <template v-if="isBigText(log.initialContext)">
-                      <pre class="big-text-placeholder">数据过大，请点击查看</pre>
+                      <template v-if="bigTextDisplayCache[log.initialContext]">
+                        <pre v-html="highlightJson(formatJsonData(bigTextDisplayCache[log.initialContext]))"></pre>
+                      </template>
+                      <template v-else>
+                        <pre class="big-text-placeholder">数据过大，请点击查看</pre>
+                      </template>
                     </template>
                     <template v-else>
                       <pre v-html="highlightJson(formatJsonData(log.initialContext)) || '无'"></pre>
@@ -394,7 +440,12 @@ onMounted(() => {
                             @click="isBigText(nodeLog.input) ? fetchBigText(nodeLog.input, (data) => openModal('输入 - ' + (nodeLog.methodName || '未知方法'), data)) : openModal('输入 - ' + (nodeLog.methodName || '未知方法'), formatJsonData(nodeLog.input))"
                           >
                             <template v-if="isBigText(nodeLog.input)">
-                              <pre class="big-text-placeholder">数据过大，请点击查看</pre>
+                              <template v-if="bigTextDisplayCache[nodeLog.input]">
+                                <pre v-html="highlightJson(formatJsonData(bigTextDisplayCache[nodeLog.input]))"></pre>
+                              </template>
+                              <template v-else>
+                                <pre class="big-text-placeholder">数据过大，请点击查看</pre>
+                              </template>
                             </template>
                             <template v-else>
                               <pre v-html="highlightJson(formatJsonData(nodeLog.input))"></pre>
@@ -409,7 +460,12 @@ onMounted(() => {
                             @click="isBigText(nodeLog.output) ? fetchBigText(nodeLog.output, (data) => openModal('输出 - ' + (nodeLog.methodName || '未知方法'), data)) : openModal('输出 - ' + (nodeLog.methodName || '未知方法'), formatJsonData(nodeLog.output))"
                           >
                             <template v-if="isBigText(nodeLog.output)">
-                              <pre class="big-text-placeholder">数据过大，请点击查看</pre>
+                              <template v-if="bigTextDisplayCache[nodeLog.output]">
+                                <pre v-html="highlightJson(formatJsonData(bigTextDisplayCache[nodeLog.output]))"></pre>
+                              </template>
+                              <template v-else>
+                                <pre class="big-text-placeholder">数据过大，请点击查看</pre>
+                              </template>
                             </template>
                             <template v-else>
                               <pre v-html="highlightJson(formatJsonData(nodeLog.output))"></pre>
@@ -457,11 +513,23 @@ onMounted(() => {
       <!-- JSON查看弹窗 -->
       <el-dialog 
         v-model="showModal" 
-        :title="modalTitle" 
         width="80%" 
         :close-on-click-modal="true"
         @close="closeModal"
       >
+        <template #header>
+          <div class="modal-header">
+            <span>{{ modalTitle }}</span>
+            <el-button 
+              type="text" 
+              icon="CopyDocument" 
+              @click="copyModalContent"
+              class="copy-btn"
+            >
+              复制
+            </el-button>
+          </div>
+        </template>
         <div class="modal-json-viewer">
           <pre v-html="highlightJson(modalContent)"></pre>
         </div>
@@ -744,6 +812,27 @@ onMounted(() => {
   font-style: italic;
   text-align: center;
   padding: 20px 0;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+/* 弹窗头部样式 */
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.copy-btn {
+  color: #409eff;
+  font-size: 14px;
+  padding: 4px 12px;
+}
+
+.copy-btn:hover {
+  color: #66b1ff;
+  background-color: rgba(64, 158, 255, 0.1);
 }
 
 /* 弹窗样式 */

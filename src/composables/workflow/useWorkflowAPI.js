@@ -165,6 +165,7 @@ export function useWorkflowAPI() {
       authorName: workflowInfo.authorName || name || '',
       name: workflowInfo.name || '',
       description: workflowInfo.description || '',
+      enabled: workflowInfo.enabled !== undefined ? workflowInfo.enabled : true,
       createTime: workflowInfo.createTime || null,
       updateTime: workflowInfo.updateTime || null,
       nodes: (nodes || []).map(node => {
@@ -276,6 +277,7 @@ export function useWorkflowAPI() {
       authorName: workflowInfo.authorName || name || '',
       name: workflowInfo.name || '',
       description: workflowInfo.description || '',
+      enabled: workflowInfo.enabled !== undefined ? workflowInfo.enabled : true,
       createTime: workflowInfo.createTime || null,
       updateTime: workflowInfo.updateTime || null,
       nodes: (nodes.value || nodes).map(node => {

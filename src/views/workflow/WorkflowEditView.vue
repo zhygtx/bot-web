@@ -33,7 +33,8 @@ const workflowId = route.params.id
 const workflowInfo = ref({
   id: '',
   name: '',
-  description: ''
+  description: '',
+  enabled: true
 })
 // 画布上的节点
 const nodes = ref([])
@@ -993,6 +994,13 @@ onUnmounted(() => {
             <el-icon><ZoomIn /></el-icon>
           </el-button>
         </el-button-group>
+        <el-button 
+          :type="workflowInfo.enabled ? 'success' : 'danger'" 
+          @click="workflowInfo.enabled = !workflowInfo.enabled"
+          class="enabled-toggle-btn"
+        >
+          {{ workflowInfo.enabled ? '启用中' : '已禁用' }}
+        </el-button>
       </div>
       <div class="header-right">
         <el-button @click="() => { clearWorkflowCache(); router.push('/workflow/list'); }">取消</el-button>
