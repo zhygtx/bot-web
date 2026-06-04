@@ -994,6 +994,8 @@ onUnmounted(() => {
             <el-icon><ZoomIn /></el-icon>
           </el-button>
         </el-button-group>
+      </div>
+      <div class="header-right">
         <el-button 
           :type="workflowInfo.enabled ? 'success' : 'danger'" 
           @click="workflowInfo.enabled = !workflowInfo.enabled"
@@ -1001,8 +1003,6 @@ onUnmounted(() => {
         >
           {{ workflowInfo.enabled ? '启用中' : '已禁用' }}
         </el-button>
-      </div>
-      <div class="header-right">
         <el-button @click="() => { clearWorkflowCache(); router.push('/workflow/list'); }">取消</el-button>
         <el-button type="primary" @click="handleSaveAndTest" :disabled="hasBotEventNode || isCanvasEmpty" :title="isCanvasEmpty ? '画布上没有节点，无法保存并测试' : (hasBotEventNode ? '存在 BOT 事件节点，无法使用保存并测试功能' : '保存并测试')">保存并测试</el-button>
         <el-button type="success" @click="handleSaveWorkflow" :disabled="isCanvasEmpty" :title="isCanvasEmpty ? '画布上没有节点，无法保存' : '保存'">保存</el-button>

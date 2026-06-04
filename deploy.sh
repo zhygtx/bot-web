@@ -1,83 +1,70 @@
 #!/bin/bash
 
-# 设置工作目录
 cd "$(dirname "$0")"
 
-# 读取配置文件
 CONFIG_FILE="./deploy.config.js"
 if [ -f "$CONFIG_FILE" ]; then
-    # 提取端口值
     PORT=$(grep -o '"port":[[:space:]]*[0-9]*' "$CONFIG_FILE" | cut -d':' -f2 | tr -d ' ')
-    if [ -z "$PORT" ] || [ "$PORT" -eq 0 ]; then
-        PORT=3000  # 默认端口，避免与后端8080冲突
-    fi
-    
-    # 提取日志文件名
-    LOG_FILE=$(grep -o '"logFile":[[:space:]]*"[^"]*"' "$CONFIG_FILE" | cut -d'"' -f4)
-    if [ -z "$LOG_FILE" ]; then
-        LOG_FILE="frontend.log"  # 默认日志文件
-    fi
-    
-    # 提取 dist 目录
+    [ -z "$PORT" ] && PORT=80
+
     DIST_DIR=$(grep -o '"distDir":[[:space:]]*"[^"]*"' "$CONFIG_FILE" | cut -d'"' -f4)
-    if [ -z "$DIST_DIR" ]; then
-        DIST_DIR="dist"  # 默认输出目录
-    fi
-    
-    # 提取日志轮转配置
-    LOG_MAX_SIZE=$(grep -o '"logMaxSize":[[:space:]]*[0-9]*' "$CONFIG_FILE" | cut -d':' -f2 | tr -d ' ')
-    if [ -z "$LOG_MAX_SIZE" ] || [ "$LOG_MAX_SIZE" -eq 0 ]; then
-        LOG_MAX_SIZE=104857600  # 默认100MB
-    fi
-    
-    LOG_BACKUP_COUNT=$(grep -o '"logBackupCount":[[:space:]]*[0-9]*' "$CONFIG_FILE" | cut -d':' -f2 | tr -d ' ')
-    if [ -z "$LOG_BACKUP_COUNT" ] || [ "$LOG_BACKUP_COUNT" -eq 0 ]; then
-        LOG_BACKUP_COUNT=5  # 默认保留5个备份
-    fi
+    [ -z "$DIST_DIR" ] && DIST_DIR="dist"
+
+    NGINX_SERVER_NAME=$(grep -o '"serverName":[[:space:]]*"[^"]*"' "$CONFIG_FILE" | cut -d'"' -f4)
+    [ -z "$NGINX_SERVER_NAME" ] && NGINX_SERVER_NAME="_"
+
+    NGINX_GZIP=$(grep -o '"gzip":[[:space:]]*[a-z]*' "$CONFIG_FILE" | head -1 | cut -d':' -f2 | tr -d ' ')
+    [ "$NGINX_GZIP" = "true" ] && NGINX_GZIP_ENABLED=true || NGINX_GZIP_ENABLED=false
+
+    NGINX_GZIP_TYPES=$(grep -o '"gzipTypes":[[:space:]]*"[^"]*"' "$CONFIG_FILE" | cut -d'"' -f4)
+    [ -z "$NGINX_GZIP_TYPES" ] && NGINX_GZIP_TYPES="text/plain text/css application/json application/javascript text/xml application/xml"
+
+    NGINX_CACHE=$(grep -o '"cacheEnabled":[[:space:]]*[a-z]*' "$CONFIG_FILE" | cut -d':' -f2 | tr -d ' ')
+    [ "$NGINX_CACHE" = "true" ] && NGINX_CACHE_ENABLED=true || NGINX_CACHE_ENABLED=false
+
+    # 提取 API 反向代理配置
+    API_PROXY_ENABLED=$(grep -o '"enabled":[[:space:]]*[a-z]*' "$CONFIG_FILE" | tail -1 | cut -d':' -f2 | tr -d ' ')
+    [ "$API_PROXY_ENABLED" = "true" ] && API_PROXY_ENABLED=true || API_PROXY_ENABLED=false
+
+    API_PROXY_TARGET=$(grep -o '"target":[[:space:]]*"[^"]*"' "$CONFIG_FILE" | cut -d'"' -f4)
+    [ -z "$API_PROXY_TARGET" ] && API_PROXY_TARGET="http://localhost:8080"
 else
-    # 默认值
+    PORT=80
     DIST_DIR="dist"
-    LOG_FILE="frontend.log"
-    PORT=3000  # 默认端口，避免与后端8080冲突
-    LOG_MAX_SIZE=104857600  # 100MB
-    LOG_BACKUP_COUNT=5  # 保留5个备份
+    NGINX_SERVER_NAME="_"
+    NGINX_GZIP_ENABLED=true
+    NGINX_GZIP_TYPES="text/plain text/css application/json application/javascript text/xml application/xml"
+    NGINX_CACHE_ENABLED=true
+    API_PROXY_ENABLED=true
+    API_PROXY_TARGET="http://localhost:8080"
 fi
 
-SERVER_PID_FILE="server.pid"
+NGINX_CONF_NAME="frontend-app"
+NGINX_SITES_AVAILABLE="/etc/nginx/sites-available"
+NGINX_SITES_ENABLED="/etc/nginx/sites-enabled"
+NGINX_CONF_AVAILABLE="$NGINX_SITES_AVAILABLE/$NGINX_CONF_NAME"
+NGINX_CONF_ENABLED="$NGINX_SITES_ENABLED/$NGINX_CONF_NAME"
 
-# 命令行参数
 SKIP_DEPENDENCIES=false
 SKIP_BUILD=false
 
-# 解析命令行参数
 parse_args() {
     while [ "$#" -gt 0 ]; do
         case "$1" in
-            --skip-deps)
-                SKIP_DEPENDENCIES=true
-                ;;
-            --skip-build)
-                SKIP_BUILD=true
-                ;;
-            *)
-                break
-                ;;
+            --skip-deps) SKIP_DEPENDENCIES=true ;;
+            --skip-build) SKIP_BUILD=true ;;
+            *) break ;;
         esac
         shift
     done
 }
 
-# 检查 Node.js 是否已安装且版本符合要求
 check_node_installed() {
     if command -v node &> /dev/null; then
         local node_version=$(node --version)
         echo "🔍 Node.js 版本: $node_version"
-        
-        # 提取主版本号和次版本号（如 v20.19.1 -> 主版本20，次版本19）
         local major=$(echo $node_version | sed -n 's/^v\([0-9]\+\)\.\([0-9]\+\).*/\1/p')
         local minor=$(echo $node_version | sed -n 's/^v\([0-9]\+\)\.\([0-9]\+\).*/\2/p')
-        
-        # Vite 7 要求 Node.js 20.19+ 或 22.12+
         if [[ ($major -eq 20 && $minor -ge 19) || $major -eq 21 || ($major -eq 22 && $minor -ge 12) || $major -gt 22 ]]; then
             echo "✅ Node.js 版本符合要求"
             return 0
@@ -85,314 +72,269 @@ check_node_installed() {
             echo "⚠️  Node.js 版本不符合要求"
             echo "   当前版本: $node_version"
             echo "   要求版本: v20.19+ 或 v22.12+"
-            return 2  # 返回2表示已安装但版本不符合
+            return 2
         fi
     else
         echo "❌ Node.js 未安装"
-        return 1  # 返回1表示未安装
-    fi
-}
-
-# 检查 npm 是否已安装
-check_npm_installed() {
-    if command -v npm &> /dev/null; then
-        echo "✅ npm 已安装: $(npm --version)"
-        return 0
-    else
         return 1
     fi
 }
 
-# 检查 serve 是否已安装
-check_serve_installed() {
-    # 1. 检查全局安装的 serve
-    if command -v serve &> /dev/null; then
-        local version=$(serve --version 2>&1)
-        if [ $? -eq 0 ]; then
-            echo "✅ serve 已安装: $version"
-            return 0
-        fi
-    fi
-    
-    # 2. 尝试通过 npx 检查，设置 5 秒超时
-    echo "⏳ 正在检查 serve (通过 npx)..."
-    if timeout 5 npx serve --version &> /dev/null; then
-        echo "✅ serve 可通过 npx 使用"
-        return 0
-    else
-        return 1
-    fi
-}
-
-# 安装或升级 Node.js 和 npm
 install_node() {
     local current_node_version=$(node --version 2>/dev/null || echo "未安装")
+    [ "$current_node_version" != "未安装" ] && echo "📦 Node.js 当前版本: $current_node_version，正在升级..." || echo "📦 Node.js 未安装，正在安装..."
     
-    if [ "$current_node_version" != "未安装" ]; then
-        echo "📦 Node.js 当前版本: $current_node_version，正在升级..."
-    else
-        echo "📦 Node.js 未安装，正在安装..."
-    fi
-
-    # 安装 Node.js 20 LTS（v20.19+）以满足 Vite 7 要求
     local node_version="setup_20.x"
-    
     if command -v apt-get &> /dev/null; then
-        # Ubuntu/Debian
-        echo "📦 使用 apt-get 安装 Node.js 20 LTS..."
         curl -fsSL https://deb.nodesource.com/$node_version | sudo -E bash -
-        sudo apt-get update
-        sudo apt-get install -y nodejs
+        sudo apt-get update && sudo apt-get install -y nodejs
     elif command -v yum &> /dev/null; then
-        # CentOS/RHEL
-        echo "📦 使用 yum 安装 Node.js 20 LTS..."
         curl -fsSL https://rpm.nodesource.com/$node_version | sudo -E bash -
         sudo yum install -y nodejs
     elif command -v dnf &> /dev/null; then
-        # Fedora
-        echo "📦 使用 dnf 安装 Node.js 20 LTS..."
         curl -fsSL https://rpm.nodesource.com/$node_version | sudo -E bash -
         sudo dnf install -y nodejs
     else
-        echo "❌ 错误: 未找到包管理器，无法自动安装 Node.js"
-        echo "请手动安装 Node.js v20.19+ 或 v22.12+: https://nodejs.org/"
+        echo "❌ 错误: 未找到包管理器，请手动安装 Node.js"
         exit 1
     fi
 
-    # 验证安装
     if ! command -v node &> /dev/null || ! command -v npm &> /dev/null; then
-        echo "❌ 错误: Node.js 或 npm 安装失败"
+        echo "❌ Node.js 或 npm 安装失败"
         exit 1
     fi
-    
-    local new_node_version=$(node --version)
-    echo "✅ Node.js 安装/升级成功，版本: $new_node_version"
+    echo "✅ Node.js 安装成功: $(node --version)"
 }
 
-# 安装 serve
-install_serve() {
-    echo "📦 正在安装 serve..."
-    npm install -g serve
-}
-
-# 检查并安装依赖
 install_dependencies() {
-    if [ "$SKIP_DEPENDENCIES" = true ]; then
-        echo "⏭️  跳过依赖检查和安装"
-        return
-    fi
-    
-    echo "🔍 正在检查 Node.js 和 npm..."
-    
-    # 检查 Node.js 版本
+    [ "$SKIP_DEPENDENCIES" = true ] && echo "⏭️  跳过依赖检查" && return
+
     check_node_installed
     local node_check_result=$?
-    
-    if [ $node_check_result -ne 0 ]; then
-        # 如果未安装或版本不符合要求，安装或升级 Node.js
-        install_node
-        
-        # 验证安装/升级后的版本
-        check_node_installed
-        if [ $? -ne 0 ]; then
-            echo "❌ Node.js 安装/升级后版本仍不符合要求"
-            exit 1
-        fi
-    fi
-    
-    echo "🔍 正在检查 npm..."
-    if ! check_npm_installed; then
-        echo "📦 npm 未安装或版本不匹配，正在重新安装..."
-        install_node
-    fi
-    
-    echo "🔍 正在检查 serve..."
-    if ! check_serve_installed; then
-        install_serve
-    fi
-    
+    [ $node_check_result -ne 0 ] && install_node && check_node_installed && [ $? -ne 0 ] && exit 1
+
     echo "📦 正在安装项目依赖..."
     npm install
     echo "✅ 项目依赖安装完成"
 }
 
-# 构建项目
 build_project() {
-    if [ "$SKIP_BUILD" = true ]; then
-        echo "⏭️  跳过项目构建"
-        return
-    fi
-    
-    # 检查 dist 目录是否存在且包含构建产物
-    if [ -d "$DIST_DIR" ] && [ -f "$DIST_DIR/index.html" ] && [ -d "$DIST_DIR/assets" ]; then
-        echo "✅ 检测到 $DIST_DIR 目录已包含构建产物，自动跳过构建"
-        return
-    fi
-    
+    [ "$SKIP_BUILD" = true ] && echo "⏭️  跳过项目构建" && return
+    [ -d "$DIST_DIR" ] && [ -f "$DIST_DIR/index.html" ] && [ -d "$DIST_DIR/assets" ] && echo "✅ 检测到 $DIST_DIR 已包含构建产物" && return
+
     echo "🏗️  正在构建项目..."
     npm run build
-    
-    if [ $? -ne 0 ]; then
-        echo "❌ 构建失败，请检查错误信息"
-        echo "💡 提示：如果您已经上传了构建好的 $DIST_DIR 目录，"
-        echo "💡 可以使用 ./deploy.sh prod --skip-build 跳过构建步骤"
-        exit 1
-    fi
-    
-    echo "✅ 项目构建完成，输出到 $DIST_DIR 目录"
+    [ $? -ne 0 ] && echo "❌ 构建失败" && exit 1
+    echo "✅ 项目构建完成"
 }
 
-# 检查进程是否运行
-is_server_running() {
-    if [ -f "$SERVER_PID_FILE" ]; then
-        local pid=$(cat "$SERVER_PID_FILE")
-        if [ ! -z "$pid" ] && [ -d "/proc/$pid" ]; then
-            return 0
-        else
-            return 1
-        fi
+check_nginx_installed() {
+    if command -v nginx &> /dev/null; then
+        local version=$(nginx -v 2>&1 | grep -oP 'nginx/\K[0-9.]+')
+        echo "✅ Nginx 已安装: $version"
+        return 0
     else
         return 1
     fi
 }
 
-# 检查并安装 lsof
-ensure_lsof_installed() {
-    if ! command -v lsof &> /dev/null; then
-        echo "📦 lsof 命令未找到，正在安装..."
-        if command -v apt-get &> /dev/null; then
-            sudo apt-get update
-            sudo apt-get install -y lsof
-        elif command -v yum &> /dev/null; then
-            sudo yum install -y lsof
-        elif command -v dnf &> /dev/null; then
-            sudo dnf install -y lsof
-        else
-            echo "❌ 错误: 未找到包管理器，无法自动安装 lsof"
-            exit 1
-        fi
-
-        # 验证安装
-        if ! command -v lsof &> /dev/null; then
-            echo "❌ 错误: lsof 安装失败"
-            exit 1
-        fi
-        echo "✅ lsof 安装成功"
-    fi
-}
-
-# 日志轮转函数
-log_rotate() {
-    if [ ! -f "$LOG_FILE" ]; then
-        return  # 日志文件不存在，不需要轮转
-    fi
-    
-    # 获取当前日志文件大小（字节）
-    local log_size=$(wc -c < "$LOG_FILE" 2>/dev/null || echo 0)
-    
-    # 检查日志大小是否超过阈值
-    if [ "$log_size" -lt "$LOG_MAX_SIZE" ]; then
-        return  # 日志大小未超过阈值，不需要轮转
-    fi
-    
-    echo "📋 正在执行日志轮转..."
-    
-    # 获取当前日期（格式：YYYY-MM-DD）
-    local current_date=$(date +"%Y-%m-%d")
-    
-    # 计算需要保留的最大备份数
-    local max_backup=$LOG_BACKUP_COUNT
-    
-    # 移除最旧的备份（如果超过保留数量）
-    if [ -f "${LOG_FILE}.${max_backup}.${current_date}" ]; then
-        rm -f "${LOG_FILE}.${max_backup}.${current_date}"
-    fi
-    
-    # 将现有的备份文件从n-1到1依次重命名
-    local i=$((max_backup - 1))
-    while [ $i -ge 1 ]; do
-        if [ -f "${LOG_FILE}.${i}.${current_date}" ]; then
-            local next_i=$((i + 1))
-            mv "${LOG_FILE}.${i}.${current_date}" "${LOG_FILE}.${next_i}.${current_date}"
-        fi
-        i=$((i - 1))
-    done
-    
-    # 将当前日志文件重命名为备份文件
-    mv "$LOG_FILE" "${LOG_FILE}.1.${current_date}"
-    
-    echo "✅ 日志轮转完成，已保存为 ${LOG_FILE}.1.${current_date}"
-    echo "📋 当前日志文件已重新创建"
-}
-
-# 终止占用端口的进程
-kill_port_process() {
-    ensure_lsof_installed
-
-    local port=$1
-    local pid=$(lsof -t -i:$port)
-    if [ ! -z "$pid" ]; then
-        echo "🔌 发现端口 $port 被进程 $pid 占用，正在终止..."
-        kill -9 $pid
-        echo "✅ 端口 $port 的占用进程已终止"
+check_nginx_structure() {
+    if [ -d "/etc/nginx/sites-available" ] && [ -d "/etc/nginx/sites-enabled" ]; then
+        NGINX_SITES_AVAILABLE="/etc/nginx/sites-available"
+        NGINX_SITES_ENABLED="/etc/nginx/sites-enabled"
+        return 0
+    elif [ -d "/etc/nginx/conf.d" ]; then
+        NGINX_SITES_AVAILABLE="/etc/nginx/conf.d"
+        NGINX_SITES_ENABLED="/etc/nginx/conf.d"
+        return 1
     else
-        echo "🔌 端口 $port 未被占用"
+        return 2
     fi
 }
 
-# 启动服务器
-start_server() {
-    # 构建项目（如果需要）
-    build_project
-
-    # 再次检查 dist 目录，确保有构建产物
-    if [ ! -d "$DIST_DIR" ] || [ ! -f "$DIST_DIR/index.html" ]; then
-        echo "❌ 错误：$DIST_DIR 目录不存在或缺少构建产物"
-        echo "💡 请确保已上传构建好的 $DIST_DIR 目录，或运行 ./deploy.sh build 进行构建"
+install_nginx() {
+    echo "📦 正在安装 Nginx..."
+    if command -v apt-get &> /dev/null; then
+        sudo apt-get update && sudo apt-get install -y nginx
+    elif command -v yum &> /dev/null; then
+        sudo yum install -y epel-release && sudo yum install -y nginx
+    elif command -v dnf &> /dev/null; then
+        sudo dnf install -y nginx
+    else
+        echo "❌ 错误: 未找到包管理器，请手动安装 Nginx"
         exit 1
     fi
 
-    if is_server_running; then
-        echo "🚀 服务器已在运行中 (PID: $(cat $SERVER_PID_FILE))"
+    [ ! command -v nginx &> /dev/null ] && echo "❌ Nginx 安装失败" && exit 1
+    echo "✅ Nginx 安装成功"
+}
+
+generate_nginx_config() {
+    local dist_path=$(cd "$DIST_DIR" && pwd)
+    echo "📝 正在生成 Nginx 配置文件..."
+
+    local gzip_config=""
+    if [ "$NGINX_GZIP_ENABLED" = true ]; then
+        gzip_config="# Gzip 压缩配置
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_types $NGINX_GZIP_TYPES;"
+    fi
+
+    local cache_config=""
+    if [ "$NGINX_CACHE_ENABLED" = true ]; then
+        cache_config="# 静态资源缓存
+    location ~* \\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)\$ {
+        expires 1y;
+        add_header Cache-Control \"public, immutable\";
+        try_files \$uri =404;
+    }"
+    fi
+
+    cat > /tmp/frontend-app.conf << EOF
+server {
+    listen $PORT;
+    server_name $NGINX_SERVER_NAME;
+    root $dist_path;
+    index index.html;
+
+    access_log /var/log/nginx/frontend-access.log;
+    error_log /var/log/nginx/frontend-error.log;
+
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+$gzip_config
+
+    location / {
+        try_files \$uri \$uri/ /index.html;
+    }
+
+$cache_config
+
+    # API 反向代理（末尾 / 会去掉 /api 前缀，请求 /api/user/info → 后端 /user/info）
+    location /api/ {
+        proxy_pass $API_PROXY_TARGET/;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location ~ /\\. {
+        deny all;
+    }
+}
+EOF
+    echo "✅ Nginx 配置文件已生成"
+}
+
+configure_nginx() {
+    check_nginx_installed || { echo "❌ Nginx 未安装" && exit 1; }
+    check_nginx_structure
+    local structure_type=$?
+
+    generate_nginx_config
+    echo "📦 正在配置 Nginx..."
+
+    [ ! -d "$NGINX_SITES_ENABLED" ] && sudo mkdir -p "$NGINX_SITES_ENABLED"
+
+    if [ $structure_type -eq 0 ]; then
+        sudo cp /tmp/frontend-app.conf "$NGINX_CONF_AVAILABLE"
+        [ -L "$NGINX_CONF_ENABLED" ] && sudo rm -f "$NGINX_CONF_ENABLED"
+        sudo ln -s "$NGINX_CONF_AVAILABLE" "$NGINX_CONF_ENABLED"
+        if ! grep -q "include.*sites-enabled" /etc/nginx/nginx.conf; then
+            sudo sed -i '/http {/a \    include /etc/nginx/sites-enabled/*;' /etc/nginx/nginx.conf
+        fi
+    else
+        sudo cp /tmp/frontend-app.conf "$NGINX_SITES_ENABLED/frontend-app.conf"
+    fi
+
+    # 移除默认站点配置（避免 "Welcome to nginx!" 页面）
+    if [ -f "/etc/nginx/sites-enabled/default" ] || [ -L "/etc/nginx/sites-enabled/default" ]; then
+        echo "🧹 正在移除默认站点配置..."
+        sudo rm -f /etc/nginx/sites-enabled/default
+    fi
+
+    echo "🔍 正在测试 Nginx 配置..."
+    sudo nginx -t || { echo "❌ Nginx 配置测试失败" && exit 1; }
+    echo "✅ Nginx 配置完成"
+}
+
+start_nginx() {
+    echo "🚀 正在启动 Nginx..."
+    if sudo systemctl is-active --quiet nginx; then
+        echo "🔄 Nginx 已在运行，正在重新加载配置..."
+        sudo systemctl reload nginx
+    else
+        sudo systemctl start nginx
+        sudo systemctl enable nginx
+    fi
+
+    if sudo systemctl is-active --quiet nginx; then
+        echo "✅ Nginx 启动成功"
         echo "🌐 访问地址: http://服务器IP:$PORT"
     else
-        echo "🔌 正在清理端口 $PORT..."
-        kill_port_process $PORT
-
-        # 执行日志轮转
-        log_rotate
-
-        echo "🚀 正在启动服务器，监听端口: $PORT..."
-        # 使用 serve 启动服务器，默认监听所有网卡
-        nohup npx serve -s $DIST_DIR -l $PORT > "$LOG_FILE" 2>&1 &
-        echo $! > "$SERVER_PID_FILE"
-        echo "✅ 服务器已启动，PID: $(cat $SERVER_PID_FILE)"
-        echo "🌐 访问地址: http://服务器IP:$PORT"
+        echo "❌ Nginx 启动失败"
+        sudo journalctl -u nginx --no-pager -n 20
+        exit 1
     fi
 }
 
-# 停止服务器
-stop_server() {
-    if is_server_running; then
-        pid=$(cat "$SERVER_PID_FILE")
-        kill "$pid"
-        rm -f "$SERVER_PID_FILE"
-        echo "⏹️  服务器已停止 (PID: $pid)"
+stop_nginx() {
+    echo "⏹️  正在停止 Nginx..."
+    if sudo systemctl is-active --quiet nginx; then
+        sudo systemctl stop nginx
+        echo "✅ Nginx 已停止"
     else
-        echo "⏹️  服务器未运行"
+        echo "ℹ️  Nginx 未在运行"
     fi
-    # 清理端口占用
-    kill_port_process $PORT
 }
 
-# 主执行逻辑
+restart_nginx() {
+    echo "🔄 正在重启 Nginx..."
+    sudo systemctl restart nginx
+    sudo systemctl is-active --quiet nginx && echo "✅ Nginx 重启成功" || { echo "❌ Nginx 重启失败" && exit 1; }
+}
+
+status_nginx() {
+    echo "=== 📊 Nginx 状态 ==="
+    if sudo systemctl is-active --quiet nginx; then
+        echo "✅ Nginx 正在运行"
+        sudo systemctl status nginx --no-pager
+    else
+        echo "⏹️  Nginx 未运行"
+    fi
+}
+
+deploy_with_nginx() {
+    build_project
+    [ ! -d "$DIST_DIR" ] && [ ! -f "$DIST_DIR/index.html" ] && { echo "❌ $DIST_DIR 目录不存在或缺少构建产物" && exit 1; }
+
+    check_nginx_installed || {
+        echo "⚠️  Nginx 未安装"
+        read -p "是否自动安装 Nginx? (y/n): " -n 1 -r
+        echo
+        [ "$REPLY" != "y" ] && [ "$REPLY" != "Y" ] && { echo "❌ 部署取消" && exit 1; }
+        install_nginx
+    }
+
+    configure_nginx
+    start_nginx
+
+    echo ""
+    echo "🎉 部署完成！"
+    echo "🌐 访问地址: http://服务器IP:$PORT"
+}
+
 main() {
-    # 解析命令行参数
     parse_args "$@"
-    
-    # 移除已处理的参数
     shift $((OPTIND - 1))
-    
+
     case "$1" in
         install)
             echo "=== 📦 安装项目依赖 ==="
@@ -404,86 +346,95 @@ main() {
             install_dependencies
             build_project
             ;;
-        start)
-            echo "=== 🚀 启动开发服务器 ==="
-            install_dependencies
-            start_server
-            ;;
         prod)
-            echo "=== 🚀 启动生产服务器 ==="
+            echo "=== 🚀 启动前端服务器 ==="
             install_dependencies
-            start_server
+            deploy_with_nginx
             ;;
         stop)
-            echo "=== ⏹️  停止服务器 ==="
-            stop_server
+            echo "=== ⏹️  停止前端服务器 ==="
+            stop_nginx
             ;;
         restart)
-            echo "=== 🔄 重启服务器 ==="
-            $0 stop
-            sleep 2
-            $0 prod "$@"
+            echo "=== 🔄 重启前端服务器 ==="
+            restart_nginx
             ;;
         status)
-            if is_server_running; then
-                echo "✅ 服务器正在运行 (PID: $(cat $SERVER_PID_FILE))"
-                echo "🌐 访问地址: http://localhost:$PORT"
-                # 显示最后5行日志
-                if [ -f "$LOG_FILE" ]; then
-                    echo "📋 最近日志:"
-                    tail -5 "$LOG_FILE"
-                fi
-            else
-                echo "⏹️  服务器未运行"
-            fi
+            status_nginx
             ;;
         logs)
-            if [ -f "$LOG_FILE" ]; then
-                echo "=== 📋 最近的日志 (最后20行) ==="
-                tail -n 20 "$LOG_FILE"
-            else
-                echo "📋 日志文件不存在: $LOG_FILE"
-            fi
+            echo "=== 📋 前端访问日志 (最近20行) ==="
+            sudo tail -n 20 /var/log/nginx/frontend-access.log
+            echo ""
+            echo "=== ❌ 前端错误日志 (最近20行) ==="
+            sudo tail -n 20 /var/log/nginx/frontend-error.log
+            ;;
+        nginx-install)
+            echo "=== 📦 安装 Nginx ==="
+            install_nginx
+            ;;
+        nginx-config)
+            echo "=== ⚙️  配置 Nginx ==="
+            configure_nginx
+            ;;
+        nginx-start)
+            echo "=== 🚀 启动 Nginx ==="
+            start_nginx
+            ;;
+        nginx-stop)
+            echo "=== ⏹️  停止 Nginx ==="
+            stop_nginx
+            ;;
+        nginx-restart)
+            echo "=== 🔄 重启 Nginx ==="
+            restart_nginx
+            ;;
+        nginx-status)
+            status_nginx
+            ;;
+        nginx-reload)
+            echo "=== 🔄 重新加载 Nginx 配置 ==="
+            sudo systemctl reload nginx
+            echo "✅ Nginx 配置已重新加载"
             ;;
         help)
-            echo "=== 📖 部署脚本帮助 ==="
-            echo "用法: $0 {install|build|start|prod|stop|restart|status|logs|help} [选项]"
+            echo "=== 📖 前端部署脚本 ==="
+            echo "用法: $0 {命令} [选项]"
             echo ""
-            echo "命令说明:"
-            echo "  install     - 安装项目依赖 (包括 Node.js, npm, serve)"
-            echo "  build       - 构建项目到 $DIST_DIR 目录"
-            echo "  start       - 启动开发服务器 (构建并启动)"
-            echo "  prod        - 启动生产服务器 (构建并启动)"
-            echo "  stop        - 停止运行的服务器"
-            echo "  restart     - 重启服务器"
-            echo "  status      - 查看服务器状态"
-            echo "  logs        - 查看最近日志"
-            echo "  help        - 显示此帮助信息"
+            echo "常用命令:"
+            echo "  install         - 安装项目依赖"
+            echo "  build           - 构建项目"
+            echo "  prod            - 一键部署 (构建 + Nginx配置 + 启动)"
+            echo "  stop            - 停止前端服务器"
+            echo "  restart         - 重启前端服务器"
+            echo "  status          - 查看服务器状态"
+            echo "  logs            - 查看日志"
+            echo ""
+            echo "Nginx 命令:"
+            echo "  nginx-install   - 安装 Nginx"
+            echo "  nginx-config    - 配置 Nginx"
+            echo "  nginx-start     - 启动 Nginx"
+            echo "  nginx-stop      - 停止 Nginx"
+            echo "  nginx-restart   - 重启 Nginx"
+            echo "  nginx-status    - 查看 Nginx 状态"
+            echo "  nginx-reload    - 重新加载配置"
             echo ""
             echo "选项:"
-            echo "  --skip-deps - 跳过依赖检查和安装"
-            echo "  --skip-build - 跳过项目构建"
+            echo "  --skip-deps     - 跳过依赖安装"
+            echo "  --skip-build    - 跳过项目构建"
             echo ""
-            echo "配置:"
-            echo "  当前配置:"
-            echo "  - 端口: $PORT"
-            echo "  - 输出目录: $DIST_DIR"
-            echo "  - 日志文件: $LOG_FILE"
-            echo "  - 日志最大大小: $LOG_MAX_SIZE 字节（约 $((LOG_MAX_SIZE / 1024 / 1024)) MB）"
-            echo "  - 日志备份数量: $LOG_BACKUP_COUNT"
+            echo "示例:"
+            echo "  $0 prod              # 一键部署"
+            echo "  $0 prod --skip-build # 跳过构建"
+            echo "  $0 restart           # 重启服务器"
             ;;
         *)
-            if [ -z "$1" ]; then
-                echo "❌ 未指定命令，使用 'help' 查看可用选项"
-                echo "示例: ./deploy.sh help"
-            else
-                echo "❌ 未知命令: $1"
-                echo "使用 './deploy.sh help' 查看可用命令"
-            fi
+            [ -z "$1" ] && { echo "❌ 未指定命令" && echo "💡 快速开始: $0 prod" && exit 1; }
+            echo "❌ 未知命令: $1"
+            echo "使用 '$0 help' 查看可用命令"
             exit 1
             ;;
     esac
 }
 
-# 执行主函数
 main "$@"
