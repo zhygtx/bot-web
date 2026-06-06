@@ -31,24 +31,33 @@ const loadWorkflows = async () => {
     console.log('Response:', response)
     if (response.code === 200) {
       // 检查响应数据格式
+      let workflowList = []
       if (Array.isArray(response.data)) {
         // 直接返回数组的情况
-        workflows.value = response.data
+        workflowList = response.data
         total.value = response.total || response.data.length
       } else if (response.data) {
         // PageHelper 分页对象的情况
         if (Array.isArray(response.data.list)) {
-          workflows.value = response.data.list
+          workflowList = response.data.list
           total.value = response.data.total || 0
         } else {
           // 可能是直接返回的工作流对象数组
-          workflows.value = Object.values(response.data).filter(item => typeof item === 'object' && item !== null && item.id)
-          total.value = response.data.total || workflows.value.length
+          workflowList = Object.values(response.data).filter(item => typeof item === 'object' && item !== null && item.id)
+          total.value = response.data.total || workflowList.length
         }
-      } else {
-        workflows.value = []
-        total.value = 0
       }
+      
+      // 标准化工作流数据，确保数字类型正确
+      workflows.value = workflowList.map(workflow => ({
+        ...workflow,
+        id: workflow.id,
+        executeCount: Number(workflow.executeCount) || 0,
+        averageExecutionTime: Number(workflow.averageExecutionTime) || 0,
+        nodeCount: Number(workflow.nodeCount) || 0,
+        averageNodeCount: Number(workflow.averageNodeCount) || 0,
+        enabled: Boolean(workflow.enabled)
+      }))
     } else {
       ElMessage.error(response.message || '加载工作流失败')
     }

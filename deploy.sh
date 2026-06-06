@@ -208,6 +208,8 @@ server {
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-XSS-Protection "1; mode=block" always;
 
+    client_max_body_size 100M;
+
 $gzip_config
 
     location / {
@@ -225,7 +227,7 @@ $cache_config
         proxy_set_header X-Forwarded-Proto \$scheme;
     }
 
-    location ~ /\\. {
+    location ~ /\. {
         deny all;
     }
 }

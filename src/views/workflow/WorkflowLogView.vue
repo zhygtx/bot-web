@@ -34,7 +34,9 @@ const bigTextDisplayCache = ref({})
 
 const normalizeLog = (log) => ({
   ...log,
-  nodeLogs: log.nodeLogs || []
+  id: Number(log.id) || log.id,
+  nodeLogs: log.nodeLogs || [],
+  nodeLogsLoaded: false
 })
 
 const filteredLogs = computed(() => {
@@ -228,7 +230,13 @@ const loadNodeLogs = async (log) => {
     })
 
     if (response.code === 200) {
-      log.nodeLogs = Array.isArray(response.data) ? response.data : []
+      log.nodeLogs = (Array.isArray(response.data) ? response.data : []).map(nodeLog => ({
+        ...nodeLog,
+        id: Number(nodeLog.id) || nodeLog.id,
+        workflowLogId: Number(nodeLog.workflowLogId) || nodeLog.workflowLogId,
+        order: Number(nodeLog.order) || nodeLog.order,
+        executionTime: Number(nodeLog.executionTime) || nodeLog.executionTime
+      }))
       log.nodeLogsLoaded = true
     } else {
       ElMessage.error(response.message || '加载节点日志失败')
