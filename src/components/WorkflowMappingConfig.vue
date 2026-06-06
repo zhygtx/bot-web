@@ -57,17 +57,18 @@ const selectedRightNode = ref(null)
 // 填充状态映射（key: 参数路径, value: 是否填充）
 const filledStatus = ref({})
 
-// 定时时间选项（秒）
+// 定时时间选项（秒）- 最小为1分钟
 const scheduledTimeOptions = [
-  { label: '5秒', value: 5 },
-  { label: '10秒', value: 10 },
-  { label: '30秒', value: 30 },
   { label: '1分钟', value: 60 },
   { label: '2分钟', value: 120 },
   { label: '5分钟', value: 300 },
   { label: '10分钟', value: 600 },
   { label: '30分钟', value: 1800 },
-  { label: '1小时', value: 3600 }
+  { label: '1小时', value: 3600 },
+  { label: '2小时', value: 7200 },
+  { label: '6小时', value: 21600 },
+  { label: '12小时', value: 43200 },
+  { label: '24小时', value: 86400 }
 ]
 
 // 选中的定时时间
@@ -1500,7 +1501,7 @@ watch(dialogVisible, (newValue, oldValue) => {
           </el-select>
         </div>
         <div class="scheduled-time-hint">
-          <p>提示：定时任务将按照设定的间隔自动触发工作流执行</p>
+          <p>提示：定时任务将按照设定的间隔自动触发工作流执行，最小间隔为1分钟</p>
         </div>
       </div>
       
