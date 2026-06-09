@@ -4,19 +4,8 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
-      path: '/home',
-      name: 'home',
-      component: () => import('../views/HomeView.vue'),
-      meta: { title: '首页' }
-    },
-    {
       path: '/',
-      redirect: (to) => {
-        if (typeof window !== 'undefined' && window.innerWidth < 768) {
-          return '/workflow/list'
-        }
-        return '/home'
-      }
+      redirect: '/settings'
     },
     {
       path: '/login',
@@ -43,7 +32,7 @@ const router = createRouter({
       meta: { title: '机器人信息' }
     },
     {
-      path: '/bot/settings',
+      path: '/settings',
       name: 'bot-settings',
       component: () => import('../views/bot/SettingsView.vue'),
       meta: { title: '基础信息配置' }

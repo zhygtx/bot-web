@@ -460,6 +460,8 @@ const deleteContainer = async () => {
 
   .settings-view {
     padding-bottom: 16px;
+    overflow-y: auto;
+    height: 100%;
   }
 
   .card-title {

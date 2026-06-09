@@ -8,8 +8,8 @@ const router = createRouter({
       redirect: (to) => {
         // 检查token是否存在
         const token = localStorage.getItem('token')
-        // 如果有token，跳转到首页；否则跳转到登录页
-        return token ? '/home' : '/login'
+        // 如果有token，跳转到基础信息配置；否则跳转到登录页
+        return token ? '/settings' : '/login'
       }
     },
     {
@@ -27,14 +27,6 @@ const router = createRouter({
       name: 'forgotPassword',
       component: () => import('../views/ForgotPasswordView.vue')
     },
-    {
-    path: '/home',
-    name: 'home',
-    component: () => import('../views/HomeView.vue'),
-    meta: {
-      requiresAuth: true
-    }
-  },
   // 插件管理模块路由
   {
     path: '/plugin',

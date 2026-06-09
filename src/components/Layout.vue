@@ -25,7 +25,7 @@ onUnmounted(() => {
 const showSidebar = computed(() => {
   if (isMobile.value) return false
   
-  const noSidebarRoutes = ['/', '/home', '/login', '/register', '/forgot-password']
+  const noSidebarRoutes = ['/', '/login', '/register', '/forgot-password']
   const currentPath = route.path
   
   if (currentPath.startsWith('/workflow/edit')) {
@@ -196,6 +196,10 @@ const contentPaddingBottom = computed(() => {
 @media (max-width: 767px) {
   .layout-content {
     padding: 16px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    height: 0;
+    flex: 1;
   }
 }
 </style>

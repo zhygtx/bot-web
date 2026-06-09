@@ -69,9 +69,8 @@ const handleLogin = async () => {
     console.log('显示成功消息')
     ElMessage.success('登录成功')
     
-    // 跳转到首页
-    console.log('跳转到首页')
-    router.push('/home')
+    // 跳转到基础信息配置
+    router.push('/settings')
   } catch (error) {
     // 显示错误消息
     console.error('登录失败:', error)

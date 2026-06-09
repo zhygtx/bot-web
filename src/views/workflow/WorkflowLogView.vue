@@ -134,7 +134,19 @@ const closeModal = () => {
 
 const copyModalContent = async () => {
   try {
-    await navigator.clipboard.writeText(modalContent.value)
+    if (navigator.clipboard) {
+      await navigator.clipboard.writeText(modalContent.value)
+    } else {
+      // 降级方案：HTTP 环境下使用 execCommand
+      const textarea = document.createElement('textarea')
+      textarea.value = modalContent.value
+      textarea.style.position = 'fixed'
+      textarea.style.opacity = '0'
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textarea)
+    }
     ElMessage.success('复制成功')
   } catch (error) {
     console.error('复制失败:', error)
@@ -1130,12 +1142,14 @@ onUnmounted(() => {
 @media (max-width: 767px) {
   .workflow-log-view {
     background: linear-gradient(180deg, #f6f9ff 0%, #eef3fb 100%);
-    min-height: 0;
+    min-height: 100%;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    display: block;
   }
 
   .filter-section {
     align-items: center;
-    flex-shrink: 0;
     gap: 8px 10px;
     padding: 10px 12px;
     margin-bottom: 8px;
@@ -1352,17 +1366,7 @@ onUnmounted(() => {
   }
 
   .log-content {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
     padding: 0 0 6px;
-    -webkit-overflow-scrolling: touch;
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-
-  .log-content::-webkit-scrollbar {
-    display: none;
   }
 
   .log-list {
@@ -1447,9 +1451,8 @@ onUnmounted(() => {
   }
 
   .pagination {
-    flex-shrink: 0;
     margin-top: 8px;
-    padding: 6px 0 0;
+    padding: 6px 0 20px;
     overflow-x: hidden;
     justify-content: center;
     background: transparent;

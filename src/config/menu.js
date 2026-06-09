@@ -1,13 +1,7 @@
 // 全局菜单配置
-import { House, Connection, Operation, Monitor, Cpu, User, List, Clock, Setting } from '@element-plus/icons-vue'
+import { Connection, Operation, Monitor, Cpu, User, List, Clock, Setting } from '@element-plus/icons-vue'
 
 export const menuItems = [
-  {
-    path: '/home',
-    name: 'home',
-    label: '首页',
-    icon: House
-  },
   {
     path: '/plugin/list',
     name: 'plugin',
@@ -35,7 +29,7 @@ export const menuItems = [
     ]
   },
   {
-    path: '/bot/settings',
+    path: '/settings',
     name: 'botSettings',
     label: '基础信息配置',
     icon: Setting

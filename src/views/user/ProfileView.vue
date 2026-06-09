@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { ElMessage } from 'element-plus'
-import { Cpu, Monitor, User } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Cpu, Monitor, User, SwitchButton } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../../stores/user'
 import request from '../../utils/request'
@@ -53,6 +53,21 @@ const navigateTo = (path) => {
   router.push(path)
 }
 
+const handleLogout = async () => {
+  try {
+    await ElMessageBox.confirm('确定要退出登录吗？', '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    userStore.logout()
+    ElMessage.success('已退出登录')
+    router.push('/login')
+  } catch {
+    // 用户取消
+  }
+}
+
 onMounted(() => {
   checkMobile()
   window.addEventListener('resize', checkMobile)
@@ -97,6 +112,9 @@ onUnmounted(() => {
         <el-descriptions-item label="创建时间" prop="createTime">{{ userInfo.createTime }}</el-descriptions-item>
         <el-descriptions-item label="更新时间" prop="updateTime">{{ userInfo.updateTime }}</el-descriptions-item>
       </el-descriptions>
+      <div class="logout-section">
+        <el-button type="danger" :icon="SwitchButton" @click="handleLogout">退出登录</el-button>
+      </div>
     </div>
   </div>
 </template>
@@ -155,6 +173,12 @@ onUnmounted(() => {
   background-color: #ffffff;
   border-radius: 8px;
   padding: 20px;
+}
+
+.logout-section {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .section-title {

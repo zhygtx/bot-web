@@ -10,7 +10,7 @@ const navItems = [
   { path: '/workflow/list', label: '工作流', icon: Connection },
   { path: '/workflow/log', label: '执行日志', icon: Clock },
   { path: '/plugin/list', label: '插件管理', icon: Operation },
-  { path: '/bot/settings', label: '配置', icon: Setting }
+  { path: '/settings', label: '配置', icon: Setting }
 ]
 
 const activePath = computed(() => route.path)
