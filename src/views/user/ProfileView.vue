@@ -1,21 +1,17 @@
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Edit, Search } from '@element-plus/icons-vue'
+import { Cpu, Monitor, User } from '@element-plus/icons-vue'
+import { useRouter } from 'vue-router'
 import { useUserStore } from '../../stores/user'
 import request from '../../utils/request'
 
-// 获取用户状态管理
+const router = useRouter()
 const userStore = useUserStore()
 
-// 加载状态
 const loading = ref(false)
+const isMobile = ref(false)
 
-// 对话框状态
-const dialogVisible = ref(false)
-const dialogTitle = ref('编辑个人信息')
-
-// 用户信息数据
 const userInfo = ref({
   id: '',
   account: '',
@@ -28,33 +24,16 @@ const userInfo = ref({
   updateTime: ''
 })
 
-// 表单数据
-const profileForm = reactive({
-  id: '',
-  name: '',
-  email: '',
-  QQ: null
-})
+const menuItems = [
+  { path: '/bot/info', label: '机器人管理', icon: Cpu },
+  { path: '/bot/docker', label: 'Docker管理', icon: Monitor },
+  { path: '/user/profile', label: '我的信息', icon: User, active: true }
+]
 
-// 表单验证规则
-const rules = {
-  name: [
-    { required: true, message: '请输入用户名', trigger: 'blur' },
-    { min: 2, max: 20, message: '用户名长度在 2 到 20 个字符', trigger: 'blur' }
-  ],
-  email: [
-    { required: true, message: '请输入邮箱', trigger: 'blur' },
-    { type: 'email', message: '请输入有效的邮箱地址', trigger: 'blur' }
-  ],
-  QQ: [
-    { pattern: /^[0-9]+$/, message: 'QQ号必须是数字', trigger: 'blur' }
-  ]
+const checkMobile = () => {
+  isMobile.value = window.innerWidth < 768
 }
 
-// 表单引用
-const profileFormRef = ref(null)
-
-// 获取用户信息
 const getUserInfo = async () => {
   try {
     loading.value = true
@@ -70,73 +49,39 @@ const getUserInfo = async () => {
   }
 }
 
-// 打开编辑个人信息对话框
-const openEditDialog = () => {
-  dialogTitle.value = '编辑个人信息'
-  // 填充表单数据
-  profileForm.id = userInfo.value.id
-  profileForm.name = userInfo.value.name
-  profileForm.email = userInfo.value.email
-  profileForm.QQ = userInfo.value.QQ
-  dialogVisible.value = true
+const navigateTo = (path) => {
+  router.push(path)
 }
 
-// 提交表单
-const submitForm = async () => {
-  if (!profileFormRef.value) return
-  
-  const valid = await profileFormRef.value.validate()
-  if (!valid) {
-    return
-  }
-  
-  try {
-    const response = await request({
-      url: '/user/update',
-      method: 'put',
-      data: profileForm
-    })
-    
-    if (response.code === 200) {
-      ElMessage.success('更新个人信息成功')
-      dialogVisible.value = false
-      getUserInfo()
-      
-      // 更新用户状态管理中的信息
-      userStore.updateUserInfo({
-        name: profileForm.name
-      })
-    } else {
-      ElMessage.error(response.message || '操作失败')
-    }
-  } catch (error) {
-    ElMessage.error(error.message || '操作失败')
-  }
-}
-
-// 组件挂载时获取用户信息
 onMounted(() => {
+  checkMobile()
+  window.addEventListener('resize', checkMobile)
   getUserInfo()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', checkMobile)
 })
 </script>
 
 <template>
   <div class="profile-view">
-    <el-card class="profile-card">
-      <template #header>
-        <div class="card-header">
-          <h2>个人信息管理</h2>
-          <el-button
-            type="primary"
-            @click="openEditDialog"
-            :icon="Edit"
-          >
-            编辑信息
-          </el-button>
-        </div>
-      </template>
-      
-      <!-- 个人信息展示 -->
+    <div v-if="isMobile" class="profile-menu">
+      <div
+        v-for="item in menuItems"
+        :key="item.path"
+        class="menu-item"
+        :class="{ active: item.active }"
+        @click="navigateTo(item.path)"
+      >
+        <el-icon class="menu-icon">
+          <component :is="item.icon" />
+        </el-icon>
+        <span class="menu-label">{{ item.label }}</span>
+      </div>
+    </div>
+    
+    <div class="content-section">
       <el-descriptions
         v-loading="loading"
         :column="2"
@@ -152,37 +97,7 @@ onMounted(() => {
         <el-descriptions-item label="创建时间" prop="createTime">{{ userInfo.createTime }}</el-descriptions-item>
         <el-descriptions-item label="更新时间" prop="updateTime">{{ userInfo.updateTime }}</el-descriptions-item>
       </el-descriptions>
-      
-      <!-- 编辑个人信息表单对话框 -->
-      <el-dialog
-        v-model="dialogVisible"
-        :title="dialogTitle"
-        width="500px"
-      >
-        <el-form
-          ref="profileFormRef"
-          :model="profileForm"
-          :rules="rules"
-          label-width="100px"
-        >
-          <el-form-item label="用户名" prop="name">
-            <el-input v-model="profileForm.name" placeholder="请输入用户名"></el-input>
-          </el-form-item>
-          <el-form-item label="邮箱" prop="email">
-            <el-input v-model="profileForm.email" placeholder="请输入邮箱"></el-input>
-          </el-form-item>
-          <el-form-item label="QQ号" prop="QQ">
-            <el-input v-model="profileForm.QQ" placeholder="请输入QQ号"></el-input>
-          </el-form-item>
-        </el-form>
-        <template #footer>
-          <span class="dialog-footer">
-            <el-button @click="dialogVisible = false">取消</el-button>
-            <el-button type="primary" @click="submitForm">确定</el-button>
-          </span>
-        </template>
-      </el-dialog>
-    </el-card>
+    </div>
   </div>
 </template>
 
@@ -191,19 +106,91 @@ onMounted(() => {
   width: 100%;
 }
 
-.card-header {
+.profile-menu {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  overflow-x: auto;
+  padding-bottom: 8px;
 }
 
-.card-header h2 {
+.profile-menu::-webkit-scrollbar {
+  display: none;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  border: 1px solid #e4e7ed;
+}
+
+.menu-item:hover {
+  background-color: #f5f7fa;
+  border-color: #c0c4cc;
+}
+
+.menu-item.active {
+  background-color: #eff6ff;
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.menu-icon {
+  font-size: 18px;
+}
+
+.menu-label {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.content-section {
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.section-title {
   font-size: 20px;
-  margin: 0;
+  margin: 0 0 20px 0;
   color: #303133;
+  font-weight: bold;
 }
 
 .profile-descriptions {
-  margin-top: 20px;
+  margin-top: 0;
+}
+
+@media (max-width: 767px) {
+  .profile-menu {
+    gap: 8px;
+  }
+  
+  .menu-item {
+    padding: 10px 16px;
+  }
+  
+  .menu-label {
+    font-size: 13px;
+  }
+  
+  .section-title {
+    font-size: 18px;
+  }
+  
+  .profile-descriptions {
+    font-size: 13px;
+  }
+  
+  .content-section {
+    padding: 16px;
+  }
 }
 </style>

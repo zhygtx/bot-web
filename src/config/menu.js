@@ -1,5 +1,5 @@
 // 全局菜单配置
-import { House, Connection, Operation, Monitor, Cpu, User, List, Clock } from '@element-plus/icons-vue'
+import { House, Connection, Operation, Monitor, Cpu, User, List, Clock, Setting } from '@element-plus/icons-vue'
 
 export const menuItems = [
   {
@@ -35,21 +35,9 @@ export const menuItems = [
     ]
   },
   {
-    path: '/bot/docker',
-    name: 'docker',
-    label: 'Docker管理',
-    icon: Monitor
-  },
-  {
-    path: '/bot/info',
-    name: 'botInfo',
-    label: '机器人信息',
-    icon: Cpu
-  },
-  {
-    path: '/user/profile',
-    name: 'userProfile',
-    label: '个人信息',
-    icon: User
+    path: '/bot/settings',
+    name: 'botSettings',
+    label: '基础信息配置',
+    icon: Setting
   }
 ]

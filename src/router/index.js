@@ -11,7 +11,12 @@ const router = createRouter({
     },
     {
       path: '/',
-      redirect: '/home'
+      redirect: (to) => {
+        if (typeof window !== 'undefined' && window.innerWidth < 768) {
+          return '/workflow/list'
+        }
+        return '/home'
+      }
     },
     {
       path: '/login',
@@ -36,6 +41,12 @@ const router = createRouter({
       name: 'bot-info',
       component: () => import('../views/bot/BotInfoView.vue'),
       meta: { title: '机器人信息' }
+    },
+    {
+      path: '/bot/settings',
+      name: 'bot-settings',
+      component: () => import('../views/bot/SettingsView.vue'),
+      meta: { title: '基础信息配置' }
     },
     {
       path: '/bot/docker',

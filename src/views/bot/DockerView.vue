@@ -1,13 +1,16 @@
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Delete, Plus } from '@element-plus/icons-vue'
+import { Delete, Plus, Cpu, Monitor, User } from '@element-plus/icons-vue'
 import request from '../../utils/request'
 
 const router = useRouter()
 
-// 容器信息
+const isMobile = ref(false)
+const loading = ref(false)
+const createLoading = ref(false)
+
 const containerInfo = ref({
   containerId: '',
   name: '',
@@ -17,29 +20,20 @@ const containerInfo = ref({
   updateTime: ''
 })
 
-// 获取当前主机名，处理window对象可能不存在的情况
 const currentHost = ref('localhost')
 
-// 在组件挂载后获取主机名，确保window对象已经存在
 onMounted(() => {
   if (typeof window !== 'undefined') {
     currentHost.value = window.location.hostname || 'localhost'
   }
 })
 
-// 加载状态
-const loading = ref(false)
-const createLoading = ref(false)
-
-// 对话框状态
 const dialogVisible = ref(false)
 
-// 表单数据
 const dockerForm = reactive({
   napcatToken: ''
 })
 
-// 表单验证规则
 const rules = {
   napcatToken: [
     { required: true, message: '请输入napcat token', trigger: 'blur' },
@@ -47,10 +41,18 @@ const rules = {
   ]
 }
 
-// 表单引用
 const dockerFormRef = ref(null)
 
-// 创建容器
+const menuItems = [
+  { path: '/bot/info', label: '机器人管理', icon: Cpu },
+  { path: '/bot/docker', label: 'Docker管理', icon: Monitor, active: true },
+  { path: '/user/profile', label: '我的信息', icon: User }
+]
+
+const checkMobile = () => {
+  isMobile.value = window.innerWidth < 768
+}
+
 const createContainer = async () => {
   if (!dockerFormRef.value) return
   
@@ -70,7 +72,6 @@ const createContainer = async () => {
       }
     })
     
-    // 保存容器信息
     containerInfo.value.port = response.data
     containerInfo.value.token = dockerForm.napcatToken
     containerInfo.value.createTime = new Date().toLocaleString()
@@ -78,9 +79,7 @@ const createContainer = async () => {
     
     ElMessage.success(`容器创建成功，端口号：${response.data}`)
     dialogVisible.value = false
-    // 清空表单
     dockerForm.napcatToken = ''
-    // 更新容器信息
     await getContainerInfo()
   } catch (error) {
     ElMessage.error(error.message || '创建容器失败')
@@ -89,7 +88,6 @@ const createContainer = async () => {
   }
 }
 
-// 删除容器
 const deleteContainer = async () => {
   try {
     await ElMessageBox.confirm('确定要删除该容器吗？', '提示', {
@@ -130,7 +128,6 @@ const deleteContainer = async () => {
   }
 }
 
-// 打开创建对话框
 const openCreateDialog = async () => {
   try {
     const response = await request({
@@ -151,7 +148,6 @@ const openCreateDialog = async () => {
   }
 }
 
-// 获取容器信息
 const getContainerInfo = async () => {
   try {
     loading.value = true
@@ -161,7 +157,6 @@ const getContainerInfo = async () => {
       method: 'get'
     })
     
-    // 更新容器信息
     if (response.data) {
       containerInfo.value = {
         containerId: response.data.containerId || '',
@@ -174,49 +169,65 @@ const getContainerInfo = async () => {
     }
   } catch (error) {
     console.error('获取容器信息失败:', error)
-    // 只在明确错误时显示错误消息，避免干扰用户体验
-    if (error.response && error.response.status !== 404) {
-      ElMessage.error('获取容器信息失败')
-    }
   } finally {
     loading.value = false
   }
 }
 
-// 页面加载时获取容器信息
+const navigateTo = (path) => {
+  router.push(path)
+}
+
 onMounted(() => {
+  checkMobile()
+  window.addEventListener('resize', checkMobile)
   getContainerInfo()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', checkMobile)
 })
 </script>
 
 <template>
   <div class="docker-view">
-    <el-card class="docker-card">
-      <template #header>
-        <div class="card-header">
-          <h2>Docker管理</h2>
-          <div class="card-actions">
-            <el-button
-              v-if="!containerInfo.port"
-              type="primary"
-              @click="openCreateDialog"
-              :icon="Plus"
-            >
-              创建容器
-            </el-button>
-            <el-button
-              v-if="containerInfo.port"
-              type="danger"
-              @click="deleteContainer"
-              :icon="Delete"
-            >
-              删除容器
-            </el-button>
-          </div>
+    <div v-if="isMobile" class="profile-menu">
+      <div
+        v-for="item in menuItems"
+        :key="item.path"
+        class="menu-item"
+        :class="{ active: item.active }"
+        @click="navigateTo(item.path)"
+      >
+        <el-icon class="menu-icon">
+          <component :is="item.icon" />
+        </el-icon>
+        <span class="menu-label">{{ item.label }}</span>
+      </div>
+    </div>
+    
+    <div class="content-section">
+      <div class="section-header">
+        <div class="header-actions">
+          <el-button
+            v-if="!containerInfo.port"
+            type="primary"
+            @click="openCreateDialog"
+            :icon="Plus"
+          >
+            创建容器
+          </el-button>
+          <el-button
+            v-if="containerInfo.port"
+            type="danger"
+            @click="deleteContainer"
+            :icon="Delete"
+          >
+            删除容器
+          </el-button>
         </div>
-      </template>
+      </div>
       
-      <!-- 容器信息展示 -->
       <el-descriptions
         v-loading="loading"
         :column="2"
@@ -249,7 +260,6 @@ onMounted(() => {
         </template>
       </el-descriptions>
       
-      <!-- 容器创建对话框 -->
       <el-dialog
         v-model="dialogVisible"
         title="创建容器"
@@ -279,7 +289,7 @@ onMounted(() => {
           </span>
         </template>
       </el-dialog>
-    </el-card>
+    </div>
   </div>
 </template>
 
@@ -288,30 +298,74 @@ onMounted(() => {
   width: 100%;
 }
 
-.card-header {
+.profile-menu {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.profile-menu::-webkit-scrollbar {
+  display: none;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  border: 1px solid #e4e7ed;
+}
+
+.menu-item:hover {
+  background-color: #f5f7fa;
+  border-color: #c0c4cc;
+}
+
+.menu-item.active {
+  background-color: #eff6ff;
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.menu-icon {
+  font-size: 18px;
+}
+
+.menu-label {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.content-section {
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 20px;
 }
 
-.card-header h2 {
+.section-title {
   font-size: 20px;
   margin: 0;
   color: #303133;
+  font-weight: bold;
 }
 
-.search-form {
-  margin-bottom: 20px;
-  padding: 10px 0;
-  background-color: #f5f7fa;
-  border-radius: 4px;
-  padding: 15px;
-}
-
-.pagination {
-  margin-top: 20px;
+.header-actions {
   display: flex;
-  justify-content: flex-end;
+  gap: 10px;
 }
 
 .visit-btn {
@@ -331,5 +385,37 @@ onMounted(() => {
   background-color: #409eff;
   color: #fff;
   border-color: #409eff;
+}
+
+@media (max-width: 767px) {
+  .profile-menu {
+    gap: 8px;
+  }
+  
+  .menu-item {
+    padding: 10px 16px;
+  }
+  
+  .menu-label {
+    font-size: 13px;
+  }
+  
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .section-title {
+    font-size: 18px;
+  }
+  
+  .content-section {
+    padding: 16px;
+  }
+  
+  .header-actions {
+    gap: 8px;
+  }
 }
 </style>

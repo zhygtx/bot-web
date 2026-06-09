@@ -1,34 +1,32 @@
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Edit, Delete, Plus } from '@element-plus/icons-vue'
+import { Edit, Delete, Plus, Cpu, Monitor, User } from '@element-plus/icons-vue'
+import { useRouter } from 'vue-router'
 import request from '../../utils/request'
 
-// 机器人信息数据
+const router = useRouter()
+
+const isMobile = ref(false)
+const loading = ref(false)
+
 const botInfo = ref({
   id: '',
   name: '',
   botQQ: null,
   userId: '',
-  // 兼容后端返回的online字段名
   online: false,
   isOnline: false
 })
 
-// 加载状态
-const loading = ref(false)
-
-// 对话框状态
 const dialogVisible = ref(false)
 const dialogTitle = ref('编辑机器人信息')
 
-// 表单数据
 const botInfoForm = reactive({
   name: '',
   botQQ: null
 })
 
-// 表单验证规则
 const rules = {
   name: [
     { required: true, message: '请输入机器人名称', trigger: 'blur' },
@@ -40,10 +38,18 @@ const rules = {
   ]
 }
 
-// 表单引用
 const botInfoFormRef = ref(null)
 
-// 获取机器人信息
+const menuItems = [
+  { path: '/bot/info', label: '机器人管理', icon: Cpu, active: true },
+  { path: '/bot/docker', label: 'Docker管理', icon: Monitor },
+  { path: '/user/profile', label: '我的信息', icon: User }
+]
+
+const checkMobile = () => {
+  isMobile.value = window.innerWidth < 768
+}
+
 const getBotInfo = async () => {
   try {
     loading.value = true
@@ -52,41 +58,32 @@ const getBotInfo = async () => {
       method: 'get'
     })
     const data = response.data || {}
-    // 处理字段名不匹配问题，将后端返回的online字段值赋给isOnline字段
     botInfo.value = {
       ...data,
-      // 兼容后端返回的online字段名，同时支持isOnline字段
       isOnline: data.online || data.isOnline || false,
       online: data.online || data.isOnline || false
     }
   } catch (error) {
     console.error('获取机器人信息失败:', error)
-    // 如果获取失败，可能是用户还没有绑定机器人，不显示错误提示
     botInfo.value = {}
   } finally {
     loading.value = false
   }
 }
 
-// 打开机器人信息对话框
 const openBotDialog = () => {
   if (botInfo.value.id) {
-    // 如果机器人已存在，显示编辑对话框
     dialogTitle.value = '编辑机器人信息'
-    // 填充表单数据
     botInfoForm.name = botInfo.value.name
     botInfoForm.botQQ = botInfo.value.botQQ
   } else {
-    // 如果机器人不存在，显示添加对话框
     dialogTitle.value = '添加机器人信息'
-    // 清空表单数据
     botInfoForm.name = ''
     botInfoForm.botQQ = null
   }
   dialogVisible.value = true
 }
 
-// 提交表单
 const submitForm = async () => {
   if (!botInfoFormRef.value) return
   
@@ -98,10 +95,8 @@ const submitForm = async () => {
   try {
     let url = ''
     if (botInfo.value.id) {
-      // 更新机器人信息
       url = '/bot/update'
     } else {
-      // 添加机器人信息
       url = '/bot/insert'
     }
     
@@ -122,7 +117,6 @@ const submitForm = async () => {
   }
 }
 
-// 删除机器人
 const deleteBot = async () => {
   try {
     await request({
@@ -138,48 +132,68 @@ const deleteBot = async () => {
   }
 }
 
-// 组件挂载时获取机器人信息
+const navigateTo = (path) => {
+  router.push(path)
+}
+
 onMounted(() => {
+  checkMobile()
+  window.addEventListener('resize', checkMobile)
   getBotInfo()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', checkMobile)
 })
 </script>
 
 <template>
   <div class="bot-info-view">
-    <el-card class="bot-info-card">
-      <template #header>
-        <div class="card-header">
-          <h2>机器人信息管理</h2>
-          <div class="card-actions">
-            <el-button
-              v-if="botInfo.id"
-              type="primary"
-              @click="openBotDialog"
-              :icon="Edit"
-            >
-              编辑信息
-            </el-button>
-            <el-button
-              v-else
-              type="primary"
-              @click="openBotDialog"
-              :icon="Plus"
-            >
-              添加机器人
-            </el-button>
-            <el-button
-              v-if="botInfo.id"
-              type="danger"
-              @click="deleteBot"
-              :icon="Delete"
-            >
-              删除机器人
-            </el-button>
-          </div>
+    <div v-if="isMobile" class="profile-menu">
+      <div
+        v-for="item in menuItems"
+        :key="item.path"
+        class="menu-item"
+        :class="{ active: item.active }"
+        @click="navigateTo(item.path)"
+      >
+        <el-icon class="menu-icon">
+          <component :is="item.icon" />
+        </el-icon>
+        <span class="menu-label">{{ item.label }}</span>
+      </div>
+    </div>
+    
+    <div class="content-section">
+      <div class="section-header">
+        <div class="header-actions">
+          <el-button
+            v-if="botInfo.id"
+            type="primary"
+            @click="openBotDialog"
+            :icon="Edit"
+          >
+            编辑信息
+          </el-button>
+          <el-button
+            v-else
+            type="primary"
+            @click="openBotDialog"
+            :icon="Plus"
+          >
+            添加机器人
+          </el-button>
+          <el-button
+            v-if="botInfo.id"
+            type="danger"
+            @click="deleteBot"
+            :icon="Delete"
+          >
+            删除机器人
+          </el-button>
         </div>
-      </template>
+      </div>
       
-      <!-- 机器人信息展示 -->
       <el-descriptions
         v-loading="loading"
         :column="2"
@@ -204,7 +218,6 @@ onMounted(() => {
         </template>
       </el-descriptions>
       
-      <!-- 机器人信息表单对话框 -->
       <el-dialog
         v-model="dialogVisible"
         :title="dialogTitle"
@@ -230,7 +243,7 @@ onMounted(() => {
           </span>
         </template>
       </el-dialog>
-    </el-card>
+    </div>
   </div>
 </template>
 
@@ -239,24 +252,113 @@ onMounted(() => {
   width: 100%;
 }
 
-.card-header {
+.profile-menu {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.profile-menu::-webkit-scrollbar {
+  display: none;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  border: 1px solid #e4e7ed;
+}
+
+.menu-item:hover {
+  background-color: #f5f7fa;
+  border-color: #c0c4cc;
+}
+
+.menu-item.active {
+  background-color: #eff6ff;
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.menu-icon {
+  font-size: 18px;
+}
+
+.menu-label {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.content-section {
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 20px;
 }
 
-.card-header h2 {
+.section-title {
   font-size: 20px;
   margin: 0;
   color: #303133;
+  font-weight: bold;
 }
 
-.card-actions {
+.header-actions {
   display: flex;
   gap: 10px;
 }
 
 .bot-info-descriptions {
-  margin-top: 20px;
+  margin-top: 0;
+}
+
+@media (max-width: 767px) {
+  .profile-menu {
+    gap: 8px;
+  }
+  
+  .menu-item {
+    padding: 10px 16px;
+  }
+  
+  .menu-label {
+    font-size: 13px;
+  }
+  
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .section-title {
+    font-size: 18px;
+  }
+  
+  .bot-info-descriptions {
+    font-size: 13px;
+  }
+  
+  .content-section {
+    padding: 16px;
+  }
+  
+  .header-actions {
+    gap: 8px;
+  }
 }
 </style>

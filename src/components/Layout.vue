@@ -1,23 +1,37 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import GlobalMenu from './GlobalMenu.vue'
+import MobileNavBar from './MobileNavBar.vue'
 
 const route = useRoute()
 const sidebarCollapsed = ref(false)
 const sidebarWidth = computed(() => sidebarCollapsed.value ? '64px' : '200px')
+const isMobile = ref(false)
 
-// 判断是否需要显示侧边栏
+const checkMobile = () => {
+  isMobile.value = window.innerWidth < 768
+}
+
+onMounted(() => {
+  checkMobile()
+  window.addEventListener('resize', checkMobile)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', checkMobile)
+})
+
 const showSidebar = computed(() => {
+  if (isMobile.value) return false
+  
   const noSidebarRoutes = ['/', '/home', '/login', '/register', '/forgot-password']
   const currentPath = route.path
   
-  // 工作流编辑/新建页面
   if (currentPath.startsWith('/workflow/edit')) {
     return false
   }
   
-  // 插件详情页面（/plugin/:id）- 排除列表页 /plugin/list 和创建页 /plugin/create
   if (currentPath.match(/^\/plugin\/[^/]+$/) && 
       currentPath !== '/plugin/list' && 
       currentPath !== '/plugin/create') {
@@ -27,24 +41,31 @@ const showSidebar = computed(() => {
   return !noSidebarRoutes.includes(currentPath)
 })
 
-// 判断是否是全屏页面
 const isFullscreen = computed(() => {
   return !showSidebar.value
+})
+
+const showMobileNav = computed(() => {
+  if (!isMobile.value) return false
+  
+  const noNavRoutes = ['/login', '/register', '/forgot-password']
+  return !noNavRoutes.includes(route.path)
+})
+
+const contentPaddingBottom = computed(() => {
+  return showMobileNav.value ? '76px' : '20px'
 })
 </script>
 
 <template>
-  <el-container class="layout-container" :class="{ 'fullscreen': isFullscreen }">
-    <!-- 侧边栏 -->
+  <el-container class="layout-container" :class="{ 'fullscreen': isFullscreen, 'mobile': isMobile }">
     <el-aside v-if="showSidebar" :width="sidebarWidth" class="layout-aside" :class="{ 'is-collapsed': sidebarCollapsed }">
       <el-scrollbar class="sidebar-scrollbar">
         <GlobalMenu @collapse-change="sidebarCollapsed = $event" />
       </el-scrollbar>
     </el-aside>
     
-    <!-- 主内容区域 -->
     <el-container class="layout-main-container">
-      <!-- 顶部导航栏（仅在有侧边栏时显示） -->
       <el-header v-if="showSidebar" class="layout-header">
         <div class="header-content">
           <div class="header-title">
@@ -56,11 +77,18 @@ const isFullscreen = computed(() => {
         </div>
       </el-header>
       
-      <!-- 主内容区 -->
-      <el-main class="layout-content">
+      <el-header v-if="isMobile && !showSidebar" class="layout-header-mobile">
+        <div class="header-content-mobile">
+          <span class="header-title-mobile">{{ $route.meta.title || '系统管理' }}</span>
+        </div>
+      </el-header>
+      
+      <el-main class="layout-content" :style="{ paddingBottom: contentPaddingBottom }">
         <router-view />
       </el-main>
     </el-container>
+    
+    <MobileNavBar v-if="showMobileNav" />
   </el-container>
 </template>
 
@@ -82,6 +110,13 @@ const isFullscreen = computed(() => {
 .layout-container.fullscreen .layout-content {
   padding: 0;
   overflow: hidden;
+}
+
+.layout-container.mobile .layout-main-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .layout-aside {
@@ -113,6 +148,14 @@ const isFullscreen = computed(() => {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
+.layout-header-mobile {
+  position: relative;
+  background-color: #2563eb;
+  color: #ffffff;
+  padding: 12px 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
 .header-content {
   display: flex;
   justify-content: space-between;
@@ -120,7 +163,19 @@ const isFullscreen = computed(() => {
   height: 100%;
 }
 
+.header-content-mobile {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+}
+
 .header-title {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.header-title-mobile {
   font-size: 16px;
   font-weight: bold;
 }
@@ -136,5 +191,11 @@ const isFullscreen = computed(() => {
   padding: 20px;
   overflow-y: auto;
   min-height: 0;
+}
+
+@media (max-width: 767px) {
+  .layout-content {
+    padding: 16px;
+  }
 }
 </style>

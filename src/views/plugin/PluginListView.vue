@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElDialog, ElMessageBox } from 'element-plus'
 import { User, Clock, Lock, Unlock, Delete } from '@element-plus/icons-vue'
@@ -9,19 +9,14 @@ import PluginCreateView from './PluginCreateView.vue'
 
 const router = useRouter()
 
-// 插件列表
 const plugins = ref([])
-// 加载状态
 const loading = ref(false)
-// 分页参数
 const pageNum = ref(1)
 const pageSize = ref(12)
 const total = ref(0)
-// 弹窗状态
 const dialogVisible = ref(false)
 const currentPluginId = ref(null)
 
-// 加载插件列表
 const loadPlugins = async () => {
   loading.value = true
   try {
@@ -46,34 +41,28 @@ const loadPlugins = async () => {
   }
 }
 
-// 打开新建插件弹窗
 const goToCreate = () => {
   currentPluginId.value = null
   dialogVisible.value = true
 }
 
-// 跳转到插件详情页
 const goToDetail = (pluginId) => {
   router.push(`/plugin/${pluginId}`)
 }
 
-// 打开编辑插件弹窗
 const goToEdit = (pluginId) => {
   currentPluginId.value = pluginId
   dialogVisible.value = true
 }
 
-// 关闭弹窗
 const closeDialog = () => {
   dialogVisible.value = false
 }
 
-// 弹窗关闭后重新加载插件列表
 const handleDialogClose = () => {
   loadPlugins()
 }
 
-// 计算上次更新时间距今的时间
 const getTimeAgo = (updateTime) => {
   if (!updateTime) return '未知'
   
@@ -81,13 +70,9 @@ const getTimeAgo = (updateTime) => {
   const updateDate = new Date(updateTime)
   const diffTime = Math.abs(now - updateDate)
   
-  // 计算秒数
   const diffSeconds = Math.floor(diffTime / 1000)
-  // 计算分钟数
   const diffMinutes = Math.floor(diffSeconds / 60)
-  // 计算小时数
   const diffHours = Math.floor(diffMinutes / 60)
-  // 计算天数
   const diffDays = Math.floor(diffHours / 24)
   
   if (diffHours < 1) {
@@ -110,13 +95,11 @@ const getTimeAgo = (updateTime) => {
   }
 }
 
-// 分页处理
 const handlePageChange = (currentPage) => {
   pageNum.value = currentPage
   loadPlugins()
 }
 
-// 删除插件
 const deletePlugin = async (pluginId) => {
   try {
     await ElMessageBox.confirm('确定要删除这个插件吗？删除后无法恢复。', '删除确认', {
@@ -146,7 +129,6 @@ const deletePlugin = async (pluginId) => {
   }
 }
 
-// 切换插件公开状态
 const togglePluginPublic = async (plugin) => {
   try {
     const response = await request({
@@ -159,7 +141,6 @@ const togglePluginPublic = async (plugin) => {
     })
     
     if (response.code === 200) {
-      // 直接更新本地插件状态，无需重新加载整个列表
       plugin.isPublic = !plugin.isPublic
       ElMessage.success(plugin.isPublic ? '插件已设置为公开' : '插件已设置为私有')
     } else {
@@ -170,7 +151,6 @@ const togglePluginPublic = async (plugin) => {
   }
 }
 
-// 初始化加载
 onMounted(() => {
   loadPlugins()
 })
@@ -178,90 +158,81 @@ onMounted(() => {
 
 <template>
   <div class="plugin-view">
-    <el-card class="plugin-card">
-      <template #header>
-        <div class="card-header">
-          <h2>插件管理</h2>
-          <div class="card-actions">
-            <el-button type="primary" @click="goToCreate">新建插件</el-button>
-          </div>
-        </div>
-      </template>
-      
-      <div class="plugin-content">
-        <!-- 加载状态 -->
-        <div v-loading="loading" element-loading-text="加载中..." style="width: 100%; height: 100%; min-height: 300px;">
-          <el-row :gutter="20" :justify="'start'">
-            <el-col :xs="24" :sm="12" :md="8" :lg="6" :xl="6" v-for="plugin in plugins" :key="plugin.id">
-              <el-card class="plugin-item-card" @click="goToDetail(plugin.id)">
-                <div class="plugin-card-content">
-                  <div class="plugin-card-header">
-                    <h3 class="plugin-name">{{ plugin.name }}</h3>
-                    <div class="plugin-status">
-                      <el-icon 
-                        v-if="plugin.isPublic" 
-                        class="lock-icon public-lock"
-                        @click.stop="togglePluginPublic(plugin)"
-                        title="点击设为私有"
-                      >
-                        <Unlock />
-                      </el-icon>
-                      <el-icon 
-                        v-else 
-                        class="lock-icon private-lock"
-                        @click.stop="togglePluginPublic(plugin)"
-                        title="点击设为公开"
-                      >
-                        <Lock />
-                      </el-icon>
-                    </div>
-                  </div>
-                  <div class="delete-icon-container">
-                    <el-icon class="delete-icon" @click.stop="deletePlugin(plugin.id)">
-                      <Delete />
+    <div class="content-header">
+      <div class="header-right">
+        <el-button type="primary" @click="goToCreate">新建插件</el-button>
+      </div>
+    </div>
+    
+    <div class="plugin-content">
+      <div v-loading="loading" element-loading-text="加载中..." class="content-wrapper">
+        <el-row :gutter="20" :justify="'start'">
+          <el-col :xs="24" :sm="12" :md="8" :lg="6" :xl="6" v-for="plugin in plugins" :key="plugin.id">
+            <el-card class="plugin-item-card" @click="goToDetail(plugin.id)">
+              <div class="plugin-card-content">
+                <div class="plugin-card-header">
+                  <h3 class="plugin-name">{{ plugin.name }}</h3>
+                  <div class="plugin-status">
+                    <el-icon 
+                      v-if="plugin.isPublic" 
+                      class="lock-icon public-lock"
+                      @click.stop="togglePluginPublic(plugin)"
+                      title="点击设为私有"
+                    >
+                      <Unlock />
+                    </el-icon>
+                    <el-icon 
+                      v-else 
+                      class="lock-icon private-lock"
+                      @click.stop="togglePluginPublic(plugin)"
+                      title="点击设为公开"
+                    >
+                      <Lock />
                     </el-icon>
                   </div>
-                  <div class="plugin-card-version">
-                    {{ plugin.latestVersion }}
+                </div>
+                <div class="delete-icon-container">
+                  <el-icon class="delete-icon" @click.stop="deletePlugin(plugin.id)">
+                    <Delete />
+                  </el-icon>
+                </div>
+                <div class="plugin-card-version">
+                  {{ plugin.latestVersion }}
+                </div>
+                <div class="plugin-card-description">
+                  {{ plugin.description || '暂无描述' }}
+                </div>
+                <div class="plugin-card-footer">
+                  <div class="plugin-card-author">
+                    <el-icon class="footer-icon"><User /></el-icon>
+                    <span>{{ plugin.authorName || '未知' }}</span>
                   </div>
-                  <div class="plugin-card-description">
-                    {{ plugin.description || '暂无描述' }}
-                  </div>
-                  <div class="plugin-card-footer">
-                    <div class="plugin-card-author">
-                      <el-icon class="footer-icon"><User /></el-icon>
-                      <span>{{ plugin.authorName || '未知' }}</span>
-                    </div>
-                    <div class="plugin-card-time">
-                      <el-icon class="footer-icon"><Clock /></el-icon>
-                      <span>{{ getTimeAgo(plugin.updateTime) }}</span>
-                    </div>
+                  <div class="plugin-card-time">
+                    <el-icon class="footer-icon"><Clock /></el-icon>
+                    <span>{{ getTimeAgo(plugin.updateTime) }}</span>
                   </div>
                 </div>
-              </el-card>
-            </el-col>
-          </el-row>
-          
-          <!-- 空状态 -->
-          <el-empty v-if="plugins.length === 0 && !loading" description="暂无插件" />
-          
-          <!-- 分页 -->
-          <div class="pagination" v-if="total > 0">
-            <el-pagination
-              v-model:current-page="pageNum"
-              v-model:page-size="pageSize"
-              :page-sizes="[6, 12, 24]"
-              layout="prev, pager, next"
-              :total="total"
-              @size-change="loadPlugins"
-              @current-change="handlePageChange"
-            />
-          </div>
+              </div>
+            </el-card>
+          </el-col>
+        </el-row>
+        
+        <el-empty v-if="plugins.length === 0 && !loading" description="暂无插件" />
+        
+        <div class="pagination" v-if="total > 0">
+          <el-pagination
+            v-model:current-page="pageNum"
+            v-model:page-size="pageSize"
+            :page-sizes="[6, 12, 24]"
+            layout="prev, pager, next"
+            :total="total"
+            @size-change="loadPlugins"
+            @current-change="handlePageChange"
+          />
         </div>
       </div>
-    </el-card>
+    </div>
     
-    <!-- 插件创建/编辑弹窗 -->
     <el-dialog
       v-model="dialogVisible"
       :title="currentPluginId ? '编辑插件' : '新建插件'"
@@ -284,16 +255,15 @@ onMounted(() => {
   flex-direction: column;
 }
 
-.card-header {
+.content-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 20px;
-  margin-bottom: 20px;
+  padding: 0 0 20px 0;
 }
 
-.card-header h2 {
-  font-size: 24px;
+.header-left h2 {
+  font-size: 20px;
   margin: 0;
   color: #303133;
   font-weight: bold;
@@ -301,24 +271,28 @@ onMounted(() => {
 
 .plugin-content {
   flex: 1;
-  padding: 0 20px 20px;
   overflow-y: auto;
+}
+
+.content-wrapper {
+  width: 100%;
+  min-height: 300px;
 }
 
 .plugin-item-card {
   margin-bottom: 20px;
-  height: 320px; /* 固定高度，确保长宽比一致 */
+  height: 320px;
   border: 1px solid #e6e6e6;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* 添加阴影效果 */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
   cursor: pointer;
   overflow: hidden;
-  position: relative; /* 添加相对定位，使删除图标容器的绝对定位相对于卡片 */
+  position: relative;
 }
 
 .plugin-item-card:hover {
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15); /* 增强hover时的阴影效果 */
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
   transform: translateY(-2px);
 }
 
@@ -360,11 +334,11 @@ onMounted(() => {
 }
 
 .public-lock {
-  color: #67c23a; /* 浅绿色 */
+  color: #67c23a;
 }
 
 .private-lock {
-  color: #f56c6c; /* 浅红色 */
+  color: #f56c6c;
 }
 
 .delete-icon-container {
@@ -442,7 +416,6 @@ onMounted(() => {
   justify-content: center;
 }
 
-/* 自定义分页样式 */
 :deep(.el-pagination .el-pager li.active) {
   background-color: #409eff;
   color: white;
