@@ -25,12 +25,7 @@ const router = createRouter({
       component: () => import('../views/ForgotPasswordView.vue'),
       meta: { title: '忘记密码' }
     },
-    {
-      path: '/bot/info',
-      name: 'bot-info',
-      component: () => import('../views/bot/BotInfoView.vue'),
-      meta: { title: '机器人信息' }
-    },
+    
     {
       path: '/settings',
       name: 'bot-settings',

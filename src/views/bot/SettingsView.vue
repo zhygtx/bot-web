@@ -1,8 +1,11 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from "vue"
+import { useRouter } from "vue-router"
 import { ElMessage, ElMessageBox } from "element-plus"
 import { Edit, Delete, Plus, User, Cpu, Monitor } from "@element-plus/icons-vue"
 import request from "../../utils/request"
+
+const router = useRouter()
 
 const loading = ref(false)
 
@@ -186,6 +189,22 @@ const deleteContainer = async () => {
     await getContainerInfo()
   }
 }
+
+const handleLogout = async () => {
+  try {
+    await ElMessageBox.confirm("确定要退出登录吗？", "退出确认", {
+      confirmButtonText: "确定", cancelButtonText: "取消", type: "warning"
+    })
+    await request({ url: "/user/logout", method: "post", params: { userId: userInfo.account } })
+    localStorage.removeItem("token")
+    ElMessage.success("退出登录成功")
+    router.push("/login")
+  } catch (error) {
+    if (error !== "cancel") {
+      ElMessage.error(error.message || "退出登录失败")
+    }
+  }
+}
 </script>
 
 <template>
@@ -198,6 +217,9 @@ const deleteContainer = async () => {
             <div class="card-title">
               <el-icon class="card-icon"><User /></el-icon>
               <span>个人信息</span>
+            </div>
+            <div class="card-actions">
+              <el-button type="danger" size="small" @click="handleLogout">退出登录</el-button>
             </div>
           </div>
         </template>
