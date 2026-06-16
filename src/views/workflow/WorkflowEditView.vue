@@ -5,8 +5,7 @@ import { ElMessage, ElInput, ElIcon } from 'element-plus'
 import { Warning, ArrowDown, ArrowUp, Close, Position, ZoomIn } from '@element-plus/icons-vue'
 import request from '../../utils/request'
 
-import WorkflowMappingConfig from '../../components/WorkflowMappingConfig.vue'
-import WorkflowConditionConfig from '../../components/WorkflowConditionConfig.vue'
+import WorkflowNodeConfigPanel from '../../components/workflow/WorkflowNodeConfigPanel.vue'
 import NodeComponent from '../../components/workflow/NodeComponent.vue'
 import ConnectionComponent from '../../components/workflow/ConnectionComponent.vue'
 import ContextMenuComponent from '../../components/workflow/ContextMenuComponent.vue'
@@ -98,12 +97,11 @@ const selectedNodes = ref([])
 const contextMenuTarget = ref(null)
 const selectedConnection = ref(null)
 
-// 映射配置弹窗相关状态
-const showMappingConfig = ref(false)
-const currentNode = ref(null)
-
-// 条件配置弹窗相关状态
-const showConditionConfig = ref(false)
+// 节点配置面板相关状态
+const showConfigPanel = ref(false)
+const configPanelNode = ref(null)
+// 追踪节点是否在 mousedown 之后发生了移动（用于区分点击和拖动）
+const nodeMouseMoved = ref(false)
 
 // 测试结果相关状态
 const testResult = ref({})
@@ -119,17 +117,8 @@ const selectionEnd = ref({ x: 0, y: 0 })
 
 // 计算当前节点的前置节点
 const preNodes = computed(() => {
-  if (!currentNode.value) return []
-  return nodes.value.filter(node => currentNode.value.preNodeId.includes(node.id))
-})
-
-// 检查节点是否可以设置条件
-const canSetCondition = computed(() => {
-  if (!currentNode.value) return false
-  // 检查节点的返回类型是否是布尔（包括基本类型和包装类）
-  return currentNode.value.method &&
-         (currentNode.value.method.returnType === 'boolean' || 
-          currentNode.value.method.returnType === 'Boolean')
+  if (!configPanelNode.value) return []
+  return nodes.value.filter(node => configPanelNode.value.preNodeId.includes(node.id))
 })
 
 // 检查是否存在 BOT 事件节点
@@ -282,6 +271,11 @@ const handleMouseLeaveExtended = (e) => {
 const handleNodeMouseDownExtended = (e, node) => {
   e.stopPropagation() // 阻止事件冒泡，避免触发画布拖动
   
+  // 左键点击时重置移动标记
+  if (e.button === 0) {
+    nodeMouseMoved.value = false
+  }
+  
   if (currentMode.value === 'select') {
     // 右键点击时不重置选中状态
     if (e.button !== 2) {
@@ -319,6 +313,9 @@ const handleNodeMouseMoveExtended = (e, node) => {
   if (draggingNode.value && draggingNode.value.id === node.id) {
     e.preventDefault()
     
+    // 标记节点发生了移动
+    nodeMouseMoved.value = true
+    
     // 计算节点新位置（相对于画布）
     const canvasRect = canvasRef.value.getBoundingClientRect()
     let newX = e.clientX - canvasRect.left - nodeDragStart.value.x
@@ -339,6 +336,10 @@ const handleNodeMouseMoveExtended = (e, node) => {
 
 // 处理节点鼠标释放事件（扩展）
 const handleNodeMouseUpExtended = (e, node) => {
+  // 如果是左键单击（没有移动），打开配置面板
+  if (e.button === 0 && !nodeMouseMoved.value) {
+    openNodeConfigPanel(node)
+  }
   draggingNode.value = null
   document.body.style.cursor = 'default'
 }
@@ -631,6 +632,12 @@ const hideContextMenu = () => {
   contextMenuTarget.value = null
 }
 
+// 点击画布空白区域时关闭配置面板和右键菜单
+const handleWorkflowClick = () => {
+  hideContextMenu()
+  showConfigPanel.value = false
+}
+
 // 删除选中的节点
 const deleteSelectedNodes = () => {
   if (selectedNodes.value.length > 0) {
@@ -720,19 +727,36 @@ const disconnectSelectedNodes = () => {
   }
 }
 
-// 打开映射配置弹窗
-const openMappingConfig = (node) => {
-  processNodeInfo(node, botEvents.value, botActions.value)
-  currentNode.value = node
-  showMappingConfig.value = true
+// 打开节点配置面板
+const openNodeConfigPanel = (node) => {
+  // 如果面板已打开且是同一个节点，不做处理
+  if (showConfigPanel.value && configPanelNode.value?.id === node.id) return
+
+  // 先关闭当前面板（以便播放关闭动画），再打开新面板
+  if (showConfigPanel.value) {
+    showConfigPanel.value = false
+    setTimeout(() => {
+      configPanelNode.value = null
+      processNodeInfo(node, botEvents.value, botActions.value)
+      configPanelNode.value = node
+      showConfigPanel.value = true
+    }, 150)
+  } else {
+    processNodeInfo(node, botEvents.value, botActions.value)
+    configPanelNode.value = node
+    showConfigPanel.value = true
+  }
   hideContextMenu()
 }
 
-// 打开条件配置弹窗
-const openConditionConfig = (node) => {
-  currentNode.value = node
-  showConditionConfig.value = true
-  hideContextMenu()
+// 处理配置面板保存映射
+const handleSaveMapping = (config) => {
+  saveMappingConfig(config, configPanelNode.value, nodes.value, workflowId)
+}
+
+// 处理配置面板保存条件
+const handleSaveCondition = (condition) => {
+  saveConditionConfig(condition, configPanelNode.value, nodes.value, workflowId)
 }
 
 // 处理画布右键菜单
@@ -754,7 +778,6 @@ const handleNodeContextMenu = (e, node) => {
     selectedNodes.value.push(node)
   }
   
-  currentNode.value = node
   showContextMenu.value = true
 }
 
@@ -957,7 +980,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="workflow-edit-view" @click="hideContextMenu">
+  <div class="workflow-edit-view" @click="handleWorkflowClick">
     <!-- 顶部导航栏 -->
     <div class="workflow-header">
       <div class="header-left">
@@ -1071,7 +1094,7 @@ onUnmounted(() => {
             @node-mouse-up="handleNodeMouseUpExtended"
             @node-mouse-leave="handleNodeMouseLeaveExtended"
             @node-context-menu="handleNodeContextMenu"
-            @node-dbl-click="openMappingConfig"
+            @node-dbl-click="openNodeConfigPanel"
             @port-mouse-down="handlePortMouseDownExtended"
           />
         </div>
@@ -1087,9 +1110,6 @@ onUnmounted(() => {
           :target="contextMenuTarget"
           :selected-nodes="selectedNodes"
           :selected-connection="selectedConnection"
-          :can-set-condition="canSetCondition"
-          @open-mapping-config="openMappingConfig"
-          @open-condition-config="openConditionConfig"
           @delete-selected-nodes="deleteSelectedNodes"
           @copy-selected-nodes="copySelectedNodes"
           @disconnect-selected-nodes="disconnectSelectedNodes"
@@ -1099,22 +1119,16 @@ onUnmounted(() => {
       </div>
     </div>
     
-    <!-- 数据映射与默认值配置弹窗 -->
-    <WorkflowMappingConfig
-      :visible="showMappingConfig"
-      :node="currentNode"
+    <!-- 节点配置面板（右侧滑入） -->
+    <WorkflowNodeConfigPanel
+      :visible="showConfigPanel"
+      :node="configPanelNode"
       :pre-nodes="preNodes"
+      :all-nodes="nodes"
       :plugins="plugins"
-      @update:visible="showMappingConfig = $event"
-      @save="(config) => saveMappingConfig(config, currentNode, nodes.value, workflowId)"
-    />
-    
-    <!-- 条件配置弹窗 -->
-    <WorkflowConditionConfig
-      :visible="showConditionConfig"
-      :node="currentNode"
-      @update:visible="showConditionConfig = $event"
-      @save="(condition) => saveConditionConfig(condition, currentNode, nodes.value, workflowId)"
+      @update:visible="showConfigPanel = $event"
+      @save-mapping="handleSaveMapping"
+      @save-condition="handleSaveCondition"
     />
     
     <!-- 测试结果弹窗 -->

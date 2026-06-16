@@ -40,12 +40,12 @@
                 <div class="plugin-card-description">
                   {{ plugin.description }}
                 </div>
-                <div class="plugin-card-footer" v-if="!expandedPlugins.has(plugin.id)">
+                <div class="plugin-card-footer" v-if="expandedPlugins !== plugin.id">
                   <el-icon @click="togglePluginExpand(plugin.id)" class="expand-icon">
                     <ArrowDown />
                   </el-icon>
                 </div>
-                <div class="plugin-card-methods" v-if="expandedPlugins.has(plugin.id)">
+                <div class="plugin-card-methods" v-if="expandedPlugins === plugin.id">
                   <h4>方法类</h4>
                   <div v-if="plugin && plugin.pluginVersionList && plugin.pluginVersionList.length > 0 && selectedVersions[plugin.id]">
                     <!-- 直接找到选中的版本 -->
@@ -149,12 +149,12 @@
                 <div class="plugin-card-description">
                   {{ plugin.description }}
                 </div>
-                <div class="plugin-card-footer" v-if="!expandedPlugins.has(plugin.id)">
+                <div class="plugin-card-footer" v-if="expandedPlugins !== plugin.id">
                   <el-icon @click="togglePluginExpand(plugin.id)" class="expand-icon">
                     <ArrowDown />
                   </el-icon>
                 </div>
-                <div class="plugin-card-methods" v-if="expandedPlugins.has(plugin.id)">
+                <div class="plugin-card-methods" v-if="expandedPlugins === plugin.id">
                   <h4>方法类</h4>
                   <div v-if="plugin && plugin.pluginVersionList && plugin.pluginVersionList.length > 0 && selectedPublicVersions[plugin.id]">
                     <div v-for="versionItem in plugin.pluginVersionList" :key="versionItem?.id">
@@ -334,8 +334,8 @@ const emit = defineEmits([
   'update:selectedPublicVersions'
 ])
 
-// 展开的插件卡片
-const expandedPlugins = ref(new Set())
+// 展开的插件卡片（一次只能展开一个）
+const expandedPlugins = ref(null)
 // 本地activeTab状态
 const localActiveTab = ref(props.activeTab)
 // 计算属性：直接从localStorage获取botQQ的值
@@ -443,13 +443,9 @@ const updateActiveTab = (value) => {
   emit('update:model-value', value)
 }
 
-// 切换插件卡片展开/收起状态
+// 切换插件卡片展开/收起状态（一次只能展开一个）
 const togglePluginExpand = (pluginId) => {
-  if (expandedPlugins.value.has(pluginId)) {
-    expandedPlugins.value.delete(pluginId)
-  } else {
-    expandedPlugins.value.add(pluginId)
-  }
+  expandedPlugins.value = expandedPlugins.value === pluginId ? null : pluginId
 }
 
 // 跳转到插件详情页

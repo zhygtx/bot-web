@@ -8,8 +8,6 @@
     <div v-if="target === 'node'" class="context-menu-items">
       <!-- 单个节点时显示所有选项 -->
       <template v-if="selectedNodes.length === 1">
-        <div class="context-menu-item" @click="handleOpenMappingConfig">配置映射</div>
-        <div v-if="canSetCondition" class="context-menu-item" @click="handleOpenConditionConfig">配置条件</div>
         <div class="context-menu-item" @click="handleCopySelectedNodes">复制</div>
       </template>
       <!-- 多个节点时只显示批量操作选项 -->
@@ -46,36 +44,16 @@ const props = defineProps({
   selectedConnection: {
     type: Object,
     default: null
-  },
-  canSetCondition: {
-    type: Boolean,
-    default: false
   }
 })
 
 const emit = defineEmits([
-  'openMappingConfig',
-  'openConditionConfig',
   'deleteSelectedNodes',
   'copySelectedNodes',
   'disconnectSelectedNodes',
   'clearCanvas',
   'deleteSelectedConnection'
 ])
-
-// 处理打开映射配置
-const handleOpenMappingConfig = () => {
-  if (props.selectedNodes.length > 0) {
-    emit('openMappingConfig', props.selectedNodes[0])
-  }
-}
-
-// 处理打开条件配置
-const handleOpenConditionConfig = () => {
-  if (props.selectedNodes.length > 0) {
-    emit('openConditionConfig', props.selectedNodes[0])
-  }
-}
 
 // 处理删除选中的节点
 const handleDeleteSelectedNodes = () => {

@@ -122,6 +122,7 @@ const goToForgotPassword = () => {
             placeholder="请输入密码"
             prefix-icon="el-icon-lock"
             show-password
+            @keyup.enter="handleLogin"
           />
         </el-form-item>
         

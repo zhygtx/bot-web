@@ -4,10 +4,11 @@
     :class="{ 'node-selected': isSelected }"
     :data-node-id="node.id"
     :style="{ left: node.x + 'px', top: node.y + 'px' }"
-    @mousedown="handleNodeMouseDown"
+    @mousedown.stop="handleNodeMouseDown"
     @mousemove="handleNodeMouseMove"
     @mouseup="handleNodeMouseUp"
     @mouseleave="handleNodeMouseLeave"
+    @click.stop
     @contextmenu="handleNodeContextMenu"
     @dblclick="handleNodeDblClick"
   >

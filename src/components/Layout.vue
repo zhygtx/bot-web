@@ -190,6 +190,7 @@ const contentPaddingBottom = computed(() => {
   flex: 1;
   padding: 20px;
   overflow-y: auto;
+  overflow-x: hidden;
   min-height: 0;
 }
 
@@ -197,6 +198,7 @@ const contentPaddingBottom = computed(() => {
   .layout-content {
     padding: 16px;
     overflow-y: auto;
+    overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     height: 0;
     flex: 1;

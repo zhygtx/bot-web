@@ -470,6 +470,7 @@ onMounted(() => {
   padding: 20px;
   height: 100%;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .detail-header {
