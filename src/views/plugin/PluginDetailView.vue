@@ -14,8 +14,14 @@ const router = useRouter()
 const pluginInfo = ref(null)
 // 加载状态
 const loading = ref(false)
+// 版本详情加载状态
+const versionLoading = ref(false)
 // 当前激活的版本标签
 const activeVersion = ref('')
+// 插件版本列表（简要信息，id → version）
+const versionList = ref({})
+// 是否已完成初始加载
+const initialLoadDone = ref(false)
 
 // 当前编辑的版本
 const editedVersion = ref(null)
@@ -25,6 +31,8 @@ const compatibleVersions = ref([])
 
 // 获取插件ID
 const pluginId = computed(() => route.params.id)
+// 获取默认版本ID
+const pluginVersionId = computed(() => route.query.versionId || '')
 
 // 只读模式
 const isReadOnly = computed(() => route.query.readOnly === 'true' || route.query.fromWorkflowEdit === 'true')
@@ -32,13 +40,49 @@ const isReadOnly = computed(() => route.query.readOnly === 'true' || route.query
 // 返回路径
 const returnUrl = computed(() => route.query.returnUrl)
 
-// 加载插件详情
-const loadPluginDetail = async () => {
-  loading.value = true
+// 加载插件版本简要列表（返回格式: { "1": {id, version}, "2": {id, version} }）
+const loadVersionList = async () => {
   try {
     const response = await request({
-      url: `/plugin/${pluginId.value}`,
-      method: 'get'
+      url: '/plugin/findPluginVersionByPluginId',
+      method: 'get',
+      params: { pluginId: pluginId.value }
+    })
+    if (response.code === 200) {
+      // 转换为 { id: version } 格式
+      const raw = response.data || {}
+      const mapped = {}
+      for (const key of Object.keys(raw)) {
+        const item = raw[key]
+        if (item && item.id) {
+          mapped[item.id] = item.version
+        }
+      }
+      versionList.value = mapped
+    }
+  } catch (error) {
+    console.error('加载版本列表失败', error)
+  }
+}
+
+// 加载插件详情（传入指定版本ID）
+const loadPluginDetail = async (versionId) => {
+  // 优先使用传入的 versionId，其次 query 参数，最后取版本列表的第一个
+  let targetVersionId = versionId || pluginVersionId.value
+  if (!targetVersionId && Object.keys(versionList.value).length > 0) {
+    targetVersionId = Object.keys(versionList.value)[0]
+  }
+  if (!pluginId.value || !targetVersionId) return
+
+  versionLoading.value = true
+  try {
+    const response = await request({
+      url: '/plugin/findPlugin',
+      method: 'get',
+      params: {
+        pluginId: pluginId.value,
+        pluginVersionId: targetVersionId
+      }
     })
     if (response.code === 200) {
       pluginInfo.value = new PluginInfo(response.data)
@@ -52,24 +96,20 @@ const loadPluginDetail = async () => {
   } catch (error) {
     ElMessage.error('加载插件详情失败')
   } finally {
-    loading.value = false
+    versionLoading.value = false
   }
 }
 
 // 清除页面缓存
 const clearCache = () => {
-  // 清除会话存储中的插件相关缓存
   sessionStorage.removeItem('pluginCache')
-  // 清除localStorage中的插件相关缓存
   localStorage.removeItem('pluginCache')
 }
 
 // 返回
 const goBack = () => {
-  // 退出时清除缓存
   clearCache()
   if (returnUrl.value) {
-    // 直接返回原URL，确保 fromPluginDetail 和 reloadPlugins 参数被正确传递
     window.location.href = returnUrl.value
   } else {
     router.push('/plugin/list')
@@ -85,7 +125,6 @@ const editedPluginInfo = ref(null)
 // 进入编辑模式
 const goToEdit = () => {
   isEditMode.value = true
-  // 深拷贝插件信息，用于编辑
   editedPluginInfo.value = JSON.parse(JSON.stringify(pluginInfo.value))
 }
 
@@ -93,7 +132,6 @@ const goToEdit = () => {
 const saveEdit = async () => {
   loading.value = true
   try {
-    // 处理兼容版本，确保每个版本都包含自身
     if (editedPluginInfo.value.pluginVersionList) {
       editedPluginInfo.value.pluginVersionList.forEach(version => {
         if (version.compatibleVersion) {
@@ -117,9 +155,8 @@ const saveEdit = async () => {
     if (response.code === 200) {
       ElMessage.success('修改插件成功')
       isEditMode.value = false
-      // 保存成功时清除缓存
       clearCache()
-      loadPluginDetail()
+      loadPluginDetail(activeVersion.value)
     } else {
       ElMessage.error(response.message || '修改插件失败')
     }
@@ -134,7 +171,6 @@ const saveEdit = async () => {
 const cancelEdit = () => {
   isEditMode.value = false
   editedPluginInfo.value = null
-  // 取消编辑时清除缓存
   clearCache()
 }
 
@@ -146,6 +182,13 @@ const goToUpdateVersion = () => {
   updateVersionDialogVisible.value = true
 }
 
+// 更新版本弹窗关闭时刷新数据
+const handleUpdateVersionClose = () => {
+  updateVersionDialogVisible.value = false
+  loadVersionList()
+  loadPluginDetail(activeVersion.value)
+}
+
 // 格式化文件大小
 const formatFileSize = (bytes) => {
   if (bytes === 0) return '0 B'
@@ -155,31 +198,33 @@ const formatFileSize = (bytes) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
-// 监听版本标签变化
-watch(() => activeVersion.value, (newVersionId) => {
+// 监听版本标签变化 → 请求新版本数据
+watch(() => activeVersion.value, (newVersionId, oldVersionId) => {
+  if (!newVersionId || newVersionId === oldVersionId) return
+  // 初始加载时跳过（由 loadPluginDetail 自行设置）
+  if (!initialLoadDone.value) return
   if (isEditMode.value && editedPluginInfo.value) {
-    // 找到当前版本并设置为editedVersion
     const currentVersion = editedPluginInfo.value.pluginVersionList.find(v => v.id === newVersionId)
     if (currentVersion) {
       editedVersion.value = currentVersion
-      // 更新兼容版本，过滤掉当前版本
       if (currentVersion.compatibleVersion) {
         compatibleVersions.value = JSON.parse(currentVersion.compatibleVersion).filter(v => v !== currentVersion.version)
       } else {
         compatibleVersions.value = []
       }
     }
+  } else {
+    // 非编辑模式下切换版本 → 重新请求
+    loadPluginDetail(newVersionId)
   }
 })
 
 // 监听编辑模式变化
 watch(() => isEditMode.value, (isEdit) => {
   if (isEdit && editedPluginInfo.value && activeVersion.value) {
-    // 找到当前版本并设置为editedVersion
     const currentVersion = editedPluginInfo.value.pluginVersionList.find(v => v.id === activeVersion.value)
     if (currentVersion) {
       editedVersion.value = currentVersion
-      // 更新兼容版本，过滤掉当前版本
       if (currentVersion.compatibleVersion) {
         compatibleVersions.value = JSON.parse(currentVersion.compatibleVersion).filter(v => v !== currentVersion.version)
       } else {
@@ -197,8 +242,10 @@ watch(() => compatibleVersions.value, (newVersions) => {
 }, { deep: true })
 
 // 初始化加载
-onMounted(() => {
-  loadPluginDetail()
+onMounted(async () => {
+  await loadVersionList()
+  await loadPluginDetail(pluginVersionId.value)
+  initialLoadDone.value = true
 })
 </script>
 
@@ -267,30 +314,31 @@ onMounted(() => {
     </el-card>
     
     <!-- 版本信息 -->
-    <el-card v-if="pluginInfo && pluginInfo.pluginVersionList && pluginInfo.pluginVersionList.length > 0" class="detail-card">
+    <el-card v-if="pluginInfo && Object.keys(versionList).length > 0" class="detail-card">
       <template #header>
         <h3>版本信息</h3>
       </template>
       
       <el-tabs v-model="activeVersion">
         <el-tab-pane
-          v-for="version in pluginInfo.pluginVersionList"
-          :key="version.id"
-          :label="version.version"
-          :name="version.id"
+          v-for="(ver, vid) in versionList"
+          :key="vid"
+          :label="ver"
+          :name="vid"
         >
+          <div v-loading="versionLoading">
           <el-descriptions :column="2" border>
             <el-descriptions-item label="版本号">
-              {{ version.version }}
+              <span class="version-number">{{ pluginInfo.pluginVersionList?.[0]?.version || ver }}</span>
             </el-descriptions-item>
             <el-descriptions-item label="创建时间">
-              {{ version.createTime }}
+              {{ pluginInfo.pluginVersionList?.[0]?.createTime }}
             </el-descriptions-item>
             <el-descriptions-item label="兼容版本" :span="2">
               <div v-if="!isEditMode">
-                <div v-if="version.compatibleVersion" class="compatible-versions">
+                <div v-if="pluginInfo.pluginVersionList?.[0]?.compatibleVersion" class="compatible-versions">
                   <el-tag
-                    v-for="(v, index) in JSON.parse(version.compatibleVersion).filter(v => v !== version.version)"
+                    v-for="(v, index) in JSON.parse(pluginInfo.pluginVersionList[0].compatibleVersion).filter(v => v !== pluginInfo.pluginVersionList[0].version)"
                     :key="index"
                     size="small"
                     effect="plain"
@@ -322,7 +370,7 @@ onMounted(() => {
           
           <div class="version-changelog">
             <h4>版本变更说明</h4>
-            <p v-if="!isEditMode">{{ version.changelog || '无' }}</p>
+            <p v-if="!isEditMode">{{ pluginInfo.pluginVersionList?.[0]?.changelog || '无' }}</p>
             <el-input v-else type="textarea" v-model="editedVersion.changelog" placeholder="请输入版本变更说明" class="edit-changelog" />
           </div>
           
@@ -331,9 +379,9 @@ onMounted(() => {
           <!-- 实体类信息 -->
           <div class="version-entity-info">
             <h4>实体类信息</h4>
-            <div v-if="version.entityInfoList && version.entityInfoList.length > 0" class="entity-cards-container">
+            <div v-if="pluginInfo.pluginVersionList?.[0]?.entityInfoList && pluginInfo.pluginVersionList[0].entityInfoList.length > 0" class="entity-cards-container">
               <el-card 
-                v-for="entity in (isEditMode ? editedVersion.entityInfoList : version.entityInfoList)" 
+                v-for="entity in (isEditMode ? editedVersion.entityInfoList : pluginInfo.pluginVersionList[0].entityInfoList)" 
                 :key="entity.id" 
                 class="entity-card-item"
                 shadow="hover"
@@ -350,7 +398,6 @@ onMounted(() => {
                     <el-collapse-item title="查看属性" class="properties-collapse-item">
                       <div class="properties-list">
                         <div v-for="attr in [...entity.attributes].sort((a, b) => {
-                          // 按照属性名排序
                           return a.name.localeCompare(b.name)
                         })" :key="attr.id" class="property-item">
                           <span class="property-name">{{ attr.name }}</span>
@@ -372,9 +419,9 @@ onMounted(() => {
           <!-- 方法类信息 -->
           <div class="version-method-info">
             <h4>方法类信息</h4>
-            <div v-if="version.methodClassInfoList && version.methodClassInfoList.length > 0" class="method-classes-container">
+            <div v-if="pluginInfo.pluginVersionList?.[0]?.methodClassInfoList && pluginInfo.pluginVersionList[0].methodClassInfoList.length > 0" class="method-classes-container">
               <el-card 
-                v-for="(methodClass, index) in (isEditMode ? editedVersion.methodClassInfoList : version.methodClassInfoList)" 
+                v-for="(methodClass, index) in (isEditMode ? editedVersion.methodClassInfoList : pluginInfo.pluginVersionList[0].methodClassInfoList)" 
                 :key="methodClass.id" 
                 class="method-class-card"
                 shadow="hover"
@@ -408,12 +455,10 @@ onMounted(() => {
                             <el-collapse-item title="查看参数" class="parameters-collapse-item">
                               <div class="parameters-list">
                                 <div v-for="param in [...method.parameters].sort((a, b) => {
-                                  // 首先按照order字段排序
                                   const orderDiff = (a.order || 0) - (b.order || 0)
                                   if (orderDiff !== 0) {
                                     return orderDiff
                                   }
-                                  // 如果order相同，按照参数名排序
                                   return a.name.localeCompare(b.name)
                                 })" :key="param.id" class="parameter-item">
                                   <span class="parameter-name">{{ param.name }}</span>
@@ -433,6 +478,7 @@ onMounted(() => {
               </el-card>
             </div>
             <el-empty v-else description="暂无方法类信息" />
+          </div>
           </div>
         </el-tab-pane>
       </el-tabs>
@@ -454,11 +500,12 @@ onMounted(() => {
       v-model="updateVersionDialogVisible"
       title="更新插件版本"
       width="800px"
-      @close="updateVersionDialogVisible = false"
+      @close="handleUpdateVersionClose"
     >
       <PluginCreateView 
         :plugin-id="pluginId"
         :is-update="true"
+        :plugin-data="pluginInfo"
         @close="updateVersionDialogVisible = false"
       />
     </el-dialog>
@@ -517,6 +564,18 @@ onMounted(() => {
   margin: 0;
   color: #606266;
   line-height: 1.5;
+}
+
+.version-number {
+  font-size: 18px;
+  font-weight: bold;
+  color: #303133;
+}
+
+/* 版本 Tag 切换栏样式放大 */
+:deep(.el-tabs__item) {
+  font-size: 16px;
+  font-weight: 600;
 }
 
 .version-changelog {

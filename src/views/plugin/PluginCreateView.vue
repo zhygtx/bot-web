@@ -23,6 +23,11 @@ const props = defineProps({
   isUpdate: {
     type: Boolean,
     default: false
+  },
+  // 父组件传入的插件数据，用于避免重复请求
+  pluginData: {
+    type: Object,
+    default: null
   }
 })
 
@@ -63,33 +68,47 @@ const loadPluginInfo = async () => {
   
   const currentPluginId = props.pluginId || new URLSearchParams(window.location.search).get('pluginId')
   if (!currentPluginId) return
-  
-  loading.value = true
-  try {
-    // 真实API调用
-    const response = await request({
-      url: `/plugin/${currentPluginId}`,
-      method: 'get'
-    })
-    if (response.code === 200) {
-      pluginInfo.value = new PluginInfo(response.data)
-      // 自动填充插件基本信息
-      pluginForm.value.name = pluginInfo.value.name
-      pluginForm.value.description = pluginInfo.value.description
-      pluginForm.value.isPublic = pluginInfo.value.isPublic
-      // 自动填充最新版本的实体类包名和方法类包名
-      if (pluginInfo.value.pluginVersionList && pluginInfo.value.pluginVersionList.length > 0) {
-        const latestVersion = pluginInfo.value.pluginVersionList[0]
-        pluginForm.value.entityPackage = latestVersion.entityPackage
-        pluginForm.value.methodPackage = latestVersion.methodPackage
+
+  let data = props.pluginData
+
+  if (data) {
+    // 父组件已传入数据，直接使用，无需重复请求
+    pluginInfo.value = new PluginInfo(data)
+  } else {
+    loading.value = true
+    try {
+      const response = await request({
+        url: `/plugin/findPlugin`,
+        method: 'get',
+        params: {
+          pluginId: currentPluginId,
+          pluginVersionId: ''
+        }
+      })
+      if (response.code === 200) {
+        data = response.data
+        pluginInfo.value = new PluginInfo(data)
+      } else {
+        ElMessage.error(response.message || '加载插件信息失败')
+        return
       }
-    } else {
-      ElMessage.error(response.message || '加载插件信息失败')
+    } catch (error) {
+      ElMessage.error('加载插件信息失败')
+      return
+    } finally {
+      loading.value = false
     }
-  } catch (error) {
-    ElMessage.error('加载插件信息失败')
-  } finally {
-    loading.value = false
+  }
+
+  // 自动填充插件基本信息
+  pluginForm.value.name = pluginInfo.value.name
+  pluginForm.value.description = pluginInfo.value.description
+  pluginForm.value.isPublic = pluginInfo.value.isPublic
+  // 自动填充最新版本的实体类包名和方法类包名
+  if (pluginInfo.value.pluginVersionList && pluginInfo.value.pluginVersionList.length > 0) {
+    const latestVersion = pluginInfo.value.pluginVersionList[0]
+    pluginForm.value.entityPackage = latestVersion.entityPackage
+    pluginForm.value.methodPackage = latestVersion.methodPackage
   }
 }
 

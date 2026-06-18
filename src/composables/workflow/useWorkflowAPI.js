@@ -43,29 +43,20 @@ export function useWorkflowAPI() {
     }
   }
 
-  // 加载插件列表
-  const loadPlugins = async (plugins, selectedVersions) => {
+  // 加载插件列表（供节点配置面板使用）
+  const loadPlugins = async (plugins) => {
     try {
       const response = await request({
-        url: '/plugin/findByAuthorId',
+        url: '/plugin/findPlugins',
         method: 'get',
         params: {
+          authorId: localStorage.getItem('userId') || '',
           pageNum: 1,
           pageSize: 100
         }
       })
       if (response.code === 200) {
-        plugins.value = response.data.list || []
-        // 初始化插件版本选择
-        plugins.value.forEach(plugin => {
-          if (plugin && plugin.pluginVersionList && plugin.pluginVersionList.length > 0) {
-            // 找到第一个有效的版本
-            const validVersion = plugin.pluginVersionList.find(v => v && v.id && v.version)
-            if (validVersion) {
-              selectedVersions.value[plugin.id] = validVersion.id
-            }
-          }
-        })
+        plugins.value = response.data?.list || response.data?.records || response.data?.content || []
       } else {
         ElMessage.error(response.message || '加载插件失败')
       }
@@ -78,9 +69,10 @@ export function useWorkflowAPI() {
   const loadPublicPlugins = async (publicPlugins, selectedPublicVersions) => {
     try {
       const response = await request({
-        url: '/plugin/findByPublic',
+        url: '/plugin/findPlugins',
         method: 'get',
         params: {
+          isPublic: true,
           pageNum: 1,
           pageSize: 100
         }
@@ -403,8 +395,8 @@ export function useWorkflowAPI() {
     }
   }
 
-  // 同步机器人信息到localStorage
-  const syncBotInfo = async (hasBotQQ, botEvents, botActions, loadBotEvents, loadBotActions) => {
+  // 同步机器人信息到localStorage，同时更新在线状态
+  const syncBotInfo = async (hasBotQQ, botEvents, botActions, loadBotEvents, loadBotActions, isBotOnline) => {
     try {
       const response = await request({
         url: '/bot/info',
@@ -414,6 +406,9 @@ export function useWorkflowAPI() {
         localStorage.setItem('botQQ', response.data.botQQ)
         if (hasBotQQ) {
           hasBotQQ.value = true
+        }
+        if (isBotOnline) {
+          isBotOnline.value = response.data.online === true
         }
         if (loadBotEvents) {
           loadBotEvents(botEvents)
@@ -426,9 +421,15 @@ export function useWorkflowAPI() {
         if (hasBotQQ) {
           hasBotQQ.value = false
         }
+        if (isBotOnline) {
+          isBotOnline.value = false
+        }
       }
     } catch (error) {
       console.error('同步机器人信息失败:', error)
+      if (isBotOnline) {
+        isBotOnline.value = false
+      }
     }
   }
 

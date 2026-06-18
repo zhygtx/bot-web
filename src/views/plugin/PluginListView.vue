@@ -1,8 +1,8 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElDialog, ElMessageBox } from 'element-plus'
-import { User, Clock, Lock, Unlock, Delete } from '@element-plus/icons-vue'
+import { ElMessage, ElDialog, ElMessageBox, ElInput, ElSelect, ElOption, ElButton, ElIcon } from 'element-plus'
+import { User, Clock, Lock, Unlock, Delete, Filter, Search, Refresh } from '@element-plus/icons-vue'
 import request from '../../utils/request'
 import { PluginInfo } from '../../models'
 import PluginCreateView from './PluginCreateView.vue'
@@ -17,16 +17,30 @@ const total = ref(0)
 const dialogVisible = ref(false)
 const currentPluginId = ref(null)
 
+// 多条件筛选
+const filters = ref({
+  content: '',
+  isPublic: ''
+})
+
 const loadPlugins = async () => {
   loading.value = true
   try {
+    const params = {
+      pageNum: pageNum.value,
+      pageSize: pageSize.value,
+      authorId: localStorage.getItem('userId') || ''
+    }
+    if (filters.value.content) {
+      params.content = filters.value.content
+    }
+    if (filters.value.isPublic !== '') {
+      params.isPublic = filters.value.isPublic === 'true'
+    }
     const response = await request({
-      url: '/plugin/findByAuthorId',
+      url: '/plugin/findPlugins',
       method: 'get',
-      params: {
-        pageNum: pageNum.value,
-        pageSize: pageSize.value
-      }
+      params
     })
     if (response.code === 200) {
       plugins.value = (response.data.list || []).map(plugin => new PluginInfo(plugin))
@@ -41,13 +55,24 @@ const loadPlugins = async () => {
   }
 }
 
+const resetFilters = () => {
+  filters.value = { content: '', isPublic: '' }
+  pageNum.value = 1
+  loadPlugins()
+}
+
+const handleSearch = () => {
+  pageNum.value = 1
+  loadPlugins()
+}
+
 const goToCreate = () => {
   currentPluginId.value = null
   dialogVisible.value = true
 }
 
-const goToDetail = (pluginId) => {
-  router.push(`/plugin/${pluginId}`)
+const goToDetail = (pluginId, pluginVersionId) => {
+  router.push(`/plugin/${pluginId}?versionId=${pluginVersionId}`)
 }
 
 const goToEdit = (pluginId) => {
@@ -158,8 +183,32 @@ onMounted(() => {
 
 <template>
   <div class="plugin-view">
-    <div class="content-header">
-      <div class="header-right">
+    <div class="filter-section">
+      <div class="filter-item">
+        <el-input
+          v-model="filters.content"
+          placeholder="搜索插件名称或描述"
+          class="filter-input"
+          @keyup.enter="handleSearch"
+        >
+          <template #prefix>
+            <el-icon class="filter-icon"><Filter /></el-icon>
+          </template>
+        </el-input>
+      </div>
+      <div class="filter-item">
+        <el-select v-model="filters.isPublic" placeholder="公开状态" class="filter-select" @change="handleSearch">
+          <el-option label="全部" value="" />
+          <el-option label="公开" value="true" />
+          <el-option label="私有" value="false" />
+        </el-select>
+      </div>
+      <div class="filter-item filter-actions">
+        <el-button :icon="Search" type="primary" @click="handleSearch">搜索</el-button>
+        <el-button :icon="Refresh" @click="resetFilters">重置</el-button>
+      </div>
+      <div class="filter-spacer"></div>
+      <div class="filter-item">
         <el-button type="primary" @click="goToCreate">新建插件</el-button>
       </div>
     </div>
@@ -168,7 +217,7 @@ onMounted(() => {
       <div v-loading="loading" element-loading-text="加载中..." class="content-wrapper">
         <el-row :gutter="20" :justify="'start'">
           <el-col :xs="24" :sm="12" :md="8" :lg="6" :xl="6" v-for="plugin in plugins" :key="plugin.id">
-            <el-card class="plugin-item-card" @click="goToDetail(plugin.id)">
+            <el-card class="plugin-item-card" @click="goToDetail(plugin.id, plugin.pluginVersionList?.[0]?.id)">
               <div class="plugin-card-content">
                 <div class="plugin-card-header">
                   <h3 class="plugin-name">{{ plugin.name }}</h3>
@@ -255,18 +304,41 @@ onMounted(() => {
   flex-direction: column;
 }
 
-.content-header {
+/* ===== 筛选栏 ===== */
+.filter-section {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 0 0 20px 0;
+  gap: 16px;
+  padding: 16px 20px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
 }
 
-.header-left h2 {
-  font-size: 20px;
-  margin: 0;
-  color: #303133;
-  font-weight: bold;
+.filter-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-icon {
+  color: #909399;
+}
+
+.filter-input {
+  width: 300px;
+}
+
+.filter-select {
+  width: 150px;
+}
+
+.filter-actions {
+}
+
+.filter-spacer {
+  flex: 1;
 }
 
 .plugin-content {

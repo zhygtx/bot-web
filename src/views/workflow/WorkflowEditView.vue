@@ -16,7 +16,7 @@ import { useDataMapping } from '../../composables/workflow/useDataMapping'
 import { useWorkflowAPI } from '../../composables/workflow/useWorkflowAPI'
 
 // 初始化API模块
-const { loadWorkflowInfo, loadPlugins, loadPublicPlugins, loadBotEvents, loadBotActions, saveWorkflow, saveAndTestWorkflow, syncBotInfo } = useWorkflowAPI()
+const { loadWorkflowInfo, loadPlugins, loadBotEvents, loadBotActions, saveWorkflow, saveAndTestWorkflow, syncBotInfo } = useWorkflowAPI()
 
 // 初始化事件处理模块
 const { canvasRef, isDragging, startX, startY, canvasX, canvasY, handleCanvasMouseDown, handleMouseMove, handleMouseUp, handleMouseLeave, handleNodeMouseDown, handleNodeMouseMove, handleNodeMouseUp, handleNodeMouseLeave, handlePortMouseDown, startDrag, startDragBotEvent, startDragBotAction, endDrag, dropNode } = useEventHandling()
@@ -56,20 +56,10 @@ watch(
 const canvasSize = ref({ width: 4000, height: 3000 })
 // 加载状态
 const loading = ref(false)
-// 插件列表
+// 插件列表（供节点配置面板使用）
 const plugins = ref([])
-// 公开插件列表
-const publicPlugins = ref([])
-// 插件类型（我的插件/公开插件）
-const activeTab = ref('my')
 // 可编辑状态
 const isNameEditable = ref(false)
-// 展开的插件卡片
-const expandedPlugins = ref(new Set())
-// 插件选中版本
-const selectedVersions = ref({})
-// 公开插件选中版本
-const selectedPublicVersions = ref({})
 // 插件列表是否显示
 const showPluginList = ref(true)
 
@@ -167,15 +157,6 @@ const toggleNameEdit = () => {
 // 切换插件列表显示/隐藏
 const togglePluginList = () => {
   showPluginList.value = !showPluginList.value
-}
-
-// 切换插件卡片展开/收起状态
-const togglePluginExpand = (pluginId) => {
-  if (expandedPlugins.value.has(pluginId)) {
-    expandedPlugins.value.delete(pluginId)
-  } else {
-    expandedPlugins.value.add(pluginId)
-  }
 }
 
 // 跳转到插件详情页
@@ -833,11 +814,6 @@ const handleEndDrag = () => {
   document.body.style.cursor = 'default'
 }
 
-// 处理activeTab更新
-const updateActiveTab = (value) => {
-  activeTab.value = value
-}
-
 // 处理节点放置
 const handleDropNode = (e) => {
   draggingElement.value = dropNode(e, draggingElement.value, canvasRef, nodes.value, showCanvasPlaceholder)
@@ -846,26 +822,7 @@ const handleDropNode = (e) => {
 
 // 处理浏览器历史变化的函数
 const handlePopState = () => {
-  loadPlugins(plugins, selectedVersions)
-  loadPublicPlugins(publicPlugins, selectedPublicVersions)
-}
-
-// 获取BOT在线状态
-const fetchBotOnlineStatus = async () => {
-  if (hasBotQQ.value) {
-    try {
-      const botStatusResponse = await request({
-        url: '/bot/info',
-        method: 'get'
-      })
-      isBotOnline.value = botStatusResponse.code === 200 && botStatusResponse.data?.online === true
-    } catch (error) {
-      // 如果检查失败，默认认为 BOT 不在线
-      isBotOnline.value = false
-    }
-  } else {
-    isBotOnline.value = false
-  }
+  loadPlugins(plugins)
 }
 
 // 初始化加载
@@ -895,24 +852,12 @@ onMounted(async () => {
   
   const botQQ = localStorage.getItem('botQQ')
   hasBotQQ.value = botQQ !== null
-  if (botQQ) {
-    await Promise.all([
-      loadBotEvents(botEvents),
-      loadBotActions(botActions)
-    ])
-  }
   
-  // 加载插件
-  loadPlugins(plugins, selectedVersions)
+  // 加载插件（供节点配置面板使用）
+  loadPlugins(plugins)
   
-  // 加载公开插件
-  loadPublicPlugins(publicPlugins, selectedPublicVersions)
-  
-  // 同步机器人信息
-  await syncBotInfo(hasBotQQ, botEvents, botActions, loadBotEvents, loadBotActions)
-  
-  // 获取BOT在线状态
-  await fetchBotOnlineStatus()
+  // 同步机器人信息（同时获取在线状态、加载事件/动作）
+  await syncBotInfo(hasBotQQ, botEvents, botActions, loadBotEvents, loadBotActions, isBotOnline)
   
   // 如果从插件详情页返回，先读取缓存内容
   if (fromPluginDetail && cacheId) {
@@ -953,11 +898,6 @@ onMounted(async () => {
   } else {
     // 如果不是从插件详情页返回，加载工作流信息
     await loadWorkflowInfo(workflowId, workflowInfo, nodes, connections, botEvents, botActions, processNodeInfo, generateConnections)
-  }
-  
-  if (reloadPlugins) {
-    loadPlugins(plugins, selectedVersions)
-    loadPublicPlugins(publicPlugins, selectedPublicVersions)
   }
   
   generateConnections()
@@ -1036,20 +976,11 @@ onUnmounted(() => {
     <div class="workflow-main-content">
       <!-- 左侧插件列表（悬浮窗） -->
       <PluginListComponent
-        :key="hasBotQQ"
-        :plugins="plugins"
-        :public-plugins="publicPlugins"
         :bot-events="botEvents"
         :bot-actions="botActions"
         :has-bot-qq="hasBotQQ"
         :is-bot-online="isBotOnline"
         :show-plugin-list="showPluginList"
-        :model-value="activeTab"
-        :selected-versions="selectedVersions"
-        :selected-public-versions="selectedPublicVersions"
-        @update:model-value="updateActiveTab"
-        @update:selected-versions="(val) => selectedVersions = val"
-        @update:selected-public-versions="(val) => selectedPublicVersions = val"
         @toggle-plugin-list="togglePluginList"
         @go-to-plugin-detail="goToPluginDetail"
         @start-drag="handleStartDrag"
