@@ -54,6 +54,8 @@ watch(
 )
 // 画布大小
 const canvasSize = ref({ width: 4000, height: 3000 })
+// 画布缩放
+const zoom = ref(1)
 // 加载状态
 const loading = ref(false)
 // 插件列表（供节点配置面板使用）
@@ -184,12 +186,13 @@ const goToPluginDetail = (pluginId) => {
 const handleCanvasMouseDownExtended = (e) => {
   if (currentMode.value === 'select' && e.button === 0) {
     isSelecting.value = true
-    // 计算鼠标相对于画布的位置
+    // 计算鼠标相对于画布的位置（需除以缩放系数）
     const canvasRect = canvasRef.value.getBoundingClientRect()
-    const canvasX = e.clientX - canvasRect.left
-    const canvasY = e.clientY - canvasRect.top
-    selectionStart.value = { x: canvasX, y: canvasY }
-    selectionEnd.value = { x: canvasX, y: canvasY }
+    const z = zoom.value
+    const cx = (e.clientX - canvasRect.left) / z
+    const cy = (e.clientY - canvasRect.top) / z
+    selectionStart.value = { x: cx, y: cy }
+    selectionEnd.value = { x: cx, y: cy }
   } else {
     handleCanvasMouseDown(e, currentMode.value)
   }
@@ -198,11 +201,12 @@ const handleCanvasMouseDownExtended = (e) => {
 // 处理鼠标移动事件（扩展）
 const handleMouseMoveExtended = (e) => {
   if (isSelecting.value) {
-    // 计算鼠标相对于画布的位置
+    // 计算鼠标相对于画布的位置（需除以缩放系数）
     const canvasRect = canvasRef.value.getBoundingClientRect()
-    const canvasX = e.clientX - canvasRect.left
-    const canvasY = e.clientY - canvasRect.top
-    selectionEnd.value = { x: canvasX, y: canvasY }
+    const z = zoom.value
+    const cx = (e.clientX - canvasRect.left) / z
+    const cy = (e.clientY - canvasRect.top) / z
+    selectionEnd.value = { x: cx, y: cy }
   } else if (isDrawing.value) {
     handleMouseMoveForConnection(e)
   } else {
@@ -222,10 +226,10 @@ const handleMouseUpExtended = (e) => {
     }
     selectedNodes.value = nodes.value.filter(node => {
       const nodeRect = {
-        left: node.x + canvasX.value,
-        top: node.y + canvasY.value,
-        right: node.x + 200 + canvasX.value,
-        bottom: node.y + 100 + canvasY.value
+        left: node.x,
+        top: node.y,
+        right: node.x + 200,
+        bottom: node.y + 100
       }
       return !(nodeRect.right < rect.left || 
                nodeRect.left > rect.right || 
@@ -297,10 +301,11 @@ const handleNodeMouseMoveExtended = (e, node) => {
     // 标记节点发生了移动
     nodeMouseMoved.value = true
     
-    // 计算节点新位置（相对于画布）
+    // 计算节点新位置（相对于画布，需除以缩放系数）
     const canvasRect = canvasRef.value.getBoundingClientRect()
-    let newX = e.clientX - canvasRect.left - nodeDragStart.value.x
-    let newY = e.clientY - canvasRect.top - nodeDragStart.value.y
+    const z = zoom.value
+    let newX = (e.clientX - canvasRect.left - nodeDragStart.value.x) / z
+    let newY = (e.clientY - canvasRect.top - nodeDragStart.value.y) / z
     
     // 限制节点在画布范围内
     const nodeWidth = 250
@@ -353,11 +358,12 @@ const handlePortMouseDownExtended = (e, node, port) => {
   startPort.value = port
   
   const rect = canvasRef.value.getBoundingClientRect()
+  const z = zoom.value
   tempConnection.value = {
     fromNode: node.id,
     fromPort: port,
-    toX: e.clientX - rect.left,
-    toY: e.clientY - rect.top
+    toX: (e.clientX - rect.left) / z,
+    toY: (e.clientY - rect.top) / z
   }
 }
 
@@ -365,10 +371,11 @@ const handlePortMouseDownExtended = (e, node, port) => {
 const handleMouseMoveForConnection = (e) => {
   if (isDrawing.value && tempConnection.value) {
     const rect = canvasRef.value.getBoundingClientRect()
+    const z = zoom.value
     tempConnection.value = {
       ...tempConnection.value,
-      toX: e.clientX - rect.left,
-      toY: e.clientY - rect.top
+      toX: (e.clientX - rect.left) / z,
+      toY: (e.clientY - rect.top) / z
     }
   }
 }
@@ -816,8 +823,29 @@ const handleEndDrag = () => {
 
 // 处理节点放置
 const handleDropNode = (e) => {
-  draggingElement.value = dropNode(e, draggingElement.value, canvasRef, nodes.value, showCanvasPlaceholder)
+  draggingElement.value = dropNode(e, draggingElement.value, canvasRef, nodes.value, showCanvasPlaceholder, zoom)
   handleEndDrag()
+}
+
+// 画布滚轮缩放
+const handleWheel = (e) => {
+  e.preventDefault()
+  const delta = e.deltaY > 0 ? -0.08 : 0.08
+  const newZoom = Math.max(0.3, Math.min(2, zoom.value + delta))
+  if (newZoom === zoom.value) return
+
+  const container = canvasRef.value?.parentElement
+  if (!container) return
+  const rect = container.getBoundingClientRect()
+  const mouseX = e.clientX - rect.left
+  const mouseY = e.clientY - rect.top
+
+  // 保持鼠标指向的画布坐标不变
+  const canvasPointX = (mouseX - canvasX.value) / zoom.value
+  const canvasPointY = (mouseY - canvasY.value) / zoom.value
+  canvasX.value = mouseX - canvasPointX * newZoom
+  canvasY.value = mouseY - canvasPointY * newZoom
+  zoom.value = newZoom
 }
 
 // 处理浏览器历史变化的函数
@@ -905,6 +933,10 @@ onMounted(async () => {
   document.addEventListener('mouseup', handleMouseUpExtended)
   document.addEventListener('mouseleave', handleMouseLeaveExtended)
   window.addEventListener('popstate', handlePopState)
+  // 手动绑定 wheel 事件（passive: false 避免浏览器警告）
+  if (canvasRef.value) {
+    canvasRef.value.addEventListener('wheel', handleWheel, { passive: false })
+  }
 })
 
 // 清理事件监听器
@@ -913,6 +945,9 @@ onUnmounted(() => {
   document.removeEventListener('mouseup', handleMouseUpExtended)
   document.removeEventListener('mouseleave', handleMouseLeaveExtended)
   window.removeEventListener('popstate', handlePopState)
+  if (canvasRef.value) {
+    canvasRef.value.removeEventListener('wheel', handleWheel)
+  }
   // 离开页面时不清理缓存，因为我们已经在读取完缓存后就清理了
   // 只清理过期缓存
   cleanupExpiredCache()
@@ -1001,7 +1036,7 @@ onUnmounted(() => {
           @drop="handleDropNode"
           @dragover.prevent
           @contextmenu="handleCanvasContextMenu"
-          :style="{ transform: `translate(${canvasX}px, ${canvasY}px)` }"
+          :style="{ transform: `translate(${canvasX}px, ${canvasY}px) scale(${zoom})`, transformOrigin: '0 0' }"
         >
           <!-- 连线组件 -->
           <ConnectionComponent

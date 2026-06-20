@@ -1,39 +1,42 @@
 <template>
   <div>
     <!-- 绘制正式连线 -->
-    <svg class="connections" width="100%" height="100%" style="position: absolute; top: 0; left: 0; pointer-events: none;">
+    <svg class="connections" :width="svgWidth" :height="svgHeight" style="position: absolute; top: 0; left: 0; pointer-events: none;">
       <defs>
         <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="#409eff" />
+        </marker>
+        <marker id="arrowhead-temp" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
           <polygon points="0 0, 10 3.5, 0 7" fill="#409eff" />
         </marker>
       </defs>
       <!-- 实际的连线 -->
       <path 
-        v-for="connection in connections" 
-        :key="connection.id"
-        :d="getConnectionPath(connection)"
+        v-for="(path, id) in connectionPaths" 
+        :key="id"
+        :d="path"
         stroke="#409eff"
         stroke-width="2"
         marker-end="url(#arrowhead)"
+        class="connection-path"
       />
       <!-- 绘制临时连线 -->
-      <line 
-        v-if="tempConnection"
-        :x1="getPortPosition(tempConnection.fromNode, 'right').x"
-        :y1="getPortPosition(tempConnection.fromNode, 'right').y"
-        :x2="tempConnection.toX || 0"
-        :y2="tempConnection.toY || 0"
+      <path 
+        v-if="tempConnectionPath"
+        :d="tempConnectionPath"
         stroke="#409eff"
         stroke-width="2"
         stroke-dasharray="5,5"
+        marker-end="url(#arrowhead-temp)"
+        class="temp-connection-path"
       />
       <!-- 绘制框选矩形 -->
       <rect 
         v-if="isSelecting"
-        :x="Math.min(selectionStart.x, selectionEnd.x)"
-        :y="Math.min(selectionStart.y, selectionEnd.y)"
-        :width="Math.abs(selectionEnd.x - selectionStart.x)"
-        :height="Math.abs(selectionEnd.y - selectionStart.y)"
+        :x="selectionRect.x"
+        :y="selectionRect.y"
+        :width="selectionRect.width"
+        :height="selectionRect.height"
         fill="rgba(64, 158, 255, 0.2)"
         stroke="#409eff"
         stroke-width="1"
@@ -43,16 +46,18 @@
     
     <!-- 连线的点击区域 -->
     <div 
-      v-for="connection in connections" 
-      :key="connection.id"
+      v-for="(hitbox, id) in connectionHitboxes" 
+      :key="id"
       class="connection-hitbox"
-      :style="getConnectionHitboxStyle(connection)"
-      @contextmenu="handleConnectionContextMenu($event, connection)"
+      :style="hitbox"
+      @contextmenu="handleConnectionContextMenu($event, id)"
     ></div>
   </div>
 </template>
 
 <script setup>
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
+
 const props = defineProps({
   connections: {
     type: Array,
@@ -82,73 +87,157 @@ const props = defineProps({
 
 const emit = defineEmits(['connectionContextMenu'])
 
-// 获取链接点位置
+const NODE_WIDTH = 250
+const DEFAULT_NODE_HEIGHT = 80
+const HITBOX_PADDING = 10
+
+const nodeHeightCache = ref({})
+let cacheUpdateTimer = null
+
+const updateNodeHeightCache = () => {
+  if (cacheUpdateTimer) return
+  cacheUpdateTimer = setTimeout(() => {
+    props.nodes.forEach(node => {
+      if (!nodeHeightCache.value[node.id] || Date.now() - (nodeHeightCache.value[node.id].time || 0) > 1000) {
+        try {
+          const nodeElement = document.querySelector(`.workflow-node[data-node-id="${node.id}"]`)
+          if (nodeElement) {
+            // 使用 offsetHeight（布局尺寸，不受 CSS transform/zoom 影响）
+            nodeHeightCache.value[node.id] = {
+              height: nodeElement.offsetHeight,
+              time: Date.now()
+            }
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+    })
+    cacheUpdateTimer = null
+  }, 50)
+}
+
+const getNodeHeight = (node) => {
+  const cached = nodeHeightCache.value[node.id]
+  if (cached) {
+    return cached.height
+  }
+  return node.nodeHeight || DEFAULT_NODE_HEIGHT
+}
+
 const getPortPosition = (nodeId, port) => {
   const node = props.nodes.find(n => n.id === nodeId)
   if (!node) return { x: 0, y: 0 }
   
-  const nodeWidth = 250 // 节点宽度
-  let nodeHeight = 80 // 默认高度
-  
-  // 尝试获取节点的实际高度
-  try {
-    const nodeElement = document.querySelector(`.workflow-node[data-node-id="${nodeId}"]`)
-    if (nodeElement) {
-      const rect = nodeElement.getBoundingClientRect()
-      nodeHeight = rect.height
-    }
-  } catch (error) {
-    // 如果获取失败，使用默认高度
-  }
-  
-  const x = node.x + (port === 'left' ? 0 : nodeWidth)
+  const nodeHeight = getNodeHeight(node)
+  const x = node.x + (port === 'left' ? 0 : NODE_WIDTH)
   const y = node.y + nodeHeight / 2
   
   return { x, y }
 }
 
-// 获取连线路径
-const getConnectionPath = (connection) => {
-  const fromPos = getPortPosition(connection.fromNode, connection.fromPort)
-  const toPos = getPortPosition(connection.toNode, connection.toPort)
-  return `M ${fromPos.x} ${fromPos.y} L ${toPos.x} ${toPos.y}`
-}
+const portPositions = computed(() => {
+  const positions = {}
+  props.nodes.forEach(node => {
+    const height = getNodeHeight(node)
+    positions[node.id] = {
+      left: { x: node.x, y: node.y + height / 2 },
+      right: { x: node.x + NODE_WIDTH, y: node.y + height / 2 }
+    }
+  })
+  return positions
+})
 
-// 计算连线点击区域的样式
-const getConnectionHitboxStyle = (connection) => {
-  const fromPos = getPortPosition(connection.fromNode, connection.fromPort)
-  const toPos = getPortPosition(connection.toNode, connection.toPort)
-  
-  // 计算连线的长度和角度
-  const dx = toPos.x - fromPos.x
-  const dy = toPos.y - fromPos.y
-  const length = Math.sqrt(dx * dx + dy * dy)
-  const angle = Math.atan2(dy, dx) * 180 / Math.PI
-  
-  // 计算点击区域的中心点
-  const centerX = (fromPos.x + toPos.x) / 2
-  const centerY = (fromPos.y + toPos.y) / 2
-  
-  // 返回样式
+const connectionPaths = computed(() => {
+  const paths = {}
+  props.connections.forEach(conn => {
+    const fromPos = portPositions.value[conn.fromNode]?.[conn.fromPort] || { x: 0, y: 0 }
+    const toPos = portPositions.value[conn.toNode]?.[conn.toPort] || { x: 0, y: 0 }
+    paths[conn.id] = `M ${fromPos.x} ${fromPos.y} L ${toPos.x} ${toPos.y}`
+  })
+  return paths
+})
+
+const tempConnectionPath = computed(() => {
+  if (!props.tempConnection) return null
+  const fromPos = portPositions.value[props.tempConnection.fromNode]?.[props.tempConnection.fromPort]
+  if (!fromPos) return null
+  const toX = props.tempConnection.toX || 0
+  const toY = props.tempConnection.toY || 0
+  const midX = (fromPos.x + toX) / 2
+  return `M ${fromPos.x} ${fromPos.y} C ${midX} ${fromPos.y}, ${midX} ${toY}, ${toX} ${toY}`
+})
+
+const connectionHitboxes = computed(() => {
+  const hitboxes = {}
+  props.connections.forEach(conn => {
+    const fromPos = portPositions.value[conn.fromNode]?.[conn.fromPort] || { x: 0, y: 0 }
+    const toPos = portPositions.value[conn.toNode]?.[conn.toPort] || { x: 0, y: 0 }
+    
+    const dx = toPos.x - fromPos.x
+    const dy = toPos.y - fromPos.y
+    const length = Math.sqrt(dx * dx + dy * dy)
+    const angle = Math.atan2(dy, dx) * 180 / Math.PI
+    
+    const centerX = (fromPos.x + toPos.x) / 2
+    const centerY = (fromPos.y + toPos.y) / 2
+    
+    hitboxes[conn.id] = {
+      position: 'absolute',
+      left: centerX - length / 2 + 'px',
+      top: centerY - HITBOX_PADDING + 'px',
+      width: length + 'px',
+      height: HITBOX_PADDING * 2 + 'px',
+      transform: `rotate(${angle}deg)`,
+      transformOrigin: 'center',
+      cursor: 'pointer',
+      zIndex: 40
+    }
+  })
+  return hitboxes
+})
+
+const selectionRect = computed(() => {
+  const x = Math.min(props.selectionStart.x, props.selectionEnd.x)
+  const y = Math.min(props.selectionStart.y, props.selectionEnd.y)
   return {
-    position: 'absolute',
-    left: centerX - length / 2 + 'px',
-    top: centerY - 10 + 'px', // 上下各留 10px 的点击区域
-    width: length + 'px',
-    height: '20px', // 点击区域的高度
-    transform: `rotate(${angle}deg)`,
-    transformOrigin: 'center',
-    cursor: 'pointer',
-    zIndex: 40 // 确保点击区域在节点下方，但在画布上方
+    x,
+    y,
+    width: Math.abs(props.selectionEnd.x - props.selectionStart.x),
+    height: Math.abs(props.selectionEnd.y - props.selectionStart.y)
+  }
+})
+
+const svgWidth = computed(() => {
+  return Math.max(...props.nodes.map(n => n.x + NODE_WIDTH), 4000)
+})
+
+const svgHeight = computed(() => {
+  return Math.max(...props.nodes.map(n => n.y + getNodeHeight(n)), 3000)
+})
+// 监听节点变化，更新尺寸缓存
+watch(() => props.nodes, () => {
+  updateNodeHeightCache()
+}, { deep: true })
+
+const handleConnectionContextMenu = (e, connectionId) => {
+  e.preventDefault()
+  e.stopPropagation()
+  const connection = props.connections.find(c => c.id === connectionId)
+  if (connection) {
+    emit('connectionContextMenu', e, connection)
   }
 }
 
-// 处理连线右键事件
-const handleConnectionContextMenu = (e, connection) => {
-  e.preventDefault()
-  e.stopPropagation()
-  emit('connectionContextMenu', e, connection)
-}
+onMounted(() => {
+  updateNodeHeightCache()
+})
+
+onUnmounted(() => {
+  if (cacheUpdateTimer) {
+    clearTimeout(cacheUpdateTimer)
+  }
+})
 </script>
 
 <style scoped>
@@ -158,6 +247,16 @@ const handleConnectionContextMenu = (e, connection) => {
   left: 0;
   pointer-events: none;
   z-index: 30;
+}
+
+.connection-path {
+  fill: none;
+  transition: none;
+}
+
+.temp-connection-path {
+  fill: none;
+  transition: none;
 }
 
 .connection-hitbox {

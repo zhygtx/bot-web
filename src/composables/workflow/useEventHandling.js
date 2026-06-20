@@ -192,15 +192,14 @@ export function useEventHandling() {
   }
 
   // 画布上放置节点
-  const dropNode = (e, draggingElement, canvasRef, nodes, showCanvasPlaceholder) => {
+  const dropNode = (e, draggingElement, canvasRef, nodes, showCanvasPlaceholder, zoom) => {
     e.preventDefault()
     if (draggingElement) {
-      // 计算节点在画布上的位置（相对于画布的偏移）
+      // 计算节点在画布上的位置（相对于画布的偏移，需除以缩放系数）
       const rect = canvasRef.value.getBoundingClientRect()
-      // 直接使用鼠标相对于画布的位置，不需要减去 canvasX 和 canvasY
-      // 因为节点是相对于画布定位的，而画布已经有了 transform
-      const nodeX = e.clientX - rect.left
-      const nodeY = e.clientY - rect.top
+      const z = zoom?.value ?? 1
+      const nodeX = (e.clientX - rect.left) / z
+      const nodeY = (e.clientY - rect.top) / z
       
       let newNode
       

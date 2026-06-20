@@ -182,11 +182,7 @@ export function useWorkflowAPI() {
           preNodeId: node.preNodeId || [],
           nextNodeId: node.nextNodeId || [],
           nodeDefaults: node.nodeDefaults || [],
-          condition: node.condition || null,
-          pluginInfo: node.pluginInfo || null,
-          pluginVersion: node.pluginVersion || null,
-          methodClassInfo: node.methodClassInfo || null,
-          methodInfo: node.methodInfo || node.method || null
+          condition: node.condition || null
         }
       })
     }
@@ -291,11 +287,7 @@ export function useWorkflowAPI() {
           preNodeId: node.preNodeId || [],
           nextNodeId: node.nextNodeId || [],
           nodeDefaults: node.nodeDefaults || [],
-          condition: node.condition || null,
-          pluginInfo: node.pluginInfo || null,
-          pluginVersion: node.pluginVersion || null,
-          methodClassInfo: node.methodClassInfo || null,
-          methodInfo: node.methodInfo || node.method || null
+          condition: node.condition || null
         }
       })
     }
