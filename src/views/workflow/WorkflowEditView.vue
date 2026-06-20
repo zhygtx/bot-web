@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted, watch, computed, defineAsyncComponent } from 'vue'
+import { ref, onMounted, onUnmounted, watch, computed, defineAsyncComponent, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElInput, ElIcon, ElDialog, ElButton } from 'element-plus'
 import { Warning, ArrowDown, ArrowUp, Close, Position, ZoomIn, CopyDocument } from '@element-plus/icons-vue'
@@ -106,6 +106,28 @@ const showTestResult = ref(false)
 const executionLog = ref(null) // 完整的工作流日志
 const showExecutionBar = ref(false) // 是否显示执行状态栏
 const showHistoryLog = ref(false) // 是否显示历史日志面板
+const nodeHeights = ref({}) // 每个节点的实际高度
+
+// 刷新节点高度
+const refreshNodeHeights = () => {
+  const el = canvasRef.value
+  if (!el) return
+  el.querySelectorAll('.workflow-node').forEach(nodeEl => {
+    const nid = nodeEl.getAttribute('data-node-id')
+    if (nid) {
+      nodeHeights.value[nid] = nodeEl.offsetHeight
+    }
+  })
+}
+
+// 显示执行结果时，等 DOM 更新后刷新节点高度
+watch(showExecutionBar, async (show) => {
+  if (show) {
+    await nextTick()
+    await nextTick()
+    refreshNodeHeights()
+  }
+})
 
 const normalizeId = (id) => {
   if (id === null || id === undefined) return ''
@@ -1285,7 +1307,7 @@ onUnmounted(() => {
             <div
               v-if="showExecutionBar && nodeExecutionStatus[node.id]"
               class="node-execution-wrapper"
-              :style="{ left: node.x + 'px', top: (node.y + 155) + 'px' }"
+              :style="{ left: node.x + 'px', top: (node.y + (nodeHeights[node.id] || 80) + 5) + 'px' }"
             >
               <NodeExecutionDetails
                 :node-log="nodeExecutionStatus[node.id].nodeLog"
