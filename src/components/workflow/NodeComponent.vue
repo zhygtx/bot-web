@@ -12,38 +12,36 @@
     @contextmenu="handleNodeContextMenu"
     @dblclick="handleNodeDblClick"
   >
-    <div class="node-content">
-      <div class="node-body">
-        <div 
-          v-if="node.method && node.method.parameters && node.method.parameters.length > 0"
-          class="node-dot node-dot-left"
-          :class="{ 'node-dot-filled': isPortConnected(node.id, 'left') }"
-          @mousedown="handlePortMouseDown($event, node, 'left')"
-        ></div>
-        <div class="node-content-inner">
-          <div class="node-header">
-            <span class="node-method-name">{{ getNodeName(node) }}</span>
-          </div>
-          <div v-if="node.method && node.method.description" class="node-description">
-            {{ node.method.description }}
-          </div>
-          <div class="node-params">
-            <span v-for="(param, index) in sortedParameters" :key="index" class="node-param">
-              {{ param.type }} {{ param.name }}
-            </span>
-          </div>
-          <div class="node-return">
-            <span class="return-label">返回值:</span>
-            <span class="return-type">{{ node.method ? node.method.returnType : 'void' }}</span>
-          </div>
+    <div class="node-body">
+      <div 
+        v-if="node.method && node.method.parameters && node.method.parameters.length > 0"
+        class="node-dot node-dot-left"
+        :class="{ 'node-dot-filled': isPortConnected(node.id, 'left') }"
+        @mousedown="handlePortMouseDown($event, node, 'left')"
+      ></div>
+      <div class="node-content-inner">
+        <div class="node-header">
+          <span class="node-method-name">{{ getNodeName(node) }}</span>
         </div>
-        <div 
-          v-if="node.method && (node.method.returnType && node.method.returnType !== 'void' || node.nodeType === 'botEvent' && node.eventType === 'scheduledEvent')"
-          class="node-dot node-dot-right"
-          :class="{ 'node-dot-filled': isPortConnected(node.id, 'right') }"
-          @mousedown="handlePortMouseDown($event, node, 'right')"
-        ></div>
+        <div v-if="node.method && node.method.description" class="node-description">
+          {{ node.method.description }}
+        </div>
+        <div class="node-params">
+          <span v-for="(param, index) in sortedParameters" :key="index" class="node-param">
+            {{ param.type }} {{ param.name }}
+          </span>
+        </div>
+        <div class="node-return">
+          <span class="return-label">返回值:</span>
+          <span class="return-type">{{ node.method ? node.method.returnType : 'void' }}</span>
+        </div>
       </div>
+      <div 
+        v-if="node.method && (node.method.returnType && node.method.returnType !== 'void' || node.nodeType === 'botEvent' && node.eventType === 'scheduledEvent')"
+        class="node-dot node-dot-right"
+        :class="{ 'node-dot-filled': isPortConnected(node.id, 'right') }"
+        @mousedown="handlePortMouseDown($event, node, 'right')"
+      ></div>
     </div>
   </div>
 </template>
@@ -160,12 +158,18 @@ const handlePortMouseDown = (e, node, port) => {
 
 .workflow-node:hover:not(:active) {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   transition: all 0.3s ease;
 }
-
-.node-content {
-  width: 100%;
+/* 卡牌悬浮时圆点放大 + 右侧实心 */
+.workflow-node:hover .node-dot {
+  transform: scale(1.3);
+}
+.workflow-node:hover .node-dot-left {
+  transform: translateY(-50%) scale(1.3);
+}
+.workflow-node:hover .node-dot-right {
+  transform: translateY(-50%) scale(1.3);
+  background-color: #409eff;
 }
 
 .node-body {
@@ -175,19 +179,17 @@ const handlePortMouseDown = (e, node, port) => {
   padding: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   min-height: 80px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  position: relative;
 }
 
 .node-content-inner {
-  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
 .node-dot {
+  position: absolute;
   width: 12px;
   height: 12px;
   border: 2px solid #409eff;
@@ -196,11 +198,19 @@ const handlePortMouseDown = (e, node, port) => {
   flex-shrink: 0;
   cursor: crosshair;
   transition: all 0.3s ease;
+  z-index: 1;
 }
 
-.node-dot:hover {
-  transform: scale(1.2);
-  box-shadow: 0 0 0 4px rgba(64, 158, 255, 0.2);
+.node-dot-left {
+  left: -7px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.node-dot-right {
+  right: -7px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .node-dot-filled {
@@ -236,6 +246,7 @@ const handlePortMouseDown = (e, node, port) => {
 .node-params {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 4px;
   font-size: 12px;
   color: #606266;
@@ -252,6 +263,7 @@ const handlePortMouseDown = (e, node, port) => {
 .node-return {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
   font-size: 12px;
   color: #909399;
@@ -269,8 +281,8 @@ const handlePortMouseDown = (e, node, port) => {
   color: #606266;
 }
 
-.node-selected {
-  box-shadow: 0 0 0 2px #409eff !important;
+.node-selected :deep(.node-body) {
   border-color: #409eff !important;
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.3) !important;
 }
 </style>

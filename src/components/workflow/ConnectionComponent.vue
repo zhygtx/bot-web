@@ -6,9 +6,6 @@
         <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
           <polygon points="0 0, 10 3.5, 0 7" fill="#409eff" />
         </marker>
-        <marker id="arrowhead-temp" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-          <polygon points="0 0, 10 3.5, 0 7" fill="#409eff" />
-        </marker>
       </defs>
       <!-- 实际的连线 -->
       <path 
@@ -27,7 +24,6 @@
         stroke="#409eff"
         stroke-width="2"
         stroke-dasharray="5,5"
-        marker-end="url(#arrowhead-temp)"
         class="temp-connection-path"
       />
       <!-- 绘制框选矩形 -->
@@ -117,6 +113,20 @@ const updateNodeHeightCache = () => {
   }, 50)
 }
 
+const BEZIER_OFFSET = 80
+
+// 生成贝塞尔曲线路径
+const buildBezierPath = (fromX, fromY, toX, toY) => {
+  const dx = Math.abs(toX - fromX)
+  const offset = Math.max(dx * 0.5, BEZIER_OFFSET)
+  // 控制点沿水平方向延伸，使曲线平滑弯曲
+  const cp1x = fromX + offset
+  const cp1y = fromY
+  const cp2x = toX - offset
+  const cp2y = toY
+  return `M ${fromX} ${fromY} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${toX} ${toY}`
+}
+
 const getNodeHeight = (node) => {
   const cached = nodeHeightCache.value[node.id]
   if (cached) {
@@ -153,7 +163,7 @@ const connectionPaths = computed(() => {
   props.connections.forEach(conn => {
     const fromPos = portPositions.value[conn.fromNode]?.[conn.fromPort] || { x: 0, y: 0 }
     const toPos = portPositions.value[conn.toNode]?.[conn.toPort] || { x: 0, y: 0 }
-    paths[conn.id] = `M ${fromPos.x} ${fromPos.y} L ${toPos.x} ${toPos.y}`
+    paths[conn.id] = buildBezierPath(fromPos.x, fromPos.y, toPos.x, toPos.y)
   })
   return paths
 })
@@ -164,8 +174,7 @@ const tempConnectionPath = computed(() => {
   if (!fromPos) return null
   const toX = props.tempConnection.toX || 0
   const toY = props.tempConnection.toY || 0
-  const midX = (fromPos.x + toX) / 2
-  return `M ${fromPos.x} ${fromPos.y} C ${midX} ${fromPos.y}, ${midX} ${toY}, ${toX} ${toY}`
+  return buildBezierPath(fromPos.x, fromPos.y, toX, toY)
 })
 
 const connectionHitboxes = computed(() => {
