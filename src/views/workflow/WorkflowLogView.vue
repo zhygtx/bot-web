@@ -4,6 +4,12 @@ import { ElMessage, ElLoading, ElPagination, ElSelect, ElOption, ElDatePicker, E
 import { Clock, VideoPlay, CircleCheck, CircleClose, ArrowRight, ArrowUp, Refresh, Filter } from '@element-plus/icons-vue'
 import request from '../../utils/request'
 
+const props = defineProps({
+  workflowId: { type: String, default: '' }
+})
+
+const emit = defineEmits(['logToggle'])
+
 const BIG_TEXT_PREFIX = 'BIG_TEXT:'
 
 const logs = ref([])
@@ -185,6 +191,7 @@ const loadLogs = async () => {
       pageNum: pageNum.value,
       pageSize: pageSize.value,
       userId: localStorage.getItem('userId') || '',
+      workflowId: props.workflowId || undefined,
       workflowName: filters.value.workflowName,
       startTime: filters.value.dateRange.length === 2 ? filters.value.dateRange[0].getTime() : null,
       endTime: filters.value.dateRange.length === 2 ? filters.value.dateRange[1].getTime() : null,
@@ -259,10 +266,12 @@ const handlePageChange = (currentPage) => {
 const toggleLogDetail = async (log) => {
   if (expandedLogId.value === log.id) {
     expandedLogId.value = null
+    emit('logToggle', null)
   } else {
     bigTextDisplayCache.value = {}
     expandedLogId.value = log.id
     await loadNodeLogs(log)
+    emit('logToggle', log)
   }
 }
 

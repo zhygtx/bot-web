@@ -1,7 +1,10 @@
 <template>
   <div 
     class="workflow-node"
-    :class="{ 'node-selected': isSelected }"
+    :class="[
+      { 'node-selected': isSelected },
+      executionStatus ? (executionStatus.failed ? 'node-failed' : 'node-success') : ''
+    ]"
     :data-node-id="node.id"
     :style="{ left: node.x + 'px', top: node.y + 'px' }"
     @mousedown.stop="handleNodeMouseDown"
@@ -57,6 +60,10 @@ const props = defineProps({
   isSelected: {
     type: Boolean,
     default: false
+  },
+  executionStatus: {
+    type: Object,
+    default: null
   }
 })
 
@@ -282,6 +289,28 @@ const handlePortMouseDown = (e, node, port) => {
 }
 
 .node-selected :deep(.node-body) {
+  border-color: #409eff !important;
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.3) !important;
+}
+
+/* 执行状态边框 */
+.node-success :deep(.node-body) {
+  border-color: #67c23a !important;
+  box-shadow: 0 0 0 2px rgba(103, 194, 58, 0.3) !important;
+}
+
+.node-failed :deep(.node-body) {
+  border-color: #f56c6c !important;
+  box-shadow: 0 0 0 2px rgba(245, 108, 108, 0.3) !important;
+}
+
+/* 已选 + 执行状态 不覆盖 */
+.node-success.node-selected :deep(.node-body) {
+  border-color: #409eff !important;
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.3) !important;
+}
+
+.node-failed.node-selected :deep(.node-body) {
   border-color: #409eff !important;
   box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.3) !important;
 }

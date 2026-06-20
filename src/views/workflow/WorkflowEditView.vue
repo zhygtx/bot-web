@@ -1,8 +1,8 @@
 <script setup>
-import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
+import { ref, onMounted, onUnmounted, watch, computed, defineAsyncComponent } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElInput, ElIcon } from 'element-plus'
-import { Warning, ArrowDown, ArrowUp, Close, Position, ZoomIn } from '@element-plus/icons-vue'
+import { ElMessage, ElInput, ElIcon, ElDialog, ElButton } from 'element-plus'
+import { Warning, ArrowDown, ArrowUp, Close, Position, ZoomIn, CopyDocument } from '@element-plus/icons-vue'
 import request from '../../utils/request'
 
 import WorkflowNodeConfigPanel from '../../components/workflow/WorkflowNodeConfigPanel.vue'
@@ -10,6 +10,9 @@ import NodeComponent from '../../components/workflow/NodeComponent.vue'
 import ConnectionComponent from '../../components/workflow/ConnectionComponent.vue'
 import ContextMenuComponent from '../../components/workflow/ContextMenuComponent.vue'
 import PluginListComponent from '../../components/workflow/PluginListComponent.vue'
+import ExecutionStatusBar from '../../components/workflow/ExecutionStatusBar.vue'
+const NodeExecutionDetails = defineAsyncComponent(() => import('../../components/workflow/NodeExecutionDetails.vue'))
+import WorkflowLogView from './WorkflowLogView.vue'
 
 import { useEventHandling } from '../../composables/workflow/useEventHandling'
 import { useDataMapping } from '../../composables/workflow/useDataMapping'
@@ -98,6 +101,213 @@ const nodeMouseMoved = ref(false)
 // 测试结果相关状态
 const testResult = ref({})
 const showTestResult = ref(false)
+
+// 执行日志相关状态
+const executionLog = ref(null) // 完整的工作流日志
+const showExecutionBar = ref(false) // 是否显示执行状态栏
+const showHistoryLog = ref(false) // 是否显示历史日志面板
+
+const normalizeId = (id) => {
+  if (id === null || id === undefined) return ''
+  return String(id)
+}
+
+const getNodeMethodId = (node) => {
+  return node?.methodId ?? node?.method?.id ?? node?.botActionId ?? node?.botEventId
+}
+
+const getNodeDisplayName = (node) => {
+  if (node?.nodeType === 'botEvent') return node.botEventName
+  if (node?.nodeType === 'botAction') return node.botActionName
+  return node?.method?.name
+}
+
+const normalizeNodeLog = (nodeLog) => ({
+  ...nodeLog,
+  id: Number(nodeLog.id) || nodeLog.id,
+  workflowLogId: Number(nodeLog.workflowLogId) || nodeLog.workflowLogId,
+  order: Number(nodeLog.order) || nodeLog.order,
+  executionTime: Number(nodeLog.executionTime) || nodeLog.executionTime
+})
+
+const findNodeIdForLog = (nodeLog) => {
+  const directNodeId = nodeLog.nodeId ?? nodeLog.workflowNodeId ?? nodeLog.nodeInfoId
+  if (directNodeId !== undefined && directNodeId !== null) {
+    const matchedNode = nodes.value.find(node => normalizeId(node.id) === normalizeId(directNodeId))
+    if (matchedNode) return matchedNode.id
+  }
+
+  if (nodeLog.methodId !== undefined && nodeLog.methodId !== null) {
+    const matchedNode = nodes.value.find(node => normalizeId(getNodeMethodId(node)) === normalizeId(nodeLog.methodId))
+    if (matchedNode) return matchedNode.id
+  }
+
+  if (nodeLog.methodName) {
+    const matchedNode = nodes.value.find(node => getNodeDisplayName(node) === nodeLog.methodName)
+    if (matchedNode) return matchedNode.id
+  }
+
+  return directNodeId
+}
+
+const loadExecutionNodeLogs = async (log) => {
+  if (!log?.id) return Array.isArray(log?.nodeLogs) ? log.nodeLogs.map(normalizeNodeLog) : []
+
+  if (Array.isArray(log.nodeLogs) && log.nodeLogs.length > 0) {
+    return log.nodeLogs.map(normalizeNodeLog)
+  }
+
+  const response = await request({
+    url: '/workflowLog/findNodeLogs',
+    method: 'get',
+    params: {
+      workflowLogId: log.id
+    }
+  })
+
+  if (response.code !== 200) {
+    throw new Error(response.message || '加载节点日志失败')
+  }
+
+  return (Array.isArray(response.data) ? response.data : []).map(normalizeNodeLog)
+}
+
+// 根据执行日志计算节点执行状态映射
+const nodeExecutionStatus = computed(() => {
+  const statusMap = {}
+  if (executionLog.value && executionLog.value.nodeLogs) {
+      executionLog.value.nodeLogs.forEach(nodeLog => {
+      const nodeId = findNodeIdForLog(nodeLog)
+      if (!nodes.value.find(n => normalizeId(n.id) === normalizeId(nodeId))) return
+      
+      statusMap[nodeId] = {
+        success: !nodeLog.isError,
+        failed: nodeLog.isError,
+        nodeLog: nodeLog
+      }
+    })
+  }
+  return statusMap
+})
+
+// 隐藏执行日志
+const hideExecutionLog = () => {
+  executionLog.value = null
+  showExecutionBar.value = false
+}
+
+// 应用历史日志到画布
+const handleHistoryLogToggle = (log) => {
+  if (log) {
+    executionLog.value = log
+    showExecutionBar.value = true
+  } else {
+    executionLog.value = null
+    showExecutionBar.value = false
+  }
+}
+
+// 大数据文本处理工具函数
+const BIG_TEXT_PREFIX = 'BIG_TEXT:'
+const bigTextDisplayCache = ref({})
+
+const isBigText = (data) => {
+  return data && typeof data === 'string' && data.startsWith(BIG_TEXT_PREFIX)
+}
+
+const fetchBigText = async (key, callback) => {
+  if (bigTextDisplayCache.value[key]) {
+    callback(bigTextDisplayCache.value[key])
+    return
+  }
+  try {
+    const response = await request({
+      url: '/workflowLog/findBigText',
+      method: 'get',
+      params: { key }
+    })
+    if (response.code === 200) {
+      bigTextDisplayCache.value[key] = response.data
+      callback(response.data)
+    } else {
+      ElMessage.error(response.message || '获取大数据失败')
+    }
+  } catch (error) {
+    console.error('Error:', error)
+    ElMessage.error('获取大数据失败')
+  }
+}
+
+// 数据查看弹窗
+const showDataModal = ref(false)
+const dataModalTitle = ref('')
+const dataModalContent = ref('')
+
+const formatJsonForModal = (data) => {
+  if (!data) return '无数据'
+  try {
+    const parsed = JSON.parse(data)
+    return JSON.stringify(parsed, null, 2)
+  } catch (e) {
+    return data
+  }
+}
+
+const escapeHtml = (str) => {
+  if (!str) return str
+  const div = document.createElement('div')
+  div.textContent = str
+  return div.innerHTML
+}
+
+const highlightJson = (jsonStr) => {
+  if (!jsonStr) return ''
+  try {
+    JSON.parse(jsonStr)
+    const escapedStr = escapeHtml(jsonStr)
+    return escapedStr
+      .replace(/(".*?")(:)/g, '<span class="json-key">$1</span>$2')
+      .replace(/: ("(?:\\.|[^"\\])*")/g, ': <span class="json-string">$1</span>')
+      .replace(/: (\d+\.?\d*)/g, ': <span class="json-number">$1</span>')
+      .replace(/: (true|false)/g, ': <span class="json-boolean">$1</span>')
+      .replace(/: (null)/g, ': <span class="json-null">$1</span>')
+  } catch (e) {
+    return escapeHtml(jsonStr)
+  }
+}
+
+const openDataModal = (title, content) => {
+  dataModalTitle.value = title
+  dataModalContent.value = formatJsonForModal(content) || '无数据'
+  showDataModal.value = true
+}
+
+const closeDataModal = () => {
+  showDataModal.value = false
+  dataModalTitle.value = ''
+  dataModalContent.value = ''
+}
+
+const copyModalContent = async () => {
+  try {
+    if (navigator.clipboard) {
+      await navigator.clipboard.writeText(dataModalContent.value)
+    } else {
+      const textarea = document.createElement('textarea')
+      textarea.value = dataModalContent.value
+      textarea.style.position = 'fixed'
+      textarea.style.opacity = '0'
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textarea)
+    }
+    ElMessage.success('复制成功')
+  } catch (error) {
+    console.error('复制失败:', error)
+    ElMessage.error('复制失败')
+  }
+}
 
 // 模式状态
 const currentMode = ref('select')
@@ -534,43 +744,38 @@ const handleSaveAndTest = async () => {
     isBotOnline = false
   }
   
+  // 检查是否需要测试
+  if (hasBotActionNode && !isBotOnline) {
+    // BOT 不在线且有 BOT 动作节点，只保存不测试
+    ElMessage.warning('您的BOT并未在线无法使用BOT动作节点进行测试，工作流已保存')
+    return
+  }
+  
   try {
-    // 先保存工作流
-    const saveResponse = await saveWorkflow(workflowInfo.value, nodes.value, validateWorkflowNodes, router, workflowId, clearWorkflowCache, generateConnections, loadWorkflowInfo, connections, botEvents, botActions, processNodeInfo)
+    // 先保存并测试工作流
+    const logId = await saveAndTestWorkflow(workflowInfo, nodes, validateWorkflowNodes, router, workflowId, clearWorkflowCache, processNodeInfo, botEvents, botActions, generateConnections, loadWorkflowInfo, connections)
     
-    // 获取工作流ID，优先使用保存后返回的ID
-    const currentWorkflowId = saveResponse?.id || workflowInfo.value.id || workflowId
+    if (!logId) return
     
-    if (!currentWorkflowId) {
-      ElMessage.error('工作流保存失败，无法进行测试')
-      return
-    }
-    
-    // 检查是否需要测试
-    if (hasBotActionNode && !isBotOnline) {
-      // BOT 不在线且有 BOT 动作节点，只保存不测试
-      ElMessage.warning('您的BOT并未在线无法使用BOT动作节点进行测试，工作流已保存')
-      return
-    }
-    
-    // 然后调用测试接口
-    const testResponse = await request({
-      url: '/workflow/test',
-      method: 'post',
-      params: {
-        workflowId: currentWorkflowId
-      }
+    // 根据返回的日志ID查询完整日志
+    const logResponse = await request({
+      url: `/workflowLog/${logId}`,
+      method: 'get'
     })
     
-    if (testResponse.code === 200) {
-      ElMessage.success('测试工作流成功')
-      // 直接设置测试结果和弹窗状态
-      testResult.value = testResponse.data
-      showTestResult.value = true
+    if (logResponse.code === 200 && logResponse.data) {
+      const nodeLogs = await loadExecutionNodeLogs(logResponse.data)
+      executionLog.value = {
+        ...logResponse.data,
+        nodeLogs,
+        nodeLogsLoaded: true
+      }
+      showExecutionBar.value = true
     } else {
-      ElMessage.error(testResponse.message || '测试工作流失败')
+      ElMessage.error('查询执行日志失败')
     }
   } catch (error) {
+    console.error('测试工作流失败:', error)
     ElMessage.error('测试工作流失败')
   }
 }
@@ -956,55 +1161,69 @@ onUnmounted(() => {
 
 <template>
   <div class="workflow-edit-view" @click="handleWorkflowClick">
-    <!-- 顶部导航栏 -->
-    <div class="workflow-header">
-      <div class="header-left">
-        <el-button class="exit-button" @click="() => { clearWorkflowCache(); router.push('/workflow/list'); }" circle>
-          <el-icon><Close /></el-icon>
-        </el-button>
-        <div class="workflow-name-container">
-          <el-input
-            v-if="isNameEditable"
-            v-model="workflowInfo.name"
-            placeholder="请输入工作流名称"
-            @blur="saveWorkflowName"
-            @keyup.enter="saveWorkflowName"
-            class="workflow-name-input"
-            autofocus
-          />
-          <h2 v-else @dblclick="toggleNameEdit" class="workflow-name">{{ workflowInfo.name || '新建工作流' }}</h2>
+    <!-- 顶部浮动区域：工具栏 + 执行状态栏 -->
+    <div class="workflow-top-wrapper">
+      <div class="workflow-header">
+        <div class="header-left">
+          <el-button class="exit-button" @click="() => { clearWorkflowCache(); router.push('/workflow/list'); }" circle>
+            <el-icon><Close /></el-icon>
+          </el-button>
+          <div class="workflow-name-container">
+            <el-input
+              v-if="isNameEditable"
+              v-model="workflowInfo.name"
+              placeholder="请输入工作流名称"
+              @blur="saveWorkflowName"
+              @keyup.enter="saveWorkflowName"
+              class="workflow-name-input"
+              autofocus
+            />
+            <h2 v-else @dblclick="toggleNameEdit" class="workflow-name">{{ workflowInfo.name || '新建工作流' }}</h2>
+          </div>
+        </div>
+        <div class="header-center">
+          <el-button-group>
+            <el-button 
+              :type="currentMode === 'select' ? 'primary' : ''"
+              @click="switchMode('select')"
+              title="选取模式"
+            >
+              <el-icon><Position /></el-icon>
+            </el-button>
+            <el-button 
+              :type="currentMode === 'drag' ? 'primary' : ''"
+              @click="switchMode('drag')"
+              title="拖动模式"
+            >
+              <el-icon><ZoomIn /></el-icon>
+            </el-button>
+          </el-button-group>
+        </div>
+        <div class="header-right">
+          <el-button 
+            :type="workflowInfo.enabled ? 'success' : 'danger'" 
+            @click="workflowInfo.enabled = !workflowInfo.enabled"
+            class="enabled-toggle-btn"
+          >
+            {{ workflowInfo.enabled ? '启用中' : '已禁用' }}
+          </el-button>
+          <el-button @click="() => { clearWorkflowCache(); router.push('/workflow/list'); }">取消</el-button>
+          <el-button type="primary" @click="handleSaveAndTest" :disabled="hasBotEventNode || isCanvasEmpty" :title="isCanvasEmpty ? '画布上没有节点，无法保存并测试' : (hasBotEventNode ? '存在 BOT 事件节点，无法使用保存并测试功能' : '保存并测试')">保存并测试</el-button>
+          <el-button type="success" @click="handleSaveWorkflow" :disabled="isCanvasEmpty" :title="isCanvasEmpty ? '画布上没有节点，无法保存' : '保存'">保存</el-button>
+          <el-button v-if="workflowId" type="warning" @click="showHistoryLog = !showHistoryLog">查看历史日志</el-button>
         </div>
       </div>
-      <div class="header-center">
-        <el-button-group>
-          <el-button 
-            :type="currentMode === 'select' ? 'primary' : ''"
-            @click="switchMode('select')"
-            title="选取模式"
-          >
-            <el-icon><Position /></el-icon>
-          </el-button>
-          <el-button 
-            :type="currentMode === 'drag' ? 'primary' : ''"
-            @click="switchMode('drag')"
-            title="拖动模式"
-          >
-            <el-icon><ZoomIn /></el-icon>
-          </el-button>
-        </el-button-group>
-      </div>
-      <div class="header-right">
-        <el-button 
-          :type="workflowInfo.enabled ? 'success' : 'danger'" 
-          @click="workflowInfo.enabled = !workflowInfo.enabled"
-          class="enabled-toggle-btn"
-        >
-          {{ workflowInfo.enabled ? '启用中' : '已禁用' }}
-        </el-button>
-        <el-button @click="() => { clearWorkflowCache(); router.push('/workflow/list'); }">取消</el-button>
-        <el-button type="primary" @click="handleSaveAndTest" :disabled="hasBotEventNode || isCanvasEmpty" :title="isCanvasEmpty ? '画布上没有节点，无法保存并测试' : (hasBotEventNode ? '存在 BOT 事件节点，无法使用保存并测试功能' : '保存并测试')">保存并测试</el-button>
-        <el-button type="success" @click="handleSaveWorkflow" :disabled="isCanvasEmpty" :title="isCanvasEmpty ? '画布上没有节点，无法保存' : '保存'">保存</el-button>
-      </div>
+      
+      <!-- 执行状态栏 -->
+      <ExecutionStatusBar
+        v-if="showExecutionBar"
+        :execution-log="executionLog"
+        :is-big-text="isBigText"
+        :big-text-display-cache="bigTextDisplayCache"
+        :fetch-big-text="fetchBigText"
+        @open-modal="openDataModal"
+        @hide="hideExecutionLog"
+      />
     </div>
     
     <!-- 主内容区域 -->
@@ -1050,19 +1269,30 @@ onUnmounted(() => {
           />
           
           <!-- 节点组件 -->
-          <NodeComponent
-            v-for="node in nodes"
-            :key="node.id"
-            :node="node"
-            :is-selected="selectedNodes.some(n => n.id === node.id)"
-            @node-mouse-down="handleNodeMouseDownExtended"
-            @node-mouse-move="handleNodeMouseMoveExtended"
-            @node-mouse-up="handleNodeMouseUpExtended"
-            @node-mouse-leave="handleNodeMouseLeaveExtended"
-            @node-context-menu="handleNodeContextMenu"
-            @node-dbl-click="openNodeConfigPanel"
-            @port-mouse-down="handlePortMouseDownExtended"
-          />
+          <template v-for="node in nodes" :key="node.id">
+            <NodeComponent
+              :node="node"
+              :is-selected="selectedNodes.some(n => n.id === node.id)"
+              :execution-status="nodeExecutionStatus[node.id] || null"
+              @node-mouse-down="handleNodeMouseDownExtended"
+              @node-mouse-move="handleNodeMouseMoveExtended"
+              @node-mouse-up="handleNodeMouseUpExtended"
+              @node-mouse-leave="handleNodeMouseLeaveExtended"
+              @node-context-menu="handleNodeContextMenu"
+              @node-dbl-click="openNodeConfigPanel"
+              @port-mouse-down="handlePortMouseDownExtended"
+            />
+            <div
+              v-if="showExecutionBar && nodeExecutionStatus[node.id]"
+              class="node-execution-wrapper"
+              :style="{ left: node.x + 'px', top: (node.y + 155) + 'px' }"
+            >
+              <NodeExecutionDetails
+                :node-log="nodeExecutionStatus[node.id].nodeLog"
+                @open-modal="openDataModal"
+              />
+            </div>
+          </template>
         </div>
         <div v-if="showCanvasPlaceholder" class="canvas-placeholder">
           <h3>工作流画布</h3>
@@ -1112,9 +1342,149 @@ onUnmounted(() => {
         </span>
       </template>
     </el-dialog>
+    
+    <!-- 数据查看弹窗 -->
+    <el-dialog 
+      v-model="showDataModal" 
+      width="80%" 
+      :close-on-click-modal="true"
+      @close="closeDataModal"
+    >
+      <template #header>
+        <div class="modal-header">
+          <span>{{ dataModalTitle }}</span>
+          <el-button link :icon="CopyDocument" @click="copyModalContent" class="copy-btn">复制</el-button>
+        </div>
+      </template>
+      <div class="modal-json-viewer">
+        <pre v-html="highlightJson(dataModalContent)"></pre>
+      </div>
+    </el-dialog>
+    
+    <!-- 历史日志面板 -->
+    <Transition name="history-slide">
+      <div v-if="showHistoryLog" class="history-log-backdrop" @click="showHistoryLog = false">
+        <div class="history-log-float" @click.stop>
+        <div class="history-log-header">
+          <h3>历史执行日志</h3>
+          <el-button :icon="Close" circle size="small" @click="showHistoryLog = false" />
+        </div>
+        <div class="history-log-body">
+          <WorkflowLogView
+            :workflow-id="workflowId"
+            @log-toggle="handleHistoryLogToggle"
+          />
+        </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
 <style scoped>
 @import '../../styles/workflow.css';
+
+/* 数据查看弹窗样式 - 与工作流日志页面一致 */
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.copy-btn {
+  color: #409eff;
+  font-size: 14px;
+  padding: 4px 12px;
+}
+
+.copy-btn:hover {
+  color: #66b1ff;
+  background-color: rgba(64, 158, 255, 0.1);
+}
+
+.modal-json-viewer {
+  background-color: #304156;
+  padding: 16px;
+  border-radius: 8px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.modal-json-viewer pre {
+  margin: 0;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #e6e6e6;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* JSON 语法高亮 - 与工作流日志页面一致 */
+:deep(.json-key) { color: #ffa07a; }
+:deep(.json-string) { color: #98fb98; }
+:deep(.json-number) { color: #ffa500; }
+:deep(.json-boolean) { color: #87ceeb; }
+:deep(.json-null) { color: #9370db; }
+
+/* 历史日志浮动面板 */
+.history-log-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 299;
+}
+
+.history-log-float {
+  position: absolute;
+  right: 20px;
+  top: 90px;
+  width: 600px;
+  height: calc(100% - 110px);
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.history-log-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid #e6e6e6;
+  flex-shrink: 0;
+}
+
+.history-log-header h3 { margin: 0; font-size: 16px; color: #303133; }
+
+.history-log-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+/* 滑入/滑出动画 */
+.history-slide-enter-active,
+.history-slide-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.history-slide-enter-active .history-log-float,
+.history-slide-leave-active .history-log-float {
+  transition: transform 0.3s ease;
+}
+
+.history-slide-enter-from,
+.history-slide-leave-to {
+  opacity: 0;
+}
+
+.history-slide-enter-from .history-log-float,
+.history-slide-leave-to .history-log-float {
+  transform: translateX(100%);
+}
 </style>

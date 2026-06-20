@@ -53,7 +53,9 @@ const showMobileNav = computed(() => {
 })
 
 const contentPaddingBottom = computed(() => {
-  return showMobileNav.value ? '76px' : '20px'
+  if (showMobileNav.value) return '76px'
+  if (isFullscreen.value) return '0'
+  return '20px'
 })
 </script>
 

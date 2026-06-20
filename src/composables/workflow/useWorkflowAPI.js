@@ -142,7 +142,7 @@ export function useWorkflowAPI() {
     const validationResult = validateWorkflowNodes(nodes)
     if (!validationResult.valid) {
       ElMessage.error(validationResult.message)
-      return
+      return null
     }
     
     // 获取当前用户信息
@@ -227,30 +227,17 @@ export function useWorkflowAPI() {
   }
 
   // 保存并测试工作流
-  const saveAndTestWorkflow = async (workflowInfo, nodes, validateWorkflowNodes, router, workflowId, clearWorkflowCache, testResult, showTestResult, processNodeInfo, botEvents, botActions, generateConnections, loadWorkflowInfo, connections) => {
-    // 检查参数类型
-    console.log('saveAndTestWorkflow parameters:', {
-      testResult: testResult,
-      showTestResult: showTestResult,
-      testResultType: typeof testResult,
-      showTestResultType: typeof showTestResult,
-      testResultIsRef: testResult && typeof testResult === 'object' && 'value' in testResult,
-      showTestResultIsRef: showTestResult && typeof showTestResult === 'object' && 'value' in showTestResult
-    })
-    if (!workflowInfo || !workflowInfo.name) {
+  const saveAndTestWorkflow = async (workflowInfo, nodes, validateWorkflowNodes, router, workflowId, clearWorkflowCache, processNodeInfo, botEvents, botActions, generateConnections, loadWorkflowInfo, connections) => {
+    // 兼容 ref 与普通对象
+    const wfInfo = workflowInfo?.value !== undefined ? workflowInfo.value : workflowInfo
+    if (!wfInfo || !wfInfo.name) {
       ElMessage.error('请输入工作流名称')
-      return
+      return null
     }
-    
-    // 保存原始参数，用于后续使用
-    const originalTestResult = testResult
-    const originalShowTestResult = showTestResult
-    
-    // 验证所有节点的参数是否都有数据映射或默认值
     const validationResult = validateWorkflowNodes(nodes.value)
     if (!validationResult.valid) {
       ElMessage.error(validationResult.message)
-      return
+      return null
     }
     
     // 获取当前用户信息
@@ -260,21 +247,21 @@ export function useWorkflowAPI() {
     // 构建完整的工作流信息
     const workflowData = {
       // 确保工作流自身信息完整填充
-      id: workflowInfo.id || '',
-      userId: workflowInfo.userId || userId || '',
-      authorName: workflowInfo.authorName || name || '',
-      name: workflowInfo.name || '',
-      description: workflowInfo.description || '',
-      enabled: workflowInfo.enabled !== undefined ? workflowInfo.enabled : true,
-      createTime: workflowInfo.createTime || null,
-      updateTime: workflowInfo.updateTime || null,
+      id: wfInfo.id || '',
+      userId: wfInfo.userId || userId || '',
+      authorName: wfInfo.authorName || name || '',
+      name: wfInfo.name || '',
+      description: wfInfo.description || '',
+      enabled: wfInfo.enabled !== undefined ? wfInfo.enabled : true,
+      createTime: wfInfo.createTime || null,
+      updateTime: wfInfo.updateTime || null,
       nodes: (nodes.value || nodes).map(node => {
         // 构建节点数据
         return {
           id: node.id ? node.id.toString() : '',
           x: node.x || 0,
           y: node.y || 0,
-          workflowId: workflowInfo.id || workflowId || '',
+          workflowId: wfInfo.id || workflowId || '',
           pluginId: node.pluginId,
           pluginVersionId: node.pluginVersionId,
           methodClassId: node.methodClassId,
@@ -295,7 +282,7 @@ export function useWorkflowAPI() {
     try {
       // 先保存工作流
       let saveResponse
-      if (workflowInfo.id) {
+      if (wfInfo.id) {
         // 有UUID，调用更新接口
         saveResponse = await request({
           url: '/workflow',
@@ -312,12 +299,12 @@ export function useWorkflowAPI() {
       }
       
       if (saveResponse.code !== 200) {
-        ElMessage.error(saveResponse.message || (workflowInfo.id ? '更新工作流失败' : '创建工作流失败'))
-        return
+        ElMessage.error(saveResponse.message || (wfInfo.id ? '更新工作流失败' : '创建工作流失败'))
+        return null
       }
       
       // 获取工作流ID
-      const currentWorkflowId = workflowInfo.id || (saveResponse.data && saveResponse.data.id)
+      const currentWorkflowId = wfInfo.id || (saveResponse.data && saveResponse.data.id)
       
       // 保存成功，更新完整工作流信息
       if (saveResponse.data) {
@@ -354,36 +341,18 @@ export function useWorkflowAPI() {
       })
       
       if (testResponse.code === 200) {
+        // 返回日志ID，由调用方查询完整日志
+        const logId = testResponse.data
         ElMessage.success('测试工作流成功')
-        console.log('测试工作流成功，结果:', testResponse.data)
-        
-        // 检查 testResult 是否是响应式对象
-        if (testResult && typeof testResult === 'object' && 'value' in testResult) {
-          console.log('设置 testResult.value:', testResponse.data)
-          testResult.value = testResponse.data
-        }
-        
-        // 检查 showTestResult 是否是响应式对象
-        if (showTestResult && typeof showTestResult === 'object' && 'value' in showTestResult) {
-          console.log('设置 showTestResult.value: true')
-          showTestResult.value = true
-        } else {
-          // 如果 showTestResult 不是响应式对象，尝试直接设置
-          console.log('showTestResult 不是响应式对象，直接设置')
-          // 这里可能需要通过其他方式来显示弹窗
-          // 例如，通过事件或者其他机制
-        }
-        
-        // 延迟清除工作流缓存，确保测试结果已经显示
-        setTimeout(() => {
-          clearWorkflowCache()
-        }, 1000)
+        return logId
       } else {
         ElMessage.error(testResponse.message || '测试工作流失败')
+        return null
       }
     } catch (error) {
       console.error('测试工作流失败:', error)
       ElMessage.error('测试工作流失败')
+      return null
     }
   }
 
