@@ -3,6 +3,7 @@ import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import GlobalMenu from './GlobalMenu.vue'
 import MobileNavBar from './MobileNavBar.vue'
+import ThemeToggle from './ThemeToggle.vue'
 
 const route = useRoute()
 const sidebarCollapsed = ref(false)
@@ -74,6 +75,7 @@ const contentPaddingBottom = computed(() => {
             <span>{{ $route.meta.title || '系统管理' }}</span>
           </div>
           <div class="header-actions">
+            <ThemeToggle />
             <slot name="header-actions"></slot>
           </div>
         </div>
@@ -82,6 +84,9 @@ const contentPaddingBottom = computed(() => {
       <el-header v-if="isMobile && !showSidebar" class="layout-header-mobile">
         <div class="header-content-mobile">
           <span class="header-title-mobile">{{ $route.meta.title || '系统管理' }}</span>
+          <div class="header-actions-mobile">
+            <ThemeToggle />
+          </div>
         </div>
       </el-header>
       
@@ -138,16 +143,19 @@ const contentPaddingBottom = computed(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background-color: #f5f7fa;
+  background: var(--app-bg);
   min-height: 0;
+  transition: background-color 0.3s ease, background 0.3s ease;
 }
 
 .layout-header {
   position: relative;
-  background-color: #ffffff;
-  color: #303133;
+  background: var(--app-header-bg);
+  color: var(--app-text);
   padding: 0 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid var(--app-border);
+  box-shadow: var(--app-header-shadow);
+  transition: background-color 0.3s ease, background 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .layout-header-mobile {
@@ -166,6 +174,7 @@ const contentPaddingBottom = computed(() => {
 }
 
 .header-content-mobile {
+  position: relative;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -188,12 +197,21 @@ const contentPaddingBottom = computed(() => {
   gap: 16px;
 }
 
+.header-actions-mobile {
+  position: absolute;
+  right: 0;
+  display: flex;
+  align-items: center;
+}
+
 .layout-content {
   flex: 1;
   padding: 20px;
   overflow-y: auto;
   overflow-x: hidden;
   min-height: 0;
+  background: var(--app-bg);
+  transition: background-color 0.3s ease, background 0.3s ease;
 }
 
 @media (max-width: 767px) {

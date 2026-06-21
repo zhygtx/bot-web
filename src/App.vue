@@ -22,10 +22,11 @@ body {
 
 body {
   font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
-  background-color: #f5f7fa;
-  color: #303133;
+  background: var(--app-bg);
+  color: var(--app-text);
   font-size: 14px;
   line-height: 1.5;
+  transition: background-color 0.3s ease, background 0.3s ease, color 0.3s ease;
 }
 
 #app {

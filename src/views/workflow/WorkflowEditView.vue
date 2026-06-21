@@ -13,6 +13,7 @@ import PluginListComponent from '../../components/workflow/PluginListComponent.v
 import ExecutionStatusBar from '../../components/workflow/ExecutionStatusBar.vue'
 const NodeExecutionDetails = defineAsyncComponent(() => import('../../components/workflow/NodeExecutionDetails.vue'))
 import WorkflowLogView from './WorkflowLogView.vue'
+import ThemeToggle from '../../components/ThemeToggle.vue'
 
 import { useEventHandling } from '../../composables/workflow/useEventHandling'
 import { useDataMapping } from '../../composables/workflow/useDataMapping'
@@ -1222,6 +1223,7 @@ onUnmounted(() => {
           </el-button-group>
         </div>
         <div class="header-right">
+          <ThemeToggle />
           <el-button 
             :type="workflowInfo.enabled ? 'success' : 'danger'" 
             @click="workflowInfo.enabled = !workflowInfo.enabled"
