@@ -466,17 +466,19 @@ onUnmounted(() => {
                   class="json-viewer" 
                   @click="isBigText(log.initialContext) ? fetchBigText(log.initialContext, (data) => openModal('初始上下文', data)) : openModal('初始上下文', formatJsonData(log.initialContext) || '无')"
                 >
-                  <template v-if="isBigText(log.initialContext)">
-                    <template v-if="bigTextDisplayCache[log.initialContext]">
-                      <pre v-html="highlightJson(formatJsonData(bigTextDisplayCache[log.initialContext]))"></pre>
+                  <div class="json-viewer-scroll">
+                    <template v-if="isBigText(log.initialContext)">
+                      <template v-if="bigTextDisplayCache[log.initialContext]">
+                        <pre v-html="highlightJson(formatJsonData(bigTextDisplayCache[log.initialContext]))"></pre>
+                      </template>
+                      <template v-else>
+                        <pre class="big-text-placeholder">数据过大，请点击查看</pre>
+                      </template>
                     </template>
                     <template v-else>
-                      <pre class="big-text-placeholder">数据过大，请点击查看</pre>
+                      <pre v-html="highlightJson(formatJsonData(log.initialContext)) || '无'"></pre>
                     </template>
-                  </template>
-                  <template v-else>
-                    <pre v-html="highlightJson(formatJsonData(log.initialContext)) || '无'"></pre>
-                  </template>
+                  </div>
                   <div class="viewer-hint">点击查看完整数据</div>
                 </div>
               </div>
@@ -486,17 +488,19 @@ onUnmounted(() => {
                   class="json-viewer" 
                   @click="isBigText(log.errorLog) ? fetchBigText(log.errorLog, (data) => openModal('错误日志', data)) : openModal('错误日志', log.errorLog || '无')"
                 >
-                  <template v-if="isBigText(log.errorLog)">
-                    <template v-if="bigTextDisplayCache[log.errorLog]">
-                      <pre class="error-text" v-html="highlightJson(formatJsonData(bigTextDisplayCache[log.errorLog])) || bigTextDisplayCache[log.errorLog]"></pre>
+                  <div class="json-viewer-scroll">
+                    <template v-if="isBigText(log.errorLog)">
+                      <template v-if="bigTextDisplayCache[log.errorLog]">
+                        <pre class="error-text" v-html="highlightJson(formatJsonData(bigTextDisplayCache[log.errorLog])) || bigTextDisplayCache[log.errorLog]"></pre>
+                      </template>
+                      <template v-else>
+                        <pre class="big-text-placeholder">数据过大，请点击查看</pre>
+                      </template>
                     </template>
                     <template v-else>
-                      <pre class="big-text-placeholder">数据过大，请点击查看</pre>
+                      <pre class="error-text">{{ log.errorLog }}</pre>
                     </template>
-                  </template>
-                  <template v-else>
-                    <pre class="error-text">{{ log.errorLog }}</pre>
-                  </template>
+                  </div>
                   <div class="viewer-hint">点击查看完整数据</div>
                 </div>
               </div>
@@ -533,17 +537,19 @@ onUnmounted(() => {
                           class="json-viewer"
                           @click="isBigText(nodeLog.input) ? fetchBigText(nodeLog.input, (data) => openModal('输入 - ' + (nodeLog.methodName || '未知方法'), data)) : openModal('输入 - ' + (nodeLog.methodName || '未知方法'), formatJsonData(nodeLog.input))"
                         >
-                          <template v-if="isBigText(nodeLog.input)">
-                            <template v-if="bigTextDisplayCache[nodeLog.input]">
-                              <pre v-html="highlightJson(formatJsonData(bigTextDisplayCache[nodeLog.input]))"></pre>
+                          <div class="json-viewer-scroll">
+                            <template v-if="isBigText(nodeLog.input)">
+                              <template v-if="bigTextDisplayCache[nodeLog.input]">
+                                <pre v-html="highlightJson(formatJsonData(bigTextDisplayCache[nodeLog.input]))"></pre>
+                              </template>
+                              <template v-else>
+                                <pre class="big-text-placeholder">数据过大，请点击查看</pre>
+                              </template>
                             </template>
                             <template v-else>
-                              <pre class="big-text-placeholder">数据过大，请点击查看</pre>
+                              <pre v-html="highlightJson(formatJsonData(nodeLog.input))"></pre>
                             </template>
-                          </template>
-                          <template v-else>
-                            <pre v-html="highlightJson(formatJsonData(nodeLog.input))"></pre>
-                          </template>
+                          </div>
                           <div class="viewer-hint">点击查看完整数据</div>
                         </div>
                       </div>
@@ -554,17 +560,19 @@ onUnmounted(() => {
                           :class="{ 'json-viewer-error': nodeLog.isError }"
                           @click="isBigText(nodeLog.output) ? fetchBigText(nodeLog.output, (data) => openModal('输出 - ' + (nodeLog.methodName || '未知方法'), data)) : openModal('输出 - ' + (nodeLog.methodName || '未知方法'), formatJsonData(nodeLog.output))"
                         >
-                          <template v-if="isBigText(nodeLog.output)">
-                            <template v-if="bigTextDisplayCache[nodeLog.output]">
-                              <pre v-html="highlightJson(formatJsonData(bigTextDisplayCache[nodeLog.output]))"></pre>
+                          <div class="json-viewer-scroll">
+                            <template v-if="isBigText(nodeLog.output)">
+                              <template v-if="bigTextDisplayCache[nodeLog.output]">
+                                <pre v-html="highlightJson(formatJsonData(bigTextDisplayCache[nodeLog.output]))"></pre>
+                              </template>
+                              <template v-else>
+                                <pre class="big-text-placeholder">数据过大，请点击查看</pre>
+                              </template>
                             </template>
                             <template v-else>
-                              <pre class="big-text-placeholder">数据过大，请点击查看</pre>
+                              <pre v-html="highlightJson(formatJsonData(nodeLog.output))"></pre>
                             </template>
-                          </template>
-                          <template v-else>
-                            <pre v-html="highlightJson(formatJsonData(nodeLog.output))"></pre>
-                          </template>
+                          </div>
                           <div class="viewer-hint">点击查看完整数据</div>
                         </div>
                       </div>
@@ -914,10 +922,7 @@ onUnmounted(() => {
 
 .json-viewer {
   background-color: #304156;
-  padding: 12px;
   border-radius: 4px;
-  max-height: 120px;
-  overflow-y: auto;
   cursor: pointer;
   position: relative;
   transition: all 0.2s ease;
@@ -925,6 +930,13 @@ onUnmounted(() => {
 
 .json-viewer:hover {
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+}
+
+.json-viewer-scroll {
+  max-height: 120px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px;
 }
 
 .json-viewer pre {

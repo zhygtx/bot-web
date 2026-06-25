@@ -23,17 +23,19 @@
         </div>
         <div v-show="showInput" class="section-content">
           <div class="json-viewer" @click="handleViewData('输入 - ' + (nodeLog.methodName || '未知方法'), nodeLog.input)">
-            <template v-if="isBigText(nodeLog.input)">
-              <template v-if="bigTextDisplayCache[nodeLog.input]">
-                <pre v-html="highlightJson(formatJsonData(bigTextDisplayCache[nodeLog.input]))"></pre>
+            <div class="json-viewer-scroll">
+              <template v-if="isBigText(nodeLog.input)">
+                <template v-if="bigTextDisplayCache[nodeLog.input]">
+                  <pre v-html="highlightJson(formatJsonData(bigTextDisplayCache[nodeLog.input]))"></pre>
+                </template>
+                <template v-else>
+                  <pre class="big-text-placeholder">数据过大，请点击查看</pre>
+                </template>
               </template>
               <template v-else>
-                <pre class="big-text-placeholder">数据过大，请点击查看</pre>
+                <pre v-html="highlightJson(formatJsonData(nodeLog.input))"></pre>
               </template>
-            </template>
-            <template v-else>
-              <pre v-html="highlightJson(formatJsonData(nodeLog.input))"></pre>
-            </template>
+            </div>
             <div class="viewer-hint">点击查看完整数据</div>
           </div>
         </div>
@@ -53,17 +55,19 @@
             :class="{ 'json-viewer-error': nodeLog.isError }"
             @click="handleViewData('输出 - ' + (nodeLog.methodName || '未知方法'), nodeLog.output)"
           >
-            <template v-if="isBigText(nodeLog.output)">
-              <template v-if="bigTextDisplayCache[nodeLog.output]">
-                <pre v-html="highlightJson(formatJsonData(bigTextDisplayCache[nodeLog.output]))"></pre>
+            <div class="json-viewer-scroll">
+              <template v-if="isBigText(nodeLog.output)">
+                <template v-if="bigTextDisplayCache[nodeLog.output]">
+                  <pre v-html="highlightJson(formatJsonData(bigTextDisplayCache[nodeLog.output]))"></pre>
+                </template>
+                <template v-else>
+                  <pre class="big-text-placeholder">数据过大，请点击查看</pre>
+                </template>
               </template>
               <template v-else>
-                <pre class="big-text-placeholder">数据过大，请点击查看</pre>
+                <pre v-html="highlightJson(formatJsonData(nodeLog.output))"></pre>
               </template>
-            </template>
-            <template v-else>
-              <pre v-html="highlightJson(formatJsonData(nodeLog.output))"></pre>
-            </template>
+            </div>
             <div class="viewer-hint">点击查看完整数据</div>
           </div>
         </div>
@@ -170,7 +174,9 @@ const handleViewData = (title, data) => {
 /* 浮动窗口容器 */
 .node-execution-details {
   font-size: 12px;
-  min-width: 250px;
+  width: 250px;
+  max-width: 250px;
+  box-sizing: border-box;
   background: #fff;
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
@@ -288,10 +294,7 @@ const handleViewData = (title, data) => {
 /* JSON 数据展示区 - 复用工作流日志页面样式 */
 .json-viewer {
   background-color: #304156;
-  padding: 10px 12px;
   border-radius: 4px;
-  max-height: 120px;
-  overflow-y: auto;
   cursor: pointer;
   position: relative;
   transition: all 0.2s ease;
@@ -299,6 +302,13 @@ const handleViewData = (title, data) => {
 
 .json-viewer:hover {
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+}
+
+.json-viewer-scroll {
+  max-height: 120px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 10px 12px;
 }
 
 .json-viewer pre {

@@ -219,6 +219,18 @@ const handlePortMouseDown = (e, node, port) => {
   top: 50%;
   transform: translateY(-50%);
 }
+/* 右侧端口 3x 透明点击区域（视觉不变） */
+.node-dot-right::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 36px;
+  height: 36px;
+  margin-top: -18px;
+  margin-left: -18px;
+  border-radius: 50%;
+}
 
 .node-dot-filled {
   background-color: #409eff;

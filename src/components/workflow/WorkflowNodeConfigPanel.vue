@@ -912,12 +912,15 @@ watch(() => props.visible, (newVal) => {
 /* 自定义级联面板（popover 内容，非 scoped） */
 .custom-cascader-popper {
   padding: 0 !important;
+  max-width: none !important;
 }
 
 .cascader-panel-custom {
   display: flex;
-  height: 280px;
+  min-height: 200px;
+  max-height: 320px;
   overflow: hidden;
+  min-width: 500px;
 }
 
 .cascader-level {
@@ -925,7 +928,8 @@ watch(() => props.visible, (newVal) => {
   display: flex;
   flex-direction: column;
   border-right: 1px solid #e6e6e6;
-  min-width: 0;
+  min-width: 200px;
+  max-width: 350px;
 }
 .cascader-level-right {
   border-right: none;
@@ -945,17 +949,23 @@ watch(() => props.visible, (newVal) => {
   flex: 1;
   overflow-y: auto;
   padding: 4px 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.level-list::-webkit-scrollbar {
+  display: none;
 }
 
 .cascader-option {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 6px 12px;
+  flex-direction: column;
+  padding: 8px 12px;
   cursor: pointer;
   transition: background 0.2s;
   font-size: 13px;
   min-width: 0;
+  text-align: left;
+  gap: 2px;
 }
 .cascader-option:hover {
   background: #f5f7fa;
@@ -972,14 +982,17 @@ watch(() => props.visible, (newVal) => {
   flex-shrink: 1;
   min-width: 0;
   color: inherit;
+  font-size: 13px;
 }
 
 .option-desc {
   color: #909399;
-  flex-shrink: 0;
-  margin-left: 8px;
   font-size: 12px;
-  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: normal;
+  word-break: break-all;
+  line-height: 1.4;
 }
 
 .level-empty,

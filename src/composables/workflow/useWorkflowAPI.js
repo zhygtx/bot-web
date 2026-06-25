@@ -4,7 +4,7 @@ import { ElMessage } from 'element-plus'
 // 工作流API模块
 export function useWorkflowAPI() {
   // 加载工作流信息
-  const loadWorkflowInfo = async (workflowId, workflowInfo, nodes, connections, botEvents, botActions, processNodeInfo, generateConnections, showError = true) => {
+  const loadWorkflowInfo = async (workflowId, workflowInfo, nodes, connections, botEvents, botActions, processNodeInfo, generateConnections, canvasX, canvasY, zoom, showError = true) => {
     if (workflowId) {
       try {
         const response = await request({
@@ -14,6 +14,13 @@ export function useWorkflowAPI() {
 
         if (response.code === 200) {
           workflowInfo.value = response.data || {}
+          // 恢复画布视图状态
+          const cv = workflowInfo.value.workflowCanvasView
+          if (cv) {
+            if (canvasX) canvasX.value = cv.offsetX ?? 0
+            if (canvasY) canvasY.value = cv.offsetY ?? 0
+            if (zoom) zoom.value = cv.scale ?? 1
+          }
           // 加载节点信息
           if (workflowInfo.value.nodes) {
             nodes.value = workflowInfo.value.nodes
@@ -132,7 +139,7 @@ export function useWorkflowAPI() {
   }
 
   // 保存工作流
-  const saveWorkflow = async (workflowInfo, nodes, validateWorkflowNodes, router, workflowId, clearWorkflowCache, generateConnections, loadWorkflowInfo, connections, botEvents, botActions, processNodeInfo) => {
+  const saveWorkflow = async (workflowInfo, nodes, validateWorkflowNodes, router, workflowId, clearWorkflowCache, generateConnections, loadWorkflowInfo, connections, botEvents, botActions, processNodeInfo, canvasX, canvasY, zoom) => {
     if (!workflowInfo || !workflowInfo.name) {
       ElMessage.error('请输入工作流名称')
       return
@@ -160,6 +167,13 @@ export function useWorkflowAPI() {
       enabled: workflowInfo.enabled !== undefined ? workflowInfo.enabled : true,
       createTime: workflowInfo.createTime || null,
       updateTime: workflowInfo.updateTime || null,
+      workflowCanvasView: {
+        workflowId: workflowInfo.id || '',
+        userId: workflowInfo.userId || userId || '',
+        offsetX: canvasX?.value ?? canvasX ?? 0,
+        offsetY: canvasY?.value ?? canvasY ?? 0,
+        scale: zoom?.value ?? zoom ?? 1
+      },
       nodes: (nodes || []).map(node => {
         // 构建节点数据
         return {
@@ -212,7 +226,7 @@ export function useWorkflowAPI() {
         }
         // 刷新画布，重新加载工作流信息
         if (loadWorkflowInfo) {
-          loadWorkflowInfo(workflowInfo.id || response.data.id, workflowInfo, nodes, connections, botEvents, botActions, processNodeInfo, generateConnections)
+          loadWorkflowInfo(workflowInfo.id || response.data.id, workflowInfo, nodes, connections, botEvents, botActions, processNodeInfo, generateConnections, canvasX, canvasY, zoom)
         }
         // 返回保存后的工作流信息
         return response.data
@@ -227,7 +241,7 @@ export function useWorkflowAPI() {
   }
 
   // 保存并测试工作流
-  const saveAndTestWorkflow = async (workflowInfo, nodes, validateWorkflowNodes, router, workflowId, clearWorkflowCache, processNodeInfo, botEvents, botActions, generateConnections, loadWorkflowInfo, connections) => {
+  const saveAndTestWorkflow = async (workflowInfo, nodes, validateWorkflowNodes, router, workflowId, clearWorkflowCache, processNodeInfo, botEvents, botActions, generateConnections, loadWorkflowInfo, connections, canvasX, canvasY, zoom) => {
     // 兼容 ref 与普通对象
     const wfInfo = workflowInfo?.value !== undefined ? workflowInfo.value : workflowInfo
     if (!wfInfo || !wfInfo.name) {
@@ -255,6 +269,13 @@ export function useWorkflowAPI() {
       enabled: wfInfo.enabled !== undefined ? wfInfo.enabled : true,
       createTime: wfInfo.createTime || null,
       updateTime: wfInfo.updateTime || null,
+      workflowCanvasView: {
+        workflowId: wfInfo.id || '',
+        userId: wfInfo.userId || userId || '',
+        offsetX: canvasX?.value ?? canvasX ?? 0,
+        offsetY: canvasY?.value ?? canvasY ?? 0,
+        scale: zoom?.value ?? zoom ?? 1
+      },
       nodes: (nodes.value || nodes).map(node => {
         // 构建节点数据
         return {
@@ -327,7 +348,7 @@ export function useWorkflowAPI() {
         // 刷新画布，重新加载工作流信息
         if (loadWorkflowInfo) {
           // 传递 showError: false，避免与测试成功消息冲突
-          await loadWorkflowInfo(currentWorkflowId, workflowInfo, nodes, connections, botEvents, botActions, processNodeInfo, generateConnections, false)
+          await loadWorkflowInfo(currentWorkflowId, workflowInfo, nodes, connections, botEvents, botActions, processNodeInfo, generateConnections, canvasX, canvasY, zoom, false)
         }
       }
       

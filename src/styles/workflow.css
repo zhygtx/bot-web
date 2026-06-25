@@ -430,19 +430,34 @@
   box-shadow: none;
 }
 
+html.dark .canvas-container {
+  background-color: #0d1724;
+}
+
 .canvas {
-  width: 4000px; /* 缩小画布宽度 */
-  height: 3000px; /* 缩小画布高度 */
+  width: 100%;
+  height: 100%;
   position: absolute;
   top: 0;
   left: 0;
-  background-image: radial-gradient(#e0e0e0 1px, transparent 1px);
-  background-size: 20px 20px;
   cursor: grab;
   transition: none; /* 移除过渡效果，确保画布拖动时完全跟随鼠标 */
-  border: 2px solid #909399; /* 添加画布边框，明确标注边界 */
-  box-sizing: border-box;
   user-select: none; /* 禁止选中 */
+  background-image: radial-gradient(#c8c8c8 1.5px, transparent 1.5px);
+  background-size: 20px 20px;
+}
+
+html.dark .canvas {
+  background-color: #0d1724;
+  background-image: radial-gradient(#3a5068 1.5px, transparent 1.5px);
+}
+
+.canvas-world {
+  width: 0;
+  height: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
 }
 
 .canvas:active {

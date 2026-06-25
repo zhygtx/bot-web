@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted, watch, computed, defineAsyncComponent, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElInput, ElIcon, ElDialog, ElButton } from 'element-plus'
-import { Warning, ArrowDown, ArrowUp, Close, Position, ZoomIn, CopyDocument } from '@element-plus/icons-vue'
+import { Warning, ArrowDown, ArrowUp, Close, Position, ZoomIn, CopyDocument, Aim } from '@element-plus/icons-vue'
 import request from '../../utils/request'
 
 import WorkflowNodeConfigPanel from '../../components/workflow/WorkflowNodeConfigPanel.vue'
@@ -13,7 +13,6 @@ import PluginListComponent from '../../components/workflow/PluginListComponent.v
 import ExecutionStatusBar from '../../components/workflow/ExecutionStatusBar.vue'
 const NodeExecutionDetails = defineAsyncComponent(() => import('../../components/workflow/NodeExecutionDetails.vue'))
 import WorkflowLogView from './WorkflowLogView.vue'
-import ThemeToggle from '../../components/ThemeToggle.vue'
 
 import { useEventHandling } from '../../composables/workflow/useEventHandling'
 import { useDataMapping } from '../../composables/workflow/useDataMapping'
@@ -56,10 +55,10 @@ watch(
   },
   { immediate: true }
 )
-// 画布大小
-const canvasSize = ref({ width: 4000, height: 3000 })
 // 画布缩放
 const zoom = ref(1)
+// 画布内容容器（承载 transform）
+const canvasWorldRef = ref(null)
 // 加载状态
 const loading = ref(false)
 // 插件列表（供节点配置面板使用）
@@ -333,7 +332,7 @@ const copyModalContent = async () => {
 }
 
 // 模式状态
-const currentMode = ref('select')
+const currentMode = ref('drag')
 
 // 选择框相关状态
 const isSelecting = ref(false)
@@ -422,8 +421,8 @@ const handleCanvasMouseDownExtended = (e) => {
     // 计算鼠标相对于画布的位置（需除以缩放系数）
     const canvasRect = canvasRef.value.getBoundingClientRect()
     const z = zoom.value
-    const cx = (e.clientX - canvasRect.left) / z
-    const cy = (e.clientY - canvasRect.top) / z
+    const cx = (e.clientX - canvasRect.left - canvasX.value) / z
+    const cy = (e.clientY - canvasRect.top - canvasY.value) / z
     selectionStart.value = { x: cx, y: cy }
     selectionEnd.value = { x: cx, y: cy }
   } else {
@@ -437,13 +436,20 @@ const handleMouseMoveExtended = (e) => {
     // 计算鼠标相对于画布的位置（需除以缩放系数）
     const canvasRect = canvasRef.value.getBoundingClientRect()
     const z = zoom.value
-    const cx = (e.clientX - canvasRect.left) / z
-    const cy = (e.clientY - canvasRect.top) / z
+    const cx = (e.clientX - canvasRect.left - canvasX.value) / z
+    const cy = (e.clientY - canvasRect.top - canvasY.value) / z
     selectionEnd.value = { x: cx, y: cy }
+  } else if (draggingNode.value) {
+    // 节点拖动（提升到 document 级别，避免快速移动时脱手）
+    nodeMouseMoved.value = true
+    const canvasRect = canvasRef.value.getBoundingClientRect()
+    const z = zoom.value
+    draggingNode.value.x = (e.clientX - canvasRect.left - canvasX.value - nodeDragStart.value.x) / z
+    draggingNode.value.y = (e.clientY - canvasRect.top - canvasY.value - nodeDragStart.value.y) / z
   } else if (isDrawing.value) {
     handleMouseMoveForConnection(e)
   } else {
-    handleMouseMove(e, isDrawing.value, tempConnection.value, canvasSize.value)
+    handleMouseMove(e, isDrawing.value, tempConnection.value)
   }
 }
 
@@ -469,6 +475,10 @@ const handleMouseUpExtended = (e) => {
                nodeRect.bottom < rect.top || 
                nodeRect.top > rect.bottom)
     })
+  } else if (draggingNode.value) {
+    // 节点拖动结束（document 级别 mouseup）
+    draggingNode.value = null
+    document.body.style.cursor = 'default'
   } else if (isDrawing.value) {
     handleMouseUpForConnection(e)
   } else {
@@ -537,19 +547,8 @@ const handleNodeMouseMoveExtended = (e, node) => {
     // 计算节点新位置（相对于画布，需除以缩放系数）
     const canvasRect = canvasRef.value.getBoundingClientRect()
     const z = zoom.value
-    let newX = (e.clientX - canvasRect.left - nodeDragStart.value.x) / z
-    let newY = (e.clientY - canvasRect.top - nodeDragStart.value.y) / z
-    
-    // 限制节点在画布范围内
-    const nodeWidth = 250
-    const nodeHeight = 120
-    
-    newX = Math.max(0, Math.min(canvasSize.value.width - nodeWidth, newX))
-    newY = Math.max(0, Math.min(canvasSize.value.height - nodeHeight, newY))
-    
-    // 更新节点位置
-    node.x = newX
-    node.y = newY
+    node.x = (e.clientX - canvasRect.left - canvasX.value - nodeDragStart.value.x) / z
+    node.y = (e.clientY - canvasRect.top - canvasY.value - nodeDragStart.value.y) / z
   }
 }
 
@@ -564,9 +563,10 @@ const handleNodeMouseUpExtended = (e, node) => {
 }
 
 // 处理节点鼠标离开事件（扩展）
+// 拖动期间的 mouseleave 不再终止拖动，由 document 级别 mouseup 统一处理
 const handleNodeMouseLeaveExtended = (e, node) => {
-  draggingNode.value = null
-  document.body.style.cursor = 'default'
+  // 不在这里清除 draggingNode，避免快速拖动时脱手
+  // 拖动结束统一由 document mouseup 处理
 }
 
 // 处理端口鼠标按下事件（扩展）
@@ -595,8 +595,8 @@ const handlePortMouseDownExtended = (e, node, port) => {
   tempConnection.value = {
     fromNode: node.id,
     fromPort: port,
-    toX: (e.clientX - rect.left) / z,
-    toY: (e.clientY - rect.top) / z
+    toX: (e.clientX - rect.left - canvasX.value) / z,
+    toY: (e.clientY - rect.top - canvasY.value) / z
   }
 }
 
@@ -607,8 +607,8 @@ const handleMouseMoveForConnection = (e) => {
     const z = zoom.value
     tempConnection.value = {
       ...tempConnection.value,
-      toX: (e.clientX - rect.left) / z,
-      toY: (e.clientY - rect.top) / z
+      toX: (e.clientX - rect.left - canvasX.value) / z,
+      toY: (e.clientY - rect.top - canvasY.value) / z
     }
   }
 }
@@ -724,7 +724,7 @@ const handleSaveWorkflow = async () => {
   
   try {
     // 保存工作流
-    await saveWorkflow(workflowInfo.value, nodes.value, validateWorkflowNodes, router, workflowId, clearWorkflowCache, generateConnections, loadWorkflowInfo, connections, botEvents, botActions, processNodeInfo)
+    await saveWorkflow(workflowInfo.value, nodes.value, validateWorkflowNodes, router, workflowId, clearWorkflowCache, generateConnections, loadWorkflowInfo, connections, botEvents, botActions, processNodeInfo, canvasX, canvasY, zoom)
   } catch (error) {
     ElMessage.error('保存工作流失败')
   }
@@ -776,7 +776,7 @@ const handleSaveAndTest = async () => {
   
   try {
     // 先保存并测试工作流
-    const logId = await saveAndTestWorkflow(workflowInfo, nodes, validateWorkflowNodes, router, workflowId, clearWorkflowCache, processNodeInfo, botEvents, botActions, generateConnections, loadWorkflowInfo, connections)
+    const logId = await saveAndTestWorkflow(workflowInfo, nodes, validateWorkflowNodes, router, workflowId, clearWorkflowCache, processNodeInfo, botEvents, botActions, generateConnections, loadWorkflowInfo, connections, canvasX, canvasY, zoom)
     
     if (!logId) return
     
@@ -1076,7 +1076,55 @@ const handleWheel = (e) => {
   zoom.value = newZoom
 }
 
-// 处理浏览器历史变化的函数
+// 画布背景偏移（跟随平移/缩放，模拟无限点阵）
+const backgroundPosition = computed(() => {
+  return `${canvasX.value * zoom.value}px ${canvasY.value * zoom.value}px`
+})
+
+// 定位到初始节点（或画布原点）
+const handleLocateInitialNode = () => {
+  const container = canvasRef.value?.parentElement
+  if (!container) return
+  
+  const containerWidth = container.clientWidth
+  const containerHeight = container.clientHeight
+  
+  // 找到初始节点：优先 BOT 事件节点，其次是入度为0的节点，最后是第一个节点
+  let targetNode = null
+  const botEventNode = nodes.value.find(n => n.nodeType === 'botEvent')
+  const zeroInDegreeNode = nodes.value.find(n => (n.inDegree || 0) === 0)
+  const firstNode = nodes.value[0]
+  targetNode = botEventNode || zeroInDegreeNode || firstNode
+  
+  // 目标画布坐标：让节点居中显示
+  const targetCanvasX = targetNode
+    ? containerWidth / 2 - targetNode.x - 125  // 125 = NODE_WIDTH/2
+    : containerWidth / 2
+  const targetCanvasY = targetNode
+    ? containerHeight / 2 - targetNode.y - 60   // 60 = 大约节点高度的一半
+    : containerHeight / 2
+  
+  const worldEl = canvasWorldRef.value
+  if (!worldEl) return
+  
+  // 动画：直接定位放大到默认倍率
+  worldEl.style.transition = 'transform 0.45s ease-in-out'
+  zoom.value = 1.0
+  canvasX.value = targetCanvasX
+  canvasY.value = targetCanvasY
+  
+  setTimeout(() => {
+    worldEl.style.transition = 'none'
+  }, 450)
+}
+
+// 将画布居中到原点 (0, 0)
+const centerCanvasToOrigin = () => {
+  const container = canvasRef.value?.parentElement
+  if (!container) return
+  canvasX.value = container.clientWidth / 2
+  canvasY.value = container.clientHeight / 2
+}
 const handlePopState = () => {
   loadPlugins(plugins)
 }
@@ -1134,7 +1182,7 @@ onMounted(async () => {
       localStorage.removeItem(`workflow_cache_${cacheId}`)
     } else {
       // 如果没有缓存，再加载工作流信息
-      await loadWorkflowInfo(workflowId, workflowInfo, nodes, connections, botEvents, botActions, processNodeInfo, generateConnections)
+      await loadWorkflowInfo(workflowId, workflowInfo, nodes, connections, botEvents, botActions, processNodeInfo, generateConnections, canvasX, canvasY, zoom)
     }
     
     // 清理URL参数
@@ -1153,7 +1201,13 @@ onMounted(async () => {
     }
   } else {
     // 如果不是从插件详情页返回，加载工作流信息
-    await loadWorkflowInfo(workflowId, workflowInfo, nodes, connections, botEvents, botActions, processNodeInfo, generateConnections)
+    await loadWorkflowInfo(workflowId, workflowInfo, nodes, connections, botEvents, botActions, processNodeInfo, generateConnections, canvasX, canvasY, zoom)
+  }
+  
+  // 新建工作流时，将画布居中到原点
+  if (!workflowId) {
+    await nextTick()
+    centerCanvasToOrigin()
   }
   
   generateConnections()
@@ -1207,23 +1261,22 @@ onUnmounted(() => {
         <div class="header-center">
           <el-button-group>
             <el-button 
-              :type="currentMode === 'select' ? 'primary' : ''"
-              @click="switchMode('select')"
-              title="选取模式"
-            >
-              <el-icon><Position /></el-icon>
-            </el-button>
-            <el-button 
               :type="currentMode === 'drag' ? 'primary' : ''"
               @click="switchMode('drag')"
               title="拖动模式"
             >
               <el-icon><ZoomIn /></el-icon>
             </el-button>
+            <el-button 
+              :type="currentMode === 'select' ? 'primary' : ''"
+              @click="switchMode('select')"
+              title="选取模式"
+            >
+              <el-icon><Position /></el-icon>
+            </el-button>
           </el-button-group>
         </div>
         <div class="header-right">
-          <ThemeToggle />
           <el-button 
             :type="workflowInfo.enabled ? 'success' : 'danger'" 
             @click="workflowInfo.enabled = !workflowInfo.enabled"
@@ -1231,7 +1284,6 @@ onUnmounted(() => {
           >
             {{ workflowInfo.enabled ? '启用中' : '已禁用' }}
           </el-button>
-          <el-button @click="() => { clearWorkflowCache(); router.push('/workflow/list'); }">取消</el-button>
           <el-button type="primary" @click="handleSaveAndTest" :disabled="hasBotEventNode || isCanvasEmpty" :title="isCanvasEmpty ? '画布上没有节点，无法保存并测试' : (hasBotEventNode ? '存在 BOT 事件节点，无法使用保存并测试功能' : '保存并测试')">保存并测试</el-button>
           <el-button type="success" @click="handleSaveWorkflow" :disabled="isCanvasEmpty" :title="isCanvasEmpty ? '画布上没有节点，无法保存' : '保存'">保存</el-button>
           <el-button v-if="workflowId" type="warning" @click="showHistoryLog = !showHistoryLog">查看历史日志</el-button>
@@ -1272,6 +1324,7 @@ onUnmounted(() => {
         <div 
           class="canvas" 
           ref="canvasRef"
+          :style="{ backgroundPosition: backgroundPosition }"
           @mousedown="handleCanvasMouseDownExtended"
           @mousemove="handleMouseMoveExtended"
           @mouseup="handleMouseUpExtended"
@@ -1279,44 +1332,50 @@ onUnmounted(() => {
           @drop="handleDropNode"
           @dragover.prevent
           @contextmenu="handleCanvasContextMenu"
-          :style="{ transform: `translate(${canvasX}px, ${canvasY}px) scale(${zoom})`, transformOrigin: '0 0' }"
         >
-          <!-- 连线组件 -->
-          <ConnectionComponent
-            :connections="connections"
-            :temp-connection="tempConnection"
-            :is-selecting="isSelecting"
-            :selection-start="selectionStart"
-            :selection-end="selectionEnd"
-            :nodes="nodes"
-            @connection-context-menu="handleConnectionContextMenu"
-          />
-          
-          <!-- 节点组件 -->
-          <template v-for="node in nodes" :key="node.id">
-            <NodeComponent
-              :node="node"
-              :is-selected="selectedNodes.some(n => n.id === node.id)"
-              :execution-status="nodeExecutionStatus[node.id] || null"
-              @node-mouse-down="handleNodeMouseDownExtended"
-              @node-mouse-move="handleNodeMouseMoveExtended"
-              @node-mouse-up="handleNodeMouseUpExtended"
-              @node-mouse-leave="handleNodeMouseLeaveExtended"
-              @node-context-menu="handleNodeContextMenu"
-              @node-dbl-click="openNodeConfigPanel"
-              @port-mouse-down="handlePortMouseDownExtended"
+          <div 
+            class="canvas-world" 
+            ref="canvasWorldRef"
+            :style="{ transform: `translate(${canvasX}px, ${canvasY}px) scale(${zoom})`, transformOrigin: '0 0' }"
+          >
+            <!-- 连线组件 -->
+            <ConnectionComponent
+              :connections="connections"
+              :temp-connection="tempConnection"
+              :is-selecting="isSelecting"
+              :selection-start="selectionStart"
+              :selection-end="selectionEnd"
+              :nodes="nodes"
+              @connection-context-menu="handleConnectionContextMenu"
             />
-            <div
-              v-if="showExecutionBar && nodeExecutionStatus[node.id]"
-              class="node-execution-wrapper"
-              :style="{ left: node.x + 'px', top: (node.y + (nodeHeights[node.id] || 80) + 5) + 'px' }"
-            >
-              <NodeExecutionDetails
-                :node-log="nodeExecutionStatus[node.id].nodeLog"
-                @open-modal="openDataModal"
+            
+            <!-- 节点组件 -->
+            <template v-for="node in nodes" :key="node.id">
+              <NodeComponent
+                :node="node"
+                :is-selected="selectedNodes.some(n => n.id === node.id)"
+                :execution-status="nodeExecutionStatus[node.id] || null"
+                @node-mouse-down="handleNodeMouseDownExtended"
+                @node-mouse-move="handleNodeMouseMoveExtended"
+                @node-mouse-up="handleNodeMouseUpExtended"
+                @node-mouse-leave="handleNodeMouseLeaveExtended"
+                @node-context-menu="handleNodeContextMenu"
+                @node-dbl-click="openNodeConfigPanel"
+                @port-mouse-down="handlePortMouseDownExtended"
               />
-            </div>
-          </template>
+              <div
+                v-if="showExecutionBar && nodeExecutionStatus[node.id]"
+                class="node-execution-wrapper"
+                :style="{ left: node.x + 'px', top: (node.y + (nodeHeights[node.id] || 80) + 5) + 'px' }"
+                @wheel.stop
+              >
+                <NodeExecutionDetails
+                  :node-log="nodeExecutionStatus[node.id].nodeLog"
+                  @open-modal="openDataModal"
+                />
+              </div>
+            </template>
+          </div>
         </div>
         <div v-if="showCanvasPlaceholder" class="canvas-placeholder">
           <h3>工作流画布</h3>
@@ -1336,6 +1395,16 @@ onUnmounted(() => {
           @clear-canvas="clearCanvas"
           @delete-selected-connection="deleteSelectedConnection"
         />
+        
+        <!-- 定位按钮（右下角） -->
+        <el-button 
+          class="locate-btn" 
+          circle 
+          @click="handleLocateInitialNode" 
+          title="定位到初始节点"
+        >
+          <el-icon :size="20"><Aim /></el-icon>
+        </el-button>
       </div>
     </div>
     
@@ -1510,5 +1579,22 @@ onUnmounted(() => {
 .history-slide-enter-from .history-log-float,
 .history-slide-leave-to .history-log-float {
   transform: translateX(100%);
+}
+
+/* 定位按钮（右下角） */
+.locate-btn {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  z-index: 250;
+  width: 44px;
+  height: 44px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+}
+
+.locate-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
 </style>

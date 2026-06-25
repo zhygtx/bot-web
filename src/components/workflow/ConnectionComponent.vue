@@ -1,7 +1,7 @@
 <template>
   <div>
     <!-- 绘制正式连线 -->
-    <svg class="connections" :width="svgWidth" :height="svgHeight" style="position: absolute; top: 0; left: 0; pointer-events: none;">
+    <svg class="connections" :width="svgWidth" :height="svgHeight" :style="{ position: 'absolute', top: svgMinY + 'px', left: svgMinX + 'px', pointerEvents: 'none', overflow: 'visible' }">
       <defs>
         <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
           <polygon points="0 0, 10 3.5, 0 7" fill="#409eff" />
@@ -26,6 +26,17 @@
         stroke-dasharray="5,5"
         class="temp-connection-path"
       />
+      <!-- 贝塞尔曲线点击区域（粗透明线条） -->
+      <path
+        v-for="(path, id) in connectionPaths"
+        :key="'hitbox-' + id"
+        :d="path"
+        stroke="transparent"
+        stroke-width="20"
+        fill="none"
+        class="connection-hitbox-path"
+        @contextmenu="handleConnectionContextMenu($event, id)"
+      />
       <!-- 绘制框选矩形 -->
       <rect 
         v-if="isSelecting"
@@ -40,14 +51,7 @@
       />
     </svg>
     
-    <!-- 连线的点击区域 -->
-    <div 
-      v-for="(hitbox, id) in connectionHitboxes" 
-      :key="id"
-      class="connection-hitbox"
-      :style="hitbox"
-      @contextmenu="handleConnectionContextMenu($event, id)"
-    ></div>
+
   </div>
 </template>
 
@@ -85,7 +89,6 @@ const emit = defineEmits(['connectionContextMenu'])
 
 const NODE_WIDTH = 250
 const DEFAULT_NODE_HEIGHT = 80
-const HITBOX_PADDING = 10
 
 const nodeHeightCache = ref({})
 let cacheUpdateTimer = null
@@ -148,11 +151,13 @@ const getPortPosition = (nodeId, port) => {
 
 const portPositions = computed(() => {
   const positions = {}
+  const offsetX = svgMinX.value
+  const offsetY = svgMinY.value
   props.nodes.forEach(node => {
     const height = getNodeHeight(node)
     positions[node.id] = {
-      left: { x: node.x, y: node.y + height / 2 },
-      right: { x: node.x + NODE_WIDTH, y: node.y + height / 2 }
+      left: { x: node.x - offsetX, y: node.y + height / 2 - offsetY },
+      right: { x: node.x + NODE_WIDTH - offsetX, y: node.y + height / 2 - offsetY }
     }
   })
   return positions
@@ -172,43 +177,14 @@ const tempConnectionPath = computed(() => {
   if (!props.tempConnection) return null
   const fromPos = portPositions.value[props.tempConnection.fromNode]?.[props.tempConnection.fromPort]
   if (!fromPos) return null
-  const toX = props.tempConnection.toX || 0
-  const toY = props.tempConnection.toY || 0
+  const toX = (props.tempConnection.toX || 0) - svgMinX.value
+  const toY = (props.tempConnection.toY || 0) - svgMinY.value
   return buildBezierPath(fromPos.x, fromPos.y, toX, toY)
 })
 
-const connectionHitboxes = computed(() => {
-  const hitboxes = {}
-  props.connections.forEach(conn => {
-    const fromPos = portPositions.value[conn.fromNode]?.[conn.fromPort] || { x: 0, y: 0 }
-    const toPos = portPositions.value[conn.toNode]?.[conn.toPort] || { x: 0, y: 0 }
-    
-    const dx = toPos.x - fromPos.x
-    const dy = toPos.y - fromPos.y
-    const length = Math.sqrt(dx * dx + dy * dy)
-    const angle = Math.atan2(dy, dx) * 180 / Math.PI
-    
-    const centerX = (fromPos.x + toPos.x) / 2
-    const centerY = (fromPos.y + toPos.y) / 2
-    
-    hitboxes[conn.id] = {
-      position: 'absolute',
-      left: centerX - length / 2 + 'px',
-      top: centerY - HITBOX_PADDING + 'px',
-      width: length + 'px',
-      height: HITBOX_PADDING * 2 + 'px',
-      transform: `rotate(${angle}deg)`,
-      transformOrigin: 'center',
-      cursor: 'pointer',
-      zIndex: 40
-    }
-  })
-  return hitboxes
-})
-
 const selectionRect = computed(() => {
-  const x = Math.min(props.selectionStart.x, props.selectionEnd.x)
-  const y = Math.min(props.selectionStart.y, props.selectionEnd.y)
+  const x = Math.min(props.selectionStart.x, props.selectionEnd.x) - svgMinX.value
+  const y = Math.min(props.selectionStart.y, props.selectionEnd.y) - svgMinY.value
   return {
     x,
     y,
@@ -217,12 +193,28 @@ const selectionRect = computed(() => {
   }
 })
 
+const boundingBox = computed(() => {
+  if (props.nodes.length === 0) return { minX: 0, minY: 0, maxX: 4000, maxY: 3000 }
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+  props.nodes.forEach(n => {
+    const h = getNodeHeight(n)
+    if (n.x < minX) minX = n.x
+    if (n.y < minY) minY = n.y
+    if (n.x + NODE_WIDTH > maxX) maxX = n.x + NODE_WIDTH
+    if (n.y + h > maxY) maxY = n.y + h
+  })
+  return { minX, minY, maxX, maxY }
+})
+
+const svgMinX = computed(() => boundingBox.value.minX)
+const svgMinY = computed(() => boundingBox.value.minY)
+
 const svgWidth = computed(() => {
-  return Math.max(...props.nodes.map(n => n.x + NODE_WIDTH), 4000)
+  return Math.max(boundingBox.value.maxX - boundingBox.value.minX, 1)
 })
 
 const svgHeight = computed(() => {
-  return Math.max(...props.nodes.map(n => n.y + getNodeHeight(n)), 3000)
+  return Math.max(boundingBox.value.maxY - boundingBox.value.minY, 1)
 })
 // 监听节点变化，更新尺寸缓存
 watch(() => props.nodes, () => {
@@ -268,8 +260,8 @@ onUnmounted(() => {
   transition: none;
 }
 
-.connection-hitbox {
-  position: absolute;
-  z-index: 40;
+.connection-hitbox-path {
+  cursor: pointer;
+  pointer-events: stroke;
 }
 </style>

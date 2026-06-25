@@ -29,37 +29,12 @@ export function useEventHandling() {
   }
 
   // 鼠标移动事件
-  const handleMouseMove = (e, isDrawing, tempConnection, canvasSize) => {
+  const handleMouseMove = (e, isDrawing, tempConnection) => {
     if (isDragging.value) {
-      // 处理画布拖动
+      // 处理画布拖动（无范围限制）
       e.preventDefault()
-      
-      // 直接计算新的画布位置，确保完全跟随鼠标
-      let newX = e.clientX - startX.value
-      let newY = e.clientY - startY.value
-      
-      // 获取容器尺寸
-      const containerRect = document.querySelector('.canvas-container').getBoundingClientRect()
-      const containerWidth = containerRect.width
-      const containerHeight = containerRect.height
-      
-      // 计算最大拖拽范围（考虑画布移动的方向）
-      // 向左拖动（画布向右移动）：canvasX 最大为 containerWidth/2
-      const maxRightDrag = containerWidth / 2
-      // 向右拖动（画布向左移动）：canvasX 最小为 -(canvasSize.width - containerWidth/2)
-      const maxLeftDrag = -(canvasSize.width - containerWidth / 2)
-      // 向上拖动（画布向下移动）：canvasY 最大为 containerHeight/2
-      const maxDownDrag = containerHeight / 2
-      // 向下拖动（画布向上移动）：canvasY 最小为 -(canvasSize.height - containerHeight/2)
-      const maxUpDrag = -(canvasSize.height - containerHeight / 2)
-      
-      // 限制拖拽范围
-      newX = Math.max(maxLeftDrag, Math.min(maxRightDrag, newX))
-      newY = Math.max(maxUpDrag, Math.min(maxDownDrag, newY))
-      
-      // 更新画布位置
-      canvasX.value = newX
-      canvasY.value = newY
+      canvasX.value = e.clientX - startX.value
+      canvasY.value = e.clientY - startY.value
     }
   }
 
@@ -93,44 +68,14 @@ export function useEventHandling() {
     }
   }
 
-  // 节点鼠标移动事件
-  const handleNodeMouseMove = (e, draggingNode, nodeDragStart, canvasX, canvasSize) => {
+  // 节点鼠标移动事件（无范围限制）
+  const handleNodeMouseMove = (e, draggingNode, nodeDragStart, canvasX) => {
     if (!draggingNode) return
     e.preventDefault()
     
     // 直接使用鼠标位置减去偏移量，确保节点完全跟随鼠标
-    let newX = e.clientX - nodeDragStart.x - canvasX.value
-    let newY = e.clientY - nodeDragStart.y - canvasX.value
-    
-    // 限制节点在画布范围内
-    const nodeWidth = 250 // 节点的实际宽度
-    
-    // 尝试获取节点的实际高度
-    let nodeHeight = 120 // 默认高度
-    try {
-      // 查找当前拖动的节点元素
-      const nodeElement = document.querySelector(`.workflow-node[data-node-id="${draggingNode.id}"]`)
-      if (nodeElement) {
-        // 获取节点的实际高度
-        const rect = nodeElement.getBoundingClientRect()
-        nodeHeight = rect.height
-      }
-    } catch (error) {
-      // 如果获取失败，使用默认高度
-    }
-    
-    // 确保节点不超出画布左边界
-    newX = Math.max(0, newX)
-    // 确保节点不超出画布右边界
-    newX = Math.min(canvasSize.width - nodeWidth, newX)
-    // 确保节点不超出画布上边界
-    newY = Math.max(0, newY)
-    // 确保节点不超出画布下边界
-    newY = Math.min(canvasSize.height - nodeHeight, newY)
-    
-    // 更新节点位置
-    draggingNode.x = newX
-    draggingNode.y = newY
+    draggingNode.x = e.clientX - nodeDragStart.x - canvasX.value
+    draggingNode.y = e.clientY - nodeDragStart.y - canvasY.value
   }
 
   // 节点鼠标释放事件
@@ -198,8 +143,8 @@ export function useEventHandling() {
       // 计算节点在画布上的位置（相对于画布的偏移，需除以缩放系数）
       const rect = canvasRef.value.getBoundingClientRect()
       const z = zoom?.value ?? 1
-      const nodeX = (e.clientX - rect.left) / z
-      const nodeY = (e.clientY - rect.top) / z
+      const nodeX = (e.clientX - rect.left - canvasX.value) / z
+      const nodeY = (e.clientY - rect.top - canvasY.value) / z
       
       let newNode
       

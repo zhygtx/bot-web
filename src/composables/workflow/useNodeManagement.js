@@ -240,44 +240,14 @@ export function useNodeManagement(botEvents, botActions) {
     e.target.style.cursor = 'grabbing'
   }
   
-  // 节点鼠标移动事件
+  // 节点鼠标移动事件（无范围限制）
   const handleNodeMouseMove = (e) => {
     if (!draggingNode.value) return
     e.preventDefault()
     
     // 直接使用鼠标位置减去偏移量，确保节点完全跟随鼠标
-    let newX = e.clientX - nodeDragStart.value.x
-    let newY = e.clientY - nodeDragStart.value.y
-    
-    // 限制节点在画布范围内
-    const nodeWidth = 250 // 节点的实际宽度
-    
-    // 尝试获取节点的实际高度
-    let nodeHeight = 120 // 默认高度
-    try {
-      // 查找当前拖动的节点元素
-      const nodeElement = document.querySelector(`.workflow-node[data-node-id="${draggingNode.value.id}"]`)
-      if (nodeElement) {
-        // 获取节点的实际高度
-        const rect = nodeElement.getBoundingClientRect()
-        nodeHeight = rect.height
-      }
-    } catch (error) {
-      // 如果获取失败，使用默认高度
-    }
-    
-    // 确保节点不超出画布左边界
-    newX = Math.max(0, newX)
-    // 确保节点不超出画布右边界
-    newX = Math.min(4000 - nodeWidth, newX)
-    // 确保节点不超出画布上边界
-    newY = Math.max(0, newY)
-    // 确保节点不超出画布下边界
-    newY = Math.min(3000 - nodeHeight, newY)
-    
-    // 更新节点位置
-    draggingNode.value.x = newX
-    draggingNode.value.y = newY
+    draggingNode.value.x = e.clientX - nodeDragStart.value.x
+    draggingNode.value.y = e.clientY - nodeDragStart.value.y
   }
   
   // 节点鼠标释放事件
