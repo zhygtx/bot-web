@@ -168,58 +168,80 @@
           <!-- BOT 系统 -->
           <el-scrollbar v-if="activeTab === 'bot'" class="scroll-container bot-content">
             <div class="plugin-list">
+              <!-- BOT 事件 -->
               <el-card class="plugin-item-card">
                 <div class="plugin-card-content">
                   <div class="plugin-card-header">
                     <h3 class="plugin-name">BOT 事件</h3>
                   </div>
-                  <div class="plugin-card-description">触发工作流的 BOT 事件</div>
+                  <div class="plugin-card-description">触发工作流的 BOT 事件（按分类展示）</div>
                   <div class="plugin-card-methods">
-                    <h4>事件列表</h4>
-                    <div class="methods-list">
-                      <div v-for="event in filteredBotEvents" :key="event.eventType" class="method-item">
-                        <span 
-                          class="method-signature"
-                          draggable="true"
-                          @dragstart="startDragBotEvent($event, event)"
-                          @dragend="endDrag"
-                        >{{ event.eventName }}</span>
-                        <p v-if="event.description" class="method-item-description">{{ event.description }}</p>
+                    <!-- 分类树形结构 -->
+                    <div v-for="group in groupedBotEvents" :key="'event-cat-' + group.category" class="category-group">
+                      <div class="category-header" @click="toggleCategory('event', group.category)">
+                        <el-icon class="category-toggle-icon">
+                          <ArrowDown v-if="isCategoryExpanded('event', group.category)" />
+                          <ArrowRight v-else />
+                        </el-icon>
+                        <span class="category-name">{{ group.category }}</span>
+                        <span class="category-count">({{ group.items.length }})</span>
                       </div>
-                      <div v-if="filteredBotEvents.length === 0" class="no-methods">无匹配事件</div>
+                      <div v-show="isCategoryExpanded('event', group.category)" class="category-items">
+                        <div v-for="event in group.items" :key="event.eventType" class="method-item">
+                          <span 
+                            class="method-signature"
+                            draggable="true"
+                            @dragstart="startDragBotEvent($event, event)"
+                            @dragend="endDrag"
+                          >{{ event.eventName }}</span>
+                          <p v-if="event.description" class="method-item-description">{{ event.description }}</p>
+                        </div>
+                      </div>
                     </div>
+                    <div v-if="groupedBotEvents.length === 0" class="no-methods">无匹配事件</div>
                   </div>
                 </div>
               </el-card>
 
+              <!-- BOT 动作 -->
               <el-card class="plugin-item-card" style="margin-top: 16px">
                 <div class="plugin-card-content">
                   <div class="plugin-card-header">
                     <h3 class="plugin-name">BOT 动作</h3>
                   </div>
-                  <div class="plugin-card-description">BOT 执行的动作</div>
+                  <div class="plugin-card-description">BOT 执行的动作（按分类展示）</div>
                   <div class="plugin-card-methods">
-                    <h4>动作列表</h4>
-                    <div class="methods-list">
-                      <div v-for="action in filteredBotActions" :key="action.actionName" class="method-item">
-                        <span 
-                          class="method-signature"
-                          draggable="true"
-                          @dragstart="startDragBotAction($event, action)"
-                          @dragend="endDrag"
-                        >
-                          {{ action.actionDisplayName }}(
-                            <template v-if="action.parameters && action.parameters.length > 0">
-                              <span v-for="(param, index) in sortParameters(action.parameters)" :key="param.id">
-                                {{ param.type }} {{ param.name }}{{ index < action.parameters.length - 1 ? ', ' : '' }}
-                              </span>
-                            </template>
-                          )
-                        </span>
-                        <p v-if="action.description" class="method-item-description">{{ action.description }}</p>
+                    <!-- 分类树形结构 -->
+                    <div v-for="group in groupedBotActions" :key="'action-cat-' + group.category" class="category-group">
+                      <div class="category-header" @click="toggleCategory('action', group.category)">
+                        <el-icon class="category-toggle-icon">
+                          <ArrowDown v-if="isCategoryExpanded('action', group.category)" />
+                          <ArrowRight v-else />
+                        </el-icon>
+                        <span class="category-name">{{ group.category }}</span>
+                        <span class="category-count">({{ group.items.length }})</span>
                       </div>
-                      <div v-if="filteredBotActions.length === 0" class="no-methods">无匹配动作</div>
+                      <div v-show="isCategoryExpanded('action', group.category)" class="category-items">
+                        <div v-for="action in group.items" :key="action.actionName" class="method-item">
+                          <span 
+                            class="method-signature"
+                            draggable="true"
+                            @dragstart="startDragBotAction($event, action)"
+                            @dragend="endDrag"
+                          >
+                            {{ action.actionDisplayName }}(
+                              <template v-if="action.parameters && action.parameters.length > 0">
+                                <span v-for="(param, index) in sortParameters(action.parameters)" :key="param.id">
+                                  {{ param.type }} {{ param.name }}{{ index < action.parameters.length - 1 ? ', ' : '' }}
+                                </span>
+                              </template>
+                            )
+                          </span>
+                          <p v-if="action.description" class="method-item-description">{{ action.description }}</p>
+                        </div>
+                      </div>
                     </div>
+                    <div v-if="groupedBotActions.length === 0" class="no-methods">无匹配动作</div>
                   </div>
                 </div>
               </el-card>
@@ -233,7 +255,7 @@
 
 <script setup>
 import { ref, watch, computed, nextTick } from 'vue'
-import { User, Connection, Cpu, ArrowUp, ArrowDown, Search, Loading, InfoFilled } from '@element-plus/icons-vue'
+import { User, Connection, Cpu, ArrowUp, ArrowDown, ArrowRight, Search, Loading, InfoFilled } from '@element-plus/icons-vue'
 import request from '../../utils/request'
 
 const props = defineProps({
@@ -296,6 +318,65 @@ const filteredBotActions = computed(() => {
     (a.description || '').toLowerCase().includes(kw)
   )
 })
+
+// ───────── BOT 事件/动作 分类分组 ─────────
+const isSearching = computed(() => searchKeyword.value.trim().length > 0)
+
+/** 按 categories 对事件列表进行分组 */
+const groupedBotEvents = computed(() => {
+  const groups = {}
+  filteredBotEvents.value.forEach(event => {
+    const cats = (event.categories && event.categories.length > 0) ? event.categories : ['未分类']
+    const catOrders = event.categoryOrders || []
+    cats.forEach((cat, idx) => {
+      if (!groups[cat]) {
+        groups[cat] = { category: cat, order: catOrders[idx] ?? 999, items: [] }
+      }
+      groups[cat].items.push(event)
+    })
+  })
+  return Object.values(groups).sort((a, b) => a.order - b.order)
+})
+
+/** 按 categories 对动作列表进行分组 */
+const groupedBotActions = computed(() => {
+  const groups = {}
+  filteredBotActions.value.forEach(action => {
+    const cats = (action.categories && action.categories.length > 0) ? action.categories : ['未分类']
+    const catOrders = action.categoryOrders || []
+    cats.forEach((cat, idx) => {
+      if (!groups[cat]) {
+        groups[cat] = { category: cat, order: catOrders[idx] ?? 999, items: [] }
+      }
+      groups[cat].items.push(action)
+    })
+  })
+  return Object.values(groups).sort((a, b) => a.order - b.order)
+})
+
+/** 分类展开/折叠状态（记忆状态，key 为 "event:分类名" 或 "action:分类名"） */
+const expandedCategories = ref({})
+
+/**
+ * 切换分类的展开/折叠状态
+ * @param {'event'|'action'} type 类型
+ * @param {string} cat 分类名称
+ */
+const toggleCategory = (type, cat) => {
+  const key = `${type}:${cat}`
+  expandedCategories.value[key] = expandedCategories.value[key] === false
+}
+
+/**
+ * 判断分类是否应展开
+ * - 搜索时自动展开所有有内容的分类
+ * - 非搜索时使用用户的记忆状态，默认展开
+ */
+const isCategoryExpanded = (type, cat) => {
+  if (isSearching.value) return true
+  const key = `${type}:${cat}`
+  return expandedCategories.value[key] !== false
+}
 
 // ───────── 数据加载 ─────────
 const buildQueryParams = (page = 1) => {
@@ -833,5 +914,68 @@ loadPluginList(true)
 /* ───── BOT 系统 ───── */
 .bot-content {
   padding-top: 10px;
+}
+
+/* ───── 分类树形结构 ───── */
+.category-group {
+  margin-bottom: 2px;
+}
+
+.category-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 4px;
+  cursor: pointer;
+  user-select: none;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.category-header:hover {
+  background-color: #f5f7fa;
+}
+
+.category-toggle-icon {
+  font-size: 14px;
+  color: #909399;
+  flex-shrink: 0;
+}
+
+.category-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.category-count {
+  font-size: 11px;
+  color: #c0c4cc;
+  margin-left: auto;
+}
+
+.category-items {
+  padding: 2px 0 6px 22px;
+  border-left: 2px solid #ebeef5;
+  margin-left: 6px;
+}
+
+.category-items .method-item {
+  padding: 6px 0 6px 8px;
+  border-bottom: none;
+}
+
+.category-items .method-item:hover {
+  background-color: #f5f7fa;
+  border-radius: 4px;
+}
+
+.category-items .method-signature {
+  font-size: 11px;
+}
+
+.category-items .method-item-description {
+  font-size: 10px;
+  padding-left: 6px;
 }
 </style>

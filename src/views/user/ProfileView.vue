@@ -61,7 +61,6 @@ const handleLogout = async () => {
       type: 'warning'
     })
     userStore.logout()
-    ElMessage.success('已退出登录')
     router.push('/login')
   } catch {
     // 用户取消

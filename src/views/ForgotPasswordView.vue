@@ -87,9 +87,8 @@ const sendCode = async () => {
       timeout: 30000
     })
     
-    ElMessage.success('验证码发送成功')
   } catch (error) {
-    ElMessage.error(error.message || '验证码发送失败')
+    console.error('验证码发送失败:', error)
   }
 }
 
@@ -120,12 +119,10 @@ const handleResetPassword = async () => {
       }
     })
     
-    ElMessage.success('密码重置成功')
-    
     // 跳转到登录页
     router.push('/login')
   } catch (error) {
-    ElMessage.error(error.message || '密码重置失败')
+    console.error('密码重置失败:', error)
   } finally {
     // 关闭加载状态
     loading.value = false
@@ -142,7 +139,7 @@ const goToLogin = () => {
   <div class="forgot-password-container">
     <div class="forgot-password-box">
       <div class="forgot-password-header">
-        <h2>QQbot匹配回复规则系统</h2>
+        <h2>BotFlow</h2>
         <p>找回密码，重新获取账号访问权限</p>
       </div>
       
@@ -301,5 +298,26 @@ const goToLogin = () => {
 
 .login-link:hover {
   color: #66b1ff;
+}
+</style>
+
+<style>
+/* ───────── 暗色模式 ───────── */
+html.dark .forgot-password-container {
+  background: var(--app-bg);
+}
+html.dark .forgot-password-box {
+  background: var(--app-card-bg);
+  box-shadow: var(--app-shadow);
+}
+html.dark .forgot-password-header h2 {
+  color: var(--app-text);
+}
+html.dark .forgot-password-header p,
+html.dark .forgot-password-footer {
+  color: var(--app-text-soft);
+}
+html.dark .forgot-password-footer .login-link {
+  color: var(--app-primary);
 }
 </style>

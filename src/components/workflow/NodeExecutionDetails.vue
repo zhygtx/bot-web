@@ -149,12 +149,9 @@ const fetchBigText = async (key, callback) => {
     if (response.code === 200) {
       bigTextDisplayCache.value[key] = response.data
       callback(response.data)
-    } else {
-      ElMessage.error(response.message || '获取大数据失败')
     }
   } catch (error) {
-    console.error('Error:', error)
-    ElMessage.error('获取大数据失败')
+    console.error('获取大数据失败:', error)
   }
 }
 

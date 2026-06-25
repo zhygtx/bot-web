@@ -197,11 +197,10 @@ const handleLogout = async () => {
     })
     await request({ url: "/user/logout", method: "post", params: { userId: userInfo.account } })
     localStorage.removeItem("token")
-    ElMessage.success("退出登录成功")
     router.push("/login")
   } catch (error) {
     if (error !== "cancel") {
-      ElMessage.error(error.message || "退出登录失败")
+      console.error("退出登录失败:", error)
     }
   }
 }

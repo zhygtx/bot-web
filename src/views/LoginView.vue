@@ -65,16 +65,10 @@ const handleLogin = async () => {
     // 登录成功，保存用户信息
     userStore.loginSuccess(response.data)
     
-    // 显示成功消息
-    console.log('显示成功消息')
-    ElMessage.success('登录成功')
-    
     // 跳转到基础信息配置
     router.push('/settings')
   } catch (error) {
-    // 显示错误消息
     console.error('登录失败:', error)
-    ElMessage.error(error.message || '登录失败')
   } finally {
     // 关闭加载状态
     loading.value = false
@@ -96,8 +90,8 @@ const goToForgotPassword = () => {
   <div class="login-container">
     <div class="login-box">
       <div class="login-header">
-        <h2>QQbot匹配回复规则系统</h2>
-        <p>欢迎登录，开始配置你的机器人规则</p>
+        <h2>BotFlow</h2>
+        <p>欢迎登录，可视化编排你的 QQ Bot</p>
       </div>
       
       <el-form
@@ -205,5 +199,26 @@ const goToForgotPassword = () => {
 
 .login-footer span:hover {
   color: #409eff;
+}
+</style>
+
+<style>
+/* ───────── 暗色模式 ───────── */
+html.dark .login-container {
+  background: var(--app-bg);
+}
+html.dark .login-box {
+  background: var(--app-card-bg);
+  box-shadow: var(--app-shadow);
+}
+html.dark .login-header h2 {
+  color: var(--app-text);
+}
+html.dark .login-header p,
+html.dark .login-footer {
+  color: var(--app-text-soft);
+}
+html.dark .login-footer span:hover {
+  color: var(--app-primary);
 }
 </style>

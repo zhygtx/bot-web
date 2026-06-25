@@ -169,6 +169,33 @@ html.dark .el-button:not(.el-button--primary):not(.el-button--success):not(.el-b
   background: rgba(37, 99, 235, 0.14);
 }
 
+html.dark .el-button--primary {
+  --el-button-bg-color: var(--app-primary-strong);
+  --el-button-border-color: var(--app-primary-strong);
+  --el-button-hover-bg-color: var(--app-primary);
+  --el-button-hover-border-color: var(--app-primary);
+  --el-button-active-bg-color: #2563eb;
+  --el-button-active-border-color: #2563eb;
+}
+
+/* 覆盖 input-group__append 中内联按钮的透明背景 */
+html.dark .el-input-group__append button.el-button--primary,
+html.dark .el-input-group__append button.el-button--primary:hover {
+  background-color: var(--app-primary-strong);
+  border-color: var(--app-primary-strong);
+  color: #fff;
+}
+html.dark .el-input-group__append button.el-button--primary:hover {
+  background-color: var(--app-primary);
+  border-color: var(--app-primary);
+}
+html.dark .el-input-group__append button.el-button--primary.is-disabled,
+html.dark .el-input-group__append button.el-button--primary.is-disabled:hover {
+  background-color: rgba(59, 130, 246, 0.3);
+  border-color: transparent;
+  color: rgba(255, 255, 255, 0.5);
+}
+
 html.dark .el-pagination {
   --el-pagination-bg-color: transparent;
   --el-pagination-button-bg-color: rgba(20, 32, 48, 0.78);

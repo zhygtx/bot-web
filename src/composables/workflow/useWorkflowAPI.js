@@ -31,16 +31,9 @@ export function useWorkflowAPI() {
             // 生成连线
             generateConnections()
           }
-        } else {
-          if (showError) {
-            ElMessage.error(response.message || '加载工作流信息失败')
-          }
         }
       } catch (error) {
         console.error('Error:', error)
-        if (showError) {
-          ElMessage.error('加载工作流信息失败')
-        }
       } finally {
         // 确保 nodes 是数组
         if (!nodes.value) {
@@ -64,11 +57,9 @@ export function useWorkflowAPI() {
       })
       if (response.code === 200) {
         plugins.value = response.data?.list || response.data?.records || response.data?.content || []
-      } else {
-        ElMessage.error(response.message || '加载插件失败')
       }
     } catch (error) {
-      ElMessage.error('加载插件失败')
+      console.error('加载插件失败:', error)
     }
   }
 
@@ -96,11 +87,9 @@ export function useWorkflowAPI() {
             }
           }
         })
-      } else {
-        ElMessage.error(response.message || '加载公开插件失败')
       }
     } catch (error) {
-      ElMessage.error('加载公开插件失败')
+      console.error('加载公开插件失败:', error)
     }
   }
 
@@ -113,11 +102,9 @@ export function useWorkflowAPI() {
       })
       if (response.code === 200) {
         botEvents.value = response.data || []
-      } else {
-        ElMessage.error(response.message || '加载 BOT 事件失败')
       }
     } catch (error) {
-      ElMessage.error('加载 BOT 事件失败')
+      console.error('加载 BOT 事件失败:', error)
     }
   }
 
@@ -130,11 +117,9 @@ export function useWorkflowAPI() {
       })
       if (response.code === 200) {
         botActions.value = response.data || []
-      } else {
-        ElMessage.error(response.message || '加载 BOT 动作失败')
       }
     } catch (error) {
-      ElMessage.error('加载 BOT 动作失败')
+      console.error('加载 BOT 动作失败:', error)
     }
   }
 
@@ -209,7 +194,6 @@ export function useWorkflowAPI() {
       })
       
       if (response.code === 200) {
-        ElMessage.success(workflowInfo.id ? '更新工作流成功' : '创建工作流成功')
         // 更新浏览器URL，添加工作流ID
         if (response.data && response.data.id) {
           router.replace(`/workflow/edit/${response.data.id}`)
@@ -231,11 +215,10 @@ export function useWorkflowAPI() {
         // 返回保存后的工作流信息
         return response.data
       } else {
-        ElMessage.error(response.message || (workflowInfo.id ? '更新工作流失败' : '创建工作流失败'))
         return null
       }
     } catch (error) {
-      ElMessage.error(workflowInfo.id ? '更新工作流失败' : '创建工作流失败')
+      console.error('保存工作流失败:', error)
       return null
     }
   }
@@ -320,7 +303,6 @@ export function useWorkflowAPI() {
       }
       
       if (saveResponse.code !== 200) {
-        ElMessage.error(saveResponse.message || (wfInfo.id ? '更新工作流失败' : '创建工作流失败'))
         return null
       }
       
@@ -364,15 +346,12 @@ export function useWorkflowAPI() {
       if (testResponse.code === 200) {
         // 返回日志ID，由调用方查询完整日志
         const logId = testResponse.data
-        ElMessage.success('测试工作流成功')
         return logId
       } else {
-        ElMessage.error(testResponse.message || '测试工作流失败')
         return null
       }
     } catch (error) {
       console.error('测试工作流失败:', error)
-      ElMessage.error('测试工作流失败')
       return null
     }
   }

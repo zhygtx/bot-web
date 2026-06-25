@@ -92,9 +92,8 @@ const sendCode = async () => {
       timeout: 30000
     })
     
-    ElMessage.success('验证码发送成功')
   } catch (error) {
-    ElMessage.error(error.message || '验证码发送失败')
+    console.error('验证码发送失败:', error)
   }
 }
 
@@ -125,12 +124,10 @@ const handleRegister = async () => {
       }
     })
     
-    ElMessage.success('注册成功')
-    
     // 跳转到登录页
     router.push('/login')
   } catch (error) {
-    ElMessage.error(error.message || '注册失败')
+    console.error('注册失败:', error)
   } finally {
     // 关闭加载状态
     loading.value = false
@@ -147,8 +144,8 @@ const goToLogin = () => {
   <div class="register-container">
     <div class="register-box">
       <div class="register-header">
-        <h2>QQbot匹配回复规则系统</h2>
-        <p>注册新账号，开始配置你的机器人规则</p>
+        <h2>BotFlow</h2>
+        <p>注册账号，构建你的 Bot 自动化</p>
       </div>
       
       <el-form
@@ -315,5 +312,26 @@ const goToLogin = () => {
 
 .login-link:hover {
   color: #66b1ff;
+}
+</style>
+
+<style>
+/* ───────── 暗色模式 ───────── */
+html.dark .register-container {
+  background: var(--app-bg);
+}
+html.dark .register-box {
+  background: var(--app-card-bg);
+  box-shadow: var(--app-shadow);
+}
+html.dark .register-header h2 {
+  color: var(--app-text);
+}
+html.dark .register-header p,
+html.dark .register-footer {
+  color: var(--app-text-soft);
+}
+html.dark .register-footer .login-link {
+  color: var(--app-primary);
 }
 </style>

@@ -251,12 +251,9 @@ const fetchBigText = async (key, callback) => {
     if (response.code === 200) {
       bigTextDisplayCache.value[key] = response.data
       callback(response.data)
-    } else {
-      ElMessage.error(response.message || '获取大数据失败')
     }
   } catch (error) {
-    console.error('Error:', error)
-    ElMessage.error('获取大数据失败')
+    console.error('获取大数据失败:', error)
   }
 }
 
@@ -726,7 +723,7 @@ const handleSaveWorkflow = async () => {
     // 保存工作流
     await saveWorkflow(workflowInfo.value, nodes.value, validateWorkflowNodes, router, workflowId, clearWorkflowCache, generateConnections, loadWorkflowInfo, connections, botEvents, botActions, processNodeInfo, canvasX, canvasY, zoom)
   } catch (error) {
-    ElMessage.error('保存工作流失败')
+    console.error('保存工作流失败:', error)
   }
 }
 
@@ -794,12 +791,9 @@ const handleSaveAndTest = async () => {
         nodeLogsLoaded: true
       }
       showExecutionBar.value = true
-    } else {
-      ElMessage.error('查询执行日志失败')
     }
   } catch (error) {
     console.error('测试工作流失败:', error)
-    ElMessage.error('测试工作流失败')
   }
 }
 
