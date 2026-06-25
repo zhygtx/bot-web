@@ -2,7 +2,7 @@
 import { ref, reactive, computed, onMounted } from "vue"
 import { useRouter } from "vue-router"
 import { ElMessage, ElMessageBox } from "element-plus"
-import { Edit, Delete, Plus, User, Cpu, Monitor } from "@element-plus/icons-vue"
+import { Edit, Delete, Plus, User, Cpu, Monitor, CopyDocument } from "@element-plus/icons-vue"
 import request from "../../utils/request"
 
 const router = useRouter()
@@ -10,7 +10,7 @@ const router = useRouter()
 const loading = ref(false)
 
 const userInfo = ref({ account: "", name: "", email: "" })
-const botInfo = ref({ id: "", name: "", botQQ: null, isOnline: false })
+const botInfo = ref({ id: "", name: "", botQQ: null, isOnline: false, token: "", pathSuffix: "" })
 const containerInfo = ref({ port: null, token: "" })
 const currentHost = ref("localhost")
 
@@ -67,23 +67,25 @@ const getUserInfo = async () => {
 
 const getBotInfo = async () => {
   try {
-    const response = await request({ url: "/bot/info", method: "get" })
+    const response = await request({ url: "/bot", method: "get" })
     const data = response.data || {}
     botInfo.value = {
       id: data.id || "",
       name: data.name || "",
       botQQ: data.botQQ || null,
-      isOnline: data.online || data.isOnline || false
+      isOnline: data.online || data.isOnline || false,
+      token: data.token || "",
+      pathSuffix: data.pathSuffix || ""
     }
   } catch (e) {
     console.error("获取机器人信息失败:", e)
-    botInfo.value = { id: "", name: "", botQQ: null, isOnline: false }
+    botInfo.value = { id: "", name: "", botQQ: null, isOnline: false, token: "", pathSuffix: "" }
   }
 }
 
 const getContainerInfo = async () => {
   try {
-    const response = await request({ url: "/docker/info", method: "get" })
+    const response = await request({ url: "/docker", method: "get" })
     if (response.data && response.data.port) {
       containerInfo.value = { port: response.data.port, token: response.data.token || "" }
     } else {
@@ -110,14 +112,16 @@ const submitBot = async () => {
   if (!valid) return
 
   try {
-    const url = botInfo.value.id ? "/bot/update" : "/bot/insert"
-    await request({ url, method: "get", params: { name: botInfo.value.name || "", botQQ: botForm.botQQ } })
-    ElMessage.success(botInfo.value.id ? "更新机器人信息成功" : "添加机器人信息成功")
+    if (botInfo.value.id) {
+      await request({ url: "/bot", method: "put", data: { id: botInfo.value.id, name: botInfo.value.name || "", botQQ: botForm.botQQ } })
+    } else {
+      await request({ url: "/bot", method: "post", params: { name: botInfo.value.name || "", botQQ: botForm.botQQ } })
+    }
     botDialogVisible.value = false
     await getBotInfo()
     await getContainerInfo()
   } catch (error) {
-    ElMessage.error(error.message || "操作失败")
+    throw error
   }
 }
 
@@ -130,13 +134,15 @@ const deleteBot = async () => {
     await ElMessageBox.confirm("确定要删除机器人信息吗？", "删除确认", {
       confirmButtonText: "确定", cancelButtonText: "取消", type: "warning"
     })
-    await request({ url: "/bot/delete", method: "get" })
+    await request({ url: "/bot", method: "delete", params: { botQQ: botInfo.value.botQQ } })
     localStorage.removeItem("botQQ")
-    ElMessage.success("删除机器人信息成功")
-    botInfo.value = { id: "", name: "", botQQ: null, isOnline: false }
+    botInfo.value = { id: "", name: "", botQQ: null, isOnline: false, token: "", pathSuffix: "" }
     containerInfo.value = { port: null, token: "" }
   } catch (error) {
-    if (error !== "cancel") ElMessage.error(error.message || "操作失败")
+    if (error !== "cancel") {
+      console.error("删除机器人信息失败:", error)
+      throw error
+    }
   }
 }
 
@@ -153,17 +159,17 @@ const createContainer = async () => {
   try {
     dockerCreateLoading.value = true
     const response = await request({
-      url: "/docker/create", method: "get",
-      params: { napcatToken: dockerForm.napcatToken }
+      url: "/docker", method: "post",
+      params: { napcatToken: dockerForm.napcatToken, botQQ: botInfo.value.botQQ }
     })
     containerInfo.value.port = response.data
     containerInfo.value.token = dockerForm.napcatToken
-    ElMessage.success(`容器创建成功，端口号：${response.data}`)
     dockerDialogVisible.value = false
     dockerForm.napcatToken = ""
     await getContainerInfo()
   } catch (error) {
-    ElMessage.error(error.message || "创建容器失败")
+    console.error("创建容器失败:", error)
+    throw error
   } finally {
     dockerCreateLoading.value = false
   }
@@ -174,19 +180,24 @@ const deleteContainer = async () => {
     await ElMessageBox.confirm("确定要删除该容器吗？", "提示", {
       confirmButtonText: "确定", cancelButtonText: "取消", type: "warning"
     })
-    await request({ url: "/docker/delete", method: "get", timeout: 30000 })
+    await request({ url: "/docker", method: "delete", params: { botQQ: botInfo.value.botQQ }, timeout: 30000 })
     containerInfo.value = { port: null, token: "" }
-    ElMessage.success("删除容器成功")
   } catch (error) {
     if (error !== "cancel") {
-      if (error.code === "ECONNABORTED") {
-        ElMessage.warning("删除请求超时，正在刷新容器信息...")
-      } else {
-        ElMessage.error(error.message || "删除容器失败")
-      }
+      console.error("删除容器失败:", error)
+      throw error
     }
   } finally {
     await getContainerInfo()
+  }
+}
+
+const copyToClipboard = async (text) => {
+  try {
+    await navigator.clipboard.writeText(text)
+    ElMessage.success("已复制到剪贴板")
+  } catch {
+    ElMessage.error("复制失败")
   }
 }
 
@@ -245,6 +256,10 @@ const handleLogout = async () => {
             <div class="card-title">
               <el-icon class="card-icon"><Cpu /></el-icon>
               <span>BOT信息</span>
+              <span v-if="botInfo.id" class="header-status" :class="botInfo.isOnline ? 'online' : 'offline'">
+                <span class="status-dot" :class="botInfo.isOnline ? 'online' : 'offline'"></span>
+                {{ botInfo.isOnline ? '在线' : '离线' }}
+              </span>
             </div>
             <div class="card-actions">
               <el-button
@@ -255,7 +270,16 @@ const handleLogout = async () => {
                 :icon="Plus"
               >添加</el-button>
               <template v-else>
-                <el-button type="primary" size="small" @click="openBotDialog" :icon="Edit">编辑</el-button>
+                <el-tooltip
+                  v-if="hasDocker"
+                  content="请先删除Docker容器后再编辑机器人信息"
+                  placement="top"
+                >
+                  <span class="disabled-delete-wrapper">
+                    <el-button type="primary" size="small" :icon="Edit" disabled>编辑</el-button>
+                  </span>
+                </el-tooltip>
+                <el-button v-else type="primary" size="small" @click="openBotDialog" :icon="Edit">编辑</el-button>
                 <el-tooltip
                   v-if="hasDocker"
                   content="请先删除Docker容器后再删除机器人信息"
@@ -275,13 +299,33 @@ const handleLogout = async () => {
             <span class="info-label">BOTQQ</span>
             <span class="info-value">{{ botInfo.botQQ || "-" }}</span>
           </div>
-          <div class="info-row">
-            <span class="info-label">状态</span>
-            <span class="info-value">
-              <el-tag :type="botInfo.isOnline ? 'success' : 'danger'" size="small">
-                {{ botInfo.isOnline ? '在线' : '离线' }}
-              </el-tag>
-            </span>
+          <div class="info-row info-row-credentials">
+            <div class="info-credentials">
+              <div class="credential-item">
+                <span class="credential-label">URL</span>
+                <span class="credential-value" :title="botInfo.pathSuffix">{{ botInfo.pathSuffix || "-" }}</span>
+                <el-button
+                  v-if="botInfo.pathSuffix"
+                  :icon="CopyDocument"
+                  size="small"
+                  text
+                  class="copy-btn"
+                  @click="copyToClipboard(botInfo.pathSuffix)"
+                />
+              </div>
+              <div class="credential-item">
+                <span class="credential-label">Token</span>
+                <span class="credential-value" :title="botInfo.token">{{ botInfo.token || "-" }}</span>
+                <el-button
+                  v-if="botInfo.token"
+                  :icon="CopyDocument"
+                  size="small"
+                  text
+                  class="copy-btn"
+                  @click="copyToClipboard(botInfo.token)"
+                />
+              </div>
+            </div>
           </div>
         </div>
         <el-empty v-else description="暂无机器人信息" :image-size="60" />
@@ -397,6 +441,36 @@ const handleLogout = async () => {
   color: #409eff;
 }
 
+/* ─── 卡片头部状态标签 ─── */
+.header-status {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 500;
+  margin-left: 10px;
+  padding: 2px 10px;
+  border-radius: 12px;
+  gap: 4px;
+}
+
+.header-status.online {
+  color: #16a34a;
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.header-status.offline {
+  color: #94a3b8;
+  background: rgba(148, 163, 184, 0.1);
+}
+
+html.dark .header-status.online {
+  color: #4ade80;
+}
+html.dark .header-status.offline {
+  color: #64748b;
+  background: rgba(100, 116, 139, 0.15);
+}
+
 .card-actions {
   display: flex;
   gap: 8px;
@@ -467,6 +541,91 @@ const handleLogout = async () => {
   font-size: 12px;
 }
 
+/* ─── 连接信息凭证 ─── */
+.info-row-credentials {
+  padding: 12px 0;
+}
+
+.info-credentials {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-left: 0;
+}
+
+.credential-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-radius: 6px;
+  border: 1px solid #e8ecf1;
+}
+
+.credential-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #8c939d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+  min-width: 40px;
+  line-height: 20px;
+}
+
+.credential-value {
+  font-family: "Monaco", "Menlo", "Consolas", monospace;
+  font-size: 12px;
+  color: #303133;
+  flex: 1;
+  min-width: 0;
+  word-break: break-all;
+  line-height: 1.5;
+}
+
+.copy-btn {
+  flex-shrink: 0;
+  color: #909399;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.copy-btn:hover {
+  color: #409eff;
+  background: rgba(64, 158, 255, 0.08);
+}
+
+/* ─── 状态指示点 ─── */
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+
+.status-dot.online {
+  background: #22c55e;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
+  animation: status-pulse 2s ease-in-out infinite;
+}
+
+.status-dot.offline {
+  background: #cbd5e1;
+}
+
+html.dark .status-dot.offline {
+  background: #4a5568;
+}
+
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 @media (max-width: 1200px) {
   .settings-cards {
     grid-template-columns: repeat(2, 1fr);
@@ -506,5 +665,26 @@ const handleLogout = async () => {
     font-size: 12px;
     padding: 5px 10px;
   }
+}
+</style>
+
+<style>
+/* ───────── 暗色模式：连接信息凭证 ───────── */
+html.dark .credential-item {
+  background: rgba(20, 32, 48, 0.7);
+  border-color: var(--app-border);
+}
+html.dark .credential-label {
+  color: var(--app-text-muted);
+}
+html.dark .credential-value {
+  color: var(--app-text);
+}
+html.dark .copy-btn {
+  color: var(--app-text-muted);
+}
+html.dark .copy-btn:hover {
+  color: var(--app-primary);
+  background: rgba(96, 165, 250, 0.12);
 }
 </style>

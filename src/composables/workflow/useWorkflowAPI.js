@@ -360,7 +360,7 @@ export function useWorkflowAPI() {
   const syncBotInfo = async (hasBotQQ, botEvents, botActions, loadBotEvents, loadBotActions, isBotOnline) => {
     try {
       const response = await request({
-        url: '/bot/info',
+        url: '/bot',
         method: 'get'
       })
       if (response.code === 200 && response.data && response.data.botQQ) {

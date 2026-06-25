@@ -10,6 +10,7 @@ const router = useRouter()
 const isMobile = ref(false)
 const loading = ref(false)
 const createLoading = ref(false)
+const currentBotQQ = ref(null)
 
 const containerInfo = ref({
   containerId: '',
@@ -65,10 +66,11 @@ const createContainer = async () => {
     createLoading.value = true
     
     const response = await request({
-      url: '/docker/create',
-      method: 'get',
+      url: '/docker',
+      method: 'post',
       params: {
-        napcatToken: dockerForm.napcatToken
+        napcatToken: dockerForm.napcatToken,
+        botQQ: currentBotQQ.value
       }
     })
     
@@ -99,8 +101,9 @@ const deleteContainer = async () => {
     loading.value = true
     
     await request({
-      url: '/docker/delete',
-      method: 'get',
+      url: '/docker',
+      method: 'delete',
+      params: { botQQ: currentBotQQ.value },
       timeout: 30000
     })
     
@@ -131,7 +134,7 @@ const deleteContainer = async () => {
 const openCreateDialog = async () => {
   try {
     const response = await request({
-      url: '/bot/info',
+      url: '/bot',
       method: 'get'
     })
     
@@ -141,6 +144,7 @@ const openCreateDialog = async () => {
       return
     }
     
+    currentBotQQ.value = response.data.botQQ
     dialogVisible.value = true
   } catch (error) {
     ElMessage.warning('请先注册机器人')
@@ -153,7 +157,7 @@ const getContainerInfo = async () => {
     loading.value = true
     
     const response = await request({
-      url: '/docker/info',
+      url: '/docker',
       method: 'get'
     })
     

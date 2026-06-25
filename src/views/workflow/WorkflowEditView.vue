@@ -755,7 +755,7 @@ const handleSaveAndTest = async () => {
   let isBotOnline = true
   try {
     const botStatusResponse = await request({
-      url: '/bot/info',
+      url: '/bot',
       method: 'get'
     })
     isBotOnline = botStatusResponse.code === 200 && botStatusResponse.data?.online === true
