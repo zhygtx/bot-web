@@ -18,6 +18,11 @@ module.exports = {
     apiProxy: {
       enabled: true,       // 是否启用 API 反向代理
       target: 'http://localhost:8080'  // 后端地址
+    },
+    wsProxy: {
+      enabled: true,       // 是否启用 WebSocket 反向代理（NapCat 客户端连接）
+      path: '/ws/',        // WebSocket 路径前缀（对应后端 napcat.ws.server.url 的 /ws/bot）
+      readTimeout: '86400s' // WebSocket 长连接读超时（24小时），防止 nginx 断开连接
     }
   }
 };

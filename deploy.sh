@@ -23,11 +23,21 @@ if [ -f "$CONFIG_FILE" ]; then
     [ "$NGINX_CACHE" = "true" ] && NGINX_CACHE_ENABLED=true || NGINX_CACHE_ENABLED=false
 
     # 提取 API 反向代理配置
-    API_PROXY_ENABLED=$(grep -o '"enabled":[[:space:]]*[a-z]*' "$CONFIG_FILE" | tail -1 | cut -d':' -f2 | tr -d ' ')
+    API_PROXY_ENABLED=$(grep -A5 'apiProxy' "$CONFIG_FILE" | grep -o '"enabled":[[:space:]]*[a-z]*' | head -1 | cut -d':' -f2 | tr -d ' ')
     [ "$API_PROXY_ENABLED" = "true" ] && API_PROXY_ENABLED=true || API_PROXY_ENABLED=false
 
-    API_PROXY_TARGET=$(grep -o '"target":[[:space:]]*"[^"]*"' "$CONFIG_FILE" | cut -d'"' -f4)
+    API_PROXY_TARGET=$(grep -A5 'apiProxy' "$CONFIG_FILE" | grep -o '"target":[[:space:]]*"[^"]*"' | cut -d'"' -f4)
     [ -z "$API_PROXY_TARGET" ] && API_PROXY_TARGET="http://localhost:8080"
+
+    # 提取 WebSocket 反向代理配置（NapCat 客户端连接）
+    WS_PROXY_ENABLED=$(grep -A6 'wsProxy' "$CONFIG_FILE" | grep -o '"enabled":[[:space:]]*[a-z]*' | head -1 | cut -d':' -f2 | tr -d ' ')
+    [ "$WS_PROXY_ENABLED" = "true" ] && WS_PROXY_ENABLED=true || WS_PROXY_ENABLED=false
+
+    WS_PROXY_PATH=$(grep -A6 'wsProxy' "$CONFIG_FILE" | grep -o '"path":[[:space:]]*"[^"]*"' | cut -d'"' -f4)
+    [ -z "$WS_PROXY_PATH" ] && WS_PROXY_PATH="/ws/"
+
+    WS_READ_TIMEOUT=$(grep -A6 'wsProxy' "$CONFIG_FILE" | grep -o '"readTimeout":[[:space:]]*"[^"]*"' | cut -d'"' -f4)
+    [ -z "$WS_READ_TIMEOUT" ] && WS_READ_TIMEOUT="86400s"
 else
     PORT=80
     DIST_DIR="dist"
@@ -37,6 +47,9 @@ else
     NGINX_CACHE_ENABLED=true
     API_PROXY_ENABLED=true
     API_PROXY_TARGET="http://localhost:8080"
+    WS_PROXY_ENABLED=true
+    WS_PROXY_PATH="/ws/"
+    WS_READ_TIMEOUT="86400s"
 fi
 
 NGINX_CONF_NAME="frontend-app"
@@ -194,6 +207,23 @@ generate_nginx_config() {
     }"
     fi
 
+    local ws_location=""
+    if [ "$WS_PROXY_ENABLED" = true ]; then
+        ws_location="# WebSocket 反向代理（NapCat 客户端连接）
+    location $WS_PROXY_PATH {
+        proxy_pass $API_PROXY_TARGET;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \"upgrade\";
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_read_timeout $WS_READ_TIMEOUT;
+        proxy_send_timeout $WS_READ_TIMEOUT;
+    }"
+    fi
+
     cat > /tmp/frontend-app.conf << EOF
 server {
     listen $PORT;
@@ -227,6 +257,7 @@ $cache_config
         proxy_set_header X-Forwarded-Proto \$scheme;
     }
 
+$ws_location
     location ~ /\. {
         deny all;
     }

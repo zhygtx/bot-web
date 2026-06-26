@@ -375,10 +375,10 @@ export function useWorkflowAPI() {
           isBotOnline.value = response.data.online === true
         }
         if (loadBotEvents) {
-          loadBotEvents(botEvents)
+          await loadBotEvents(botEvents)
         }
         if (loadBotActions) {
-          loadBotActions(botActions)
+          await loadBotActions(botActions)
         }
       } else {
         localStorage.removeItem('botQQ')
