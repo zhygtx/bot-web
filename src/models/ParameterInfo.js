@@ -38,6 +38,14 @@ export class ParameterInfo {
    */
   type = '';
 
+  /**
+   * 参数是否允许为 null。
+   * 默认不允许，从后端 @ActionParam(nullable=...) 读取。
+   * false: 必填参数，必须配置数据映射或默认值
+   * true:  可选参数，允许不填
+   */
+  nullable = false;
+
   constructor(data = {}) {
     Object.assign(this, data);
   }

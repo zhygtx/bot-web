@@ -22,6 +22,24 @@ const basicTypes = [
 ]
 const collectionTypes = ['List', 'Set', 'Collection', 'Map', 'ArrayList', 'HashSet', 'HashMap', 'LinkedList']
 const getBaseType = (type) => { if (!type) return ''; const m = type.match(/^(\w+)</); return m ? m[1] : type }
+
+// 将参数类型归一化为后端 NodeDefaults.DefaultValueType 枚举值
+// 后端枚举只支持: String, Integer, Double, Boolean, Long
+const normalizeDefaultValueType = (type) => {
+  if (!type) return 'String'
+  const t = type.toLowerCase()
+  switch (t) {
+    case 'string': case 'character': case 'char': return 'String'
+    case 'int': case 'integer': case 'byte': case 'short': case 'bigint': case 'biginteger': return 'Integer'
+    case 'long': return 'Long'
+    case 'float': case 'double': case 'bigdecimal': return 'Double'
+    case 'boolean': case 'bool': return 'Boolean'
+    // 日期时间类默认当做 String
+    case 'date': case 'localdate': case 'localdatetime': case 'timestamp': return 'String'
+    default: return 'String'
+  }
+}
+
 const isBasicType = (type) => {
   if (!type) return false
   const bts = ['String', 'Integer', 'Long', 'Double', 'Float', 'Boolean', 'Byte', 'Short', 'Character', 'int', 'long', 'double', 'float', 'boolean', 'byte', 'short', 'char', 'BigInteger', 'BigDecimal', 'Date', 'LocalDate', 'LocalDateTime', 'Timestamp']
@@ -323,6 +341,8 @@ const initParamConfigs = () => {
         paramName: param.name,
         paramIndex: index,
         paramType: param.type,
+        paramDescription: param.description || '',
+        nullable: param.nullable !== undefined ? param.nullable : false,
         refType: 'input',  // 默认输入
         inputValue: '',
         referencePath: []
@@ -344,6 +364,8 @@ const restoreParamConfigsFromData = () => {
         paramName: param.name,
         paramIndex: index,
         paramType: param.type,
+        paramDescription: param.description || '',
+        nullable: param.nullable !== undefined ? param.nullable : false,
         refType: 'input',
         inputValue: '',
         referencePath: []
@@ -411,6 +433,8 @@ const areAllParamsFilled = computed(() => {
   if (!paramConfigs.value.length) return true
   return paramConfigs.value.every(config => {
     if (config.paramName === 'botQQ') return true
+    // 可空参数允许不填
+    if (config.nullable) return true
     if (config.refType === 'input') {
       return config.inputValue !== undefined && config.inputValue !== ''
     }
@@ -466,7 +490,7 @@ const saveConfig = async () => {
         paramName: config.paramName,
         fieldPath: config.paramName,
         defaultValue: config.inputValue || localStorage.getItem('botQQ') || '',
-        defaultValueType: config.paramType
+        defaultValueType: normalizeDefaultValueType(config.paramType)
       })
       continue
     }
@@ -502,7 +526,7 @@ const saveConfig = async () => {
           paramName: config.paramName,
           fieldPath: config.paramName,
           defaultValue: config.inputValue,
-          defaultValueType: config.paramType
+          defaultValueType: normalizeDefaultValueType(config.paramType)
         })
       }
     }
@@ -582,11 +606,17 @@ watch(() => props.visible, (newVal) => {
             <div class="param-rows">
               <div v-for="(config, idx) in paramConfigs" :key="idx" class="param-row">
                 <div class="param-name-col">
-                  <span class="param-name">{{ config.paramName }}</span>
-                  <span class="param-type">{{ config.paramType }}</span>
+                  <div class="param-name-row">
+                    <span class="param-name">
+                      <span v-if="!config.nullable" class="param-required">*</span>
+                      {{ config.paramName }}
+                    </span>
+                    <span class="param-type">{{ config.paramType }}</span>
+                  </div>
+                  <span v-if="config.paramDescription" class="param-desc">{{ config.paramDescription }}</span>
                 </div>
                 <div class="param-ref-col">
-                  <el-select v-model="config.refType" placeholder="选择方式" size="small" style="width: 100px;">
+                  <el-select v-model="config.refType" placeholder="选择方式" size="small" style="width: 100px;" :disabled="config.paramName === 'botQQ'">
                     <el-option label="引用" value="reference" />
                     <el-option label="输入" value="input" />
                   </el-select>
@@ -794,15 +824,36 @@ watch(() => props.visible, (newVal) => {
   gap: 2px;
 }
 
+.param-name-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .param-name {
   font-size: 13px;
   font-weight: 600;
   color: #303133;
 }
 
+.param-required {
+  color: #f56c6c;
+  font-weight: bold;
+  margin-right: 2px;
+}
+
 .param-type {
   font-size: 11px;
   color: #909399;
+}
+
+.param-desc {
+  display: block;
+  font-size: 11px;
+  color: #909399;
+  margin-top: 2px;
+  line-height: 1.3;
+  word-break: break-all;
 }
 
 .param-ref-col {

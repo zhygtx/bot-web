@@ -229,6 +229,11 @@ export function useDataMapping() {
           if (paramName === 'botQQ') {
             continue
           }
+          // 查找该参数是否为可空参数（nullable=true），可空参数跳过必填校验
+          const paramDef = node.method.parameters.find(p => p.name === paramName)
+          if (paramDef && paramDef.nullable) {
+            continue
+          }
           if (!mappedParams.has(paramName)) {
             return {
               valid: false,
