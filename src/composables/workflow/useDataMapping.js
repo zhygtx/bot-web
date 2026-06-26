@@ -34,16 +34,21 @@ export function useDataMapping() {
       // 从 botActions 中匹配动作信息
       const matchedAction = botActions.find(action => action.actionName === node.botActionName)
       if (matchedAction) {
+        const returnInfo = matchedAction.returnInfo || {}
         node.method = {
           name: matchedAction.actionDisplayName,
           description: matchedAction.description,
-          returnType: 'void',
+          returnType: returnInfo.type || 'void',
+          returnFields: returnInfo.fields || [],
+          returnDescription: returnInfo.description || '',
           parameters: matchedAction.parameters || []
         }
         node.methodInfo = {
           name: matchedAction.actionDisplayName,
           description: matchedAction.description,
-          returnType: 'void',
+          returnType: returnInfo.type || 'void',
+          returnFields: returnInfo.fields || [],
+          returnDescription: returnInfo.description || '',
           parameters: matchedAction.parameters || []
         }
         // 对方法参数按照 order 字段排序

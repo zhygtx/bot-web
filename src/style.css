@@ -245,10 +245,13 @@ html.dark .info-value,
 html.dark .detail-section h4,
 html.dark .node-name,
 html.dark .method-class-name,
-html.dark .method-signature,
 html.dark .plugin-list-header h3,
 html.dark .history-log-header h3 {
   color: var(--app-text);
+}
+
+html.dark .method-signature {
+  color: var(--app-text-soft);
 }
 
 html.dark .plugin-card-description,
@@ -265,7 +268,6 @@ html.dark .method-item-description {
 }
 
 html.dark .workflow-stats .stat-item,
-html.dark .method-class-card,
 html.dark .plugin-card-methods,
 html.dark .test-result-content,
 html.dark .scheduled-event-config,
@@ -380,12 +382,68 @@ html.dark .plugin-list-float.plugin-list-collapsed .plugin-list-header {
   background: rgba(13, 23, 36, 0.96);
 }
 
-html.dark .method-class-header,
 html.dark .plugin-filter,
-html.dark .bot-section,
 html.dark .plugin-section {
   background: var(--app-panel-muted);
   border-color: var(--app-border);
+}
+
+html.dark .bot-section {
+  background: var(--app-panel-muted);
+  border-color: var(--app-border);
+}
+
+/* ───── BOT 事件/动作 区块 ───── */
+html.dark .bot-section-header {
+  border-color: var(--app-border);
+}
+html.dark .bot-section-title {
+  color: var(--app-text);
+}
+html.dark .bot-section-subtitle {
+  color: var(--app-text-muted);
+}
+
+/* ───── 分类树形 ───── */
+html.dark .category-name {
+  color: var(--app-text-soft);
+}
+html.dark .category-count {
+  color: var(--app-text-muted);
+}
+html.dark .category-toggle-icon {
+  color: var(--app-text-muted);
+}
+html.dark .category-header:hover {
+  background: rgba(96, 165, 250, 0.1);
+}
+
+/* ───── 方法类分组 ───── */
+html.dark .method-class-group {
+  border-left-color: rgba(96, 165, 250, 0.4);
+}
+
+/* ───── 方法项悬停 ───── */
+html.dark .category-items .method-item:hover {
+  background: rgba(96, 165, 250, 0.08);
+}
+
+/* ───── 展开/折叠按钮 ───── */
+html.dark .plugin-card-toggle {
+  color: var(--app-text-muted);
+}
+html.dark .plugin-card-toggle:hover {
+  color: var(--app-primary);
+}
+
+/* ───── 空状态 / 加载 ───── */
+html.dark .no-methods,
+html.dark .no-more {
+  color: var(--app-text-muted);
+}
+html.dark .loading-state,
+html.dark .loading-more {
+  color: var(--app-text-soft);
 }
 
 html.dark .modal-json-viewer,
@@ -397,7 +455,6 @@ html.dark .json-viewer {
 html.dark .plugin-detail,
 html.dark .detail-card,
 html.dark .entity-card-item,
-html.dark .method-class-card,
 html.dark .method-card-item {
   color: var(--app-text);
 }

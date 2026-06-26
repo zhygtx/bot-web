@@ -263,6 +263,8 @@ export function useEventHandling() {
         // 获取用户注册的机器人QQ号
         const botQQ = localStorage.getItem('botQQ')
         
+        const returnInfo = action.returnInfo || {}
+        
         // 创建 BOT 动作节点
         newNode = {
           id: Date.now().toString(),
@@ -288,13 +290,17 @@ export function useEventHandling() {
           methodInfo: {
             name: action.actionDisplayName,
             description: action.description,
-            returnType: 'void',
+            returnType: returnInfo.type || 'void',
+            returnFields: returnInfo.fields || [],
+            returnDescription: returnInfo.description || '',
             parameters: action.parameters || []
           },
           method: {
             name: action.actionDisplayName,
             description: action.description,
-            returnType: 'void',
+            returnType: returnInfo.type || 'void',
+            returnFields: returnInfo.fields || [],
+            returnDescription: returnInfo.description || '',
             parameters: action.parameters || []
           }
         }

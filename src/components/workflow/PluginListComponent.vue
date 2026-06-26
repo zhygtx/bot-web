@@ -119,19 +119,21 @@
                       <div v-loading="detailLoading">
                         <template v-if="getPluginDetail(plugin.id)">
                           <div v-if="getPluginDetail(plugin.id).pluginVersionList?.[0]?.methodClassInfoList?.length">
-                            <div v-for="methodClass in getPluginDetail(plugin.id).pluginVersionList[0].methodClassInfoList" :key="methodClass.id" class="method-class-card">
-                              <div class="method-class-header">
+                            <div v-for="methodClass in getPluginDetail(plugin.id).pluginVersionList[0].methodClassInfoList" :key="methodClass.id" class="method-class-group">
+                              <div class="method-class-label">
                                 <h5 class="method-class-name">{{ methodClass.simpleClassName }}</h5>
                                 <p class="method-class-description">{{ methodClass.description || '无描述' }}</p>
                               </div>
                               <div class="methods-list">
-                                <div v-for="method in methodClass.methods" :key="method.id" class="method-item">
-                                  <span 
-                                    class="method-signature"
-                                    draggable="true"
-                                    @dragstart="startDrag($event, method, methodClass, plugin, getPluginDetail(plugin.id).pluginVersionList[0])"
-                                    @dragend="endDrag"
-                                  >
+                                <div 
+                                  v-for="method in methodClass.methods" 
+                                  :key="method.id" 
+                                  class="method-item"
+                                  draggable="true"
+                                  @dragstart="startDrag($event, method, methodClass, plugin, getPluginDetail(plugin.id).pluginVersionList[0])"
+                                  @dragend="endDrag"
+                                >
+                                  <span class="method-signature">
                                     {{ method.returnType }} {{ method.name }}(
                                       <template v-if="method.parameters && method.parameters.length > 0">
                                         <span v-for="(param, index) in sortParameters(method.parameters)" :key="param.id">
@@ -169,82 +171,90 @@
           <el-scrollbar v-if="activeTab === 'bot'" class="scroll-container bot-content">
             <div class="plugin-list">
               <!-- BOT 事件 -->
-              <el-card class="plugin-item-card">
-                <div class="plugin-card-content">
-                  <div class="plugin-card-header">
-                    <h3 class="plugin-name">BOT 事件</h3>
-                  </div>
-                  <div class="plugin-card-description">触发工作流的 BOT 事件（按分类展示）</div>
-                  <div class="plugin-card-methods">
-                    <!-- 分类树形结构 -->
-                    <div v-for="group in groupedBotEvents" :key="'event-cat-' + group.category" class="category-group">
-                      <div class="category-header" @click="toggleCategory('event', group.category)">
-                        <el-icon class="category-toggle-icon">
-                          <ArrowDown v-if="isCategoryExpanded('event', group.category)" />
-                          <ArrowRight v-else />
-                        </el-icon>
-                        <span class="category-name">{{ group.category }}</span>
-                        <span class="category-count">({{ group.items.length }})</span>
-                      </div>
-                      <div v-show="isCategoryExpanded('event', group.category)" class="category-items">
-                        <div v-for="event in group.items" :key="event.eventType" class="method-item">
-                          <span 
-                            class="method-signature"
-                            draggable="true"
-                            @dragstart="startDragBotEvent($event, event)"
-                            @dragend="endDrag"
-                          >{{ event.eventName }}</span>
-                          <p v-if="event.description" class="method-item-description">{{ event.description }}</p>
-                        </div>
+              <div class="bot-section">
+                <div class="bot-section-header" @click="toggleSection('botEvents')">
+                  <el-icon class="category-toggle-icon">
+                    <ArrowDown v-if="isSectionExpanded('botEvents')" />
+                    <ArrowRight v-else />
+                  </el-icon>
+                  <h3 class="bot-section-title">BOT 事件</h3>
+                  <span class="bot-section-subtitle">触发工作流的 BOT 事件（按分类展示）</span>
+                </div>
+                <div v-show="isSectionExpanded('botEvents')" class="bot-section-body">
+                  <!-- 分类树形结构 -->
+                  <div v-for="group in groupedBotEvents" :key="'event-cat-' + group.category" class="category-group">
+                    <div class="category-header" @click="toggleCategory('event', group.category)">
+                      <el-icon class="category-toggle-icon">
+                        <ArrowDown v-if="isCategoryExpanded('event', group.category)" />
+                        <ArrowRight v-else />
+                      </el-icon>
+                      <span class="category-name">{{ group.category }}</span>
+                      <span class="category-count">({{ group.items.length }})</span>
+                    </div>
+                    <div v-show="isCategoryExpanded('event', group.category)" class="category-items">
+                      <div 
+                        v-for="event in group.items" 
+                        :key="event.eventType" 
+                        class="method-item"
+                        draggable="true"
+                        @dragstart="startDragBotEvent($event, event)"
+                        @dragend="endDrag"
+                      >
+                        <span class="method-signature">{{ event.eventName }}</span>
+                        <p v-if="event.description" class="method-item-description">{{ event.description }}</p>
                       </div>
                     </div>
-                    <div v-if="groupedBotEvents.length === 0" class="no-methods">无匹配事件</div>
                   </div>
+                  <div v-if="groupedBotEvents.length === 0" class="no-methods">无匹配事件</div>
                 </div>
-              </el-card>
+              </div>
 
               <!-- BOT 动作 -->
-              <el-card class="plugin-item-card" style="margin-top: 16px">
-                <div class="plugin-card-content">
-                  <div class="plugin-card-header">
-                    <h3 class="plugin-name">BOT 动作</h3>
-                  </div>
-                  <div class="plugin-card-description">BOT 执行的动作（按分类展示）</div>
-                  <div class="plugin-card-methods">
-                    <!-- 分类树形结构 -->
-                    <div v-for="group in groupedBotActions" :key="'action-cat-' + group.category" class="category-group">
-                      <div class="category-header" @click="toggleCategory('action', group.category)">
-                        <el-icon class="category-toggle-icon">
-                          <ArrowDown v-if="isCategoryExpanded('action', group.category)" />
-                          <ArrowRight v-else />
-                        </el-icon>
-                        <span class="category-name">{{ group.category }}</span>
-                        <span class="category-count">({{ group.items.length }})</span>
-                      </div>
-                      <div v-show="isCategoryExpanded('action', group.category)" class="category-items">
-                        <div v-for="action in group.items" :key="action.actionName" class="method-item">
-                          <span 
-                            class="method-signature"
-                            draggable="true"
-                            @dragstart="startDragBotAction($event, action)"
-                            @dragend="endDrag"
-                          >
-                            {{ action.actionDisplayName }}(
-                              <template v-if="action.parameters && action.parameters.length > 0">
-                                <span v-for="(param, index) in sortParameters(action.parameters)" :key="param.id">
-                                  {{ param.type }} {{ param.name }}{{ index < action.parameters.length - 1 ? ', ' : '' }}
-                                </span>
-                              </template>
-                            )
-                          </span>
-                          <p v-if="action.description" class="method-item-description">{{ action.description }}</p>
-                        </div>
+              <div class="bot-section">
+                <div class="bot-section-header" @click="toggleSection('botActions')">
+                  <el-icon class="category-toggle-icon">
+                    <ArrowDown v-if="isSectionExpanded('botActions')" />
+                    <ArrowRight v-else />
+                  </el-icon>
+                  <h3 class="bot-section-title">BOT 动作</h3>
+                  <span class="bot-section-subtitle">BOT 执行的动作（按分类展示）</span>
+                </div>
+                <div v-show="isSectionExpanded('botActions')" class="bot-section-body">
+                  <!-- 分类树形结构 -->
+                  <div v-for="group in groupedBotActions" :key="'action-cat-' + group.category" class="category-group">
+                    <div class="category-header" @click="toggleCategory('action', group.category)">
+                      <el-icon class="category-toggle-icon">
+                        <ArrowDown v-if="isCategoryExpanded('action', group.category)" />
+                        <ArrowRight v-else />
+                      </el-icon>
+                      <span class="category-name">{{ group.category }}</span>
+                      <span class="category-count">({{ group.items.length }})</span>
+                    </div>
+                    <div v-show="isCategoryExpanded('action', group.category)" class="category-items">
+                      <div 
+                        v-for="action in group.items" 
+                        :key="action.actionName" 
+                        class="method-item"
+                        draggable="true"
+                        @dragstart="startDragBotAction($event, action)"
+                        @dragend="endDrag"
+                      >
+                        <span class="method-signature">
+                          {{ action.actionDisplayName }}(
+                            <template v-if="action.parameters && action.parameters.length > 0">
+                              <span v-for="(param, index) in sortParameters(action.parameters)" :key="param.id">
+                                {{ param.type }} {{ param.name }}{{ index < action.parameters.length - 1 ? ', ' : '' }}
+                              </span>
+                            </template>
+                          )
+                        </span>
+                        <p v-if="action.description" class="method-item-description">{{ action.description }}</p>
                       </div>
                     </div>
-                    <div v-if="groupedBotActions.length === 0" class="no-methods">无匹配动作</div>
                   </div>
+                  <div v-if="groupedBotActions.length === 0" class="no-methods">无匹配动作</div>
                 </div>
-              </el-card>
+              </div>
             </div>
           </el-scrollbar>
         </div>
@@ -357,6 +367,21 @@ const groupedBotActions = computed(() => {
 /** 分类展开/折叠状态（记忆状态，key 为 "event:分类名" 或 "action:分类名"） */
 const expandedCategories = ref({})
 
+/** BOT 区块折叠状态（BOT 事件 / BOT 动作两大块） */
+const sectionExpanded = ref({
+  botEvents: false,
+  botActions: false
+})
+
+const toggleSection = (key) => {
+  sectionExpanded.value[key] = !sectionExpanded.value[key]
+}
+
+const isSectionExpanded = (key) => {
+  if (isSearching.value) return true
+  return sectionExpanded.value[key] === true
+}
+
 /**
  * 切换分类的展开/折叠状态
  * @param {'event'|'action'} type 类型
@@ -364,18 +389,18 @@ const expandedCategories = ref({})
  */
 const toggleCategory = (type, cat) => {
   const key = `${type}:${cat}`
-  expandedCategories.value[key] = expandedCategories.value[key] === false
+  expandedCategories.value[key] = !expandedCategories.value[key]
 }
 
 /**
  * 判断分类是否应展开
  * - 搜索时自动展开所有有内容的分类
- * - 非搜索时使用用户的记忆状态，默认展开
+ * - 非搜索时使用用户的记忆状态，默认折叠
  */
 const isCategoryExpanded = (type, cat) => {
   if (isSearching.value) return true
   const key = `${type}:${cat}`
-  return expandedCategories.value[key] !== false
+  return expandedCategories.value[key] === true
 }
 
 // ───────── 数据加载 ─────────
@@ -615,6 +640,7 @@ loadPluginList(true)
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  user-select: none;
 }
 
 /* ───── 左侧图标导航 ───── */
@@ -810,18 +836,14 @@ loadPluginList(true)
   color: #303133;
 }
 
-.method-class-card {
-  border: 1px solid #ebeef5;
-  border-radius: 6px;
-  margin-bottom: 10px;
-  overflow: hidden;
-  border-left: 3px solid #409eff;
+.method-class-group {
+  margin-bottom: 8px;
+  border-left: 2px solid #409eff;
+  padding-left: 10px;
 }
 
-.method-class-header {
-  padding: 8px 10px;
-  background: #fafafa;
-  border-bottom: 1px solid #ebeef5;
+.method-class-label {
+  padding: 4px 0;
 }
 
 .method-class-name {
@@ -844,10 +866,15 @@ loadPluginList(true)
 .method-item {
   padding: 8px 0;
   border-bottom: 1px solid #f5f5f5;
+  cursor: grab;
 }
 
 .method-item:last-child {
   border-bottom: none;
+}
+
+.method-item:active {
+  cursor: grabbing;
 }
 
 .method-signature {
@@ -855,12 +882,10 @@ loadPluginList(true)
   color: #303133;
   font-size: 12px;
   font-family: 'Courier New', monospace;
-  cursor: grab;
   line-height: 1.4;
 }
 
 .method-signature:active {
-  cursor: grabbing;
 }
 
 .method-item-description {
@@ -916,6 +941,41 @@ loadPluginList(true)
   padding-top: 10px;
 }
 
+/* ───── BOT 事件/动作 扁平块 ───── */
+.bot-section {
+  margin-bottom: 12px;
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
+  background: #fafafa;
+  padding: 0 0 8px;
+}
+
+.bot-section-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 12px 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.bot-section-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.bot-section-subtitle {
+  font-size: 11px;
+  color: #909399;
+}
+
+.bot-section-body {
+  padding: 6px 12px 0;
+  border-top: 1px solid #ebeef5;
+}
+
 /* ───── 分类树形结构 ───── */
 .category-group {
   margin-bottom: 2px;
@@ -955,14 +1015,18 @@ loadPluginList(true)
 }
 
 .category-items {
-  padding: 2px 0 6px 22px;
-  border-left: 2px solid #ebeef5;
+  padding: 2px 0 6px 18px;
   margin-left: 6px;
 }
 
 .category-items .method-item {
   padding: 6px 0 6px 8px;
   border-bottom: none;
+  cursor: grab;
+}
+
+.category-items .method-item:active {
+  cursor: grabbing;
 }
 
 .category-items .method-item:hover {
@@ -971,11 +1035,11 @@ loadPluginList(true)
 }
 
 .category-items .method-signature {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .category-items .method-item-description {
-  font-size: 10px;
+  font-size: 11px;
   padding-left: 6px;
 }
 </style>

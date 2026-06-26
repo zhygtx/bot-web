@@ -171,6 +171,21 @@ const ancestorCascaderOptions = computed(() => {
         description: field.description || '',
         path: `value.${field.fieldName}`
       }))
+    } else if (node.method?.returnFields && node.method.returnFields.length > 0) {
+      // BotAction 返回值字段：从 returnInfo.fields 展开
+      option.children = node.method.returnFields.map(field => ({
+        value: `attr_${node.id}_${field.name}`,
+        label: field.description ? `${field.name}(${field.description})` : field.name,
+        returnName: field.name,
+        returnDescription: field.description || '',
+        nodeId: node.id,
+        nodeName: node.method.name,
+        nodeDescription: nodeDescription,
+        attrName: field.name,
+        typeName: field.type,
+        description: field.description || '',
+        path: field.fieldPath || `value.${field.name}`
+      }))
     } else if (node.pluginInfo?.pluginVersionList) {
       let foundEntity = false
       for (const version of node.pluginInfo.pluginVersionList) {
