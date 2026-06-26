@@ -185,6 +185,12 @@
   flex: 1;
   overflow-y: auto;
   padding: 15px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+:deep(.el-tabs__content::-webkit-scrollbar) {
+  display: none;
 }
 
 .plugin-list {
@@ -524,6 +530,12 @@ html.dark .canvas {
 .test-result-container {
   max-height: 400px;
   overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.test-result-container::-webkit-scrollbar {
+  display: none;
 }
 
 .test-result-content {

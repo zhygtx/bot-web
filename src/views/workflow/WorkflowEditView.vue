@@ -729,6 +729,11 @@ const handleSaveWorkflow = async () => {
 
 // 处理保存并测试工作流
 const handleSaveAndTest = async () => {
+  // 如果正在查看日志，先隐藏日志，避免节点日志位置异常
+  if (showExecutionBar.value) {
+    hideExecutionLog()
+  }
+
   // 检查工作流名称
   if (!workflowInfo.value || !workflowInfo.value.name) {
     ElMessage.error('请输入工作流名称')

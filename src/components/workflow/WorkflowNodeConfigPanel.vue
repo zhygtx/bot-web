@@ -778,6 +778,12 @@ watch(() => props.visible, (newVal) => {
   flex: 1;
   overflow-y: auto;
   padding: 15px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.panel-body::-webkit-scrollbar {
+  display: none;
 }
 
 .section-title {

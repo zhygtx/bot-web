@@ -306,6 +306,12 @@ const handleViewData = (title, data) => {
   overflow-y: auto;
   overflow-x: hidden;
   padding: 10px 12px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.json-viewer-scroll::-webkit-scrollbar {
+  display: none;
 }
 
 .json-viewer pre {
