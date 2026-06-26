@@ -23,20 +23,20 @@ if [ -f "$CONFIG_FILE" ]; then
     [ "$NGINX_CACHE" = "true" ] && NGINX_CACHE_ENABLED=true || NGINX_CACHE_ENABLED=false
 
     # 提取 API 反向代理配置
-    API_PROXY_ENABLED=$(grep -A5 'apiProxy' "$CONFIG_FILE" | grep -o '"enabled":[[:space:]]*[a-z]*' | head -1 | cut -d':' -f2 | tr -d ' ')
+    API_PROXY_ENABLED=$(grep -A5 'apiProxy' "$CONFIG_FILE" | grep -o 'enabled[[:space:]]*:[[:space:]]*[a-z]*' | head -1 | cut -d':' -f2 | tr -d ' ')
     [ "$API_PROXY_ENABLED" = "true" ] && API_PROXY_ENABLED=true || API_PROXY_ENABLED=false
 
-    API_PROXY_TARGET=$(grep -A5 'apiProxy' "$CONFIG_FILE" | grep -o '"target":[[:space:]]*"[^"]*"' | cut -d'"' -f4)
+    API_PROXY_TARGET=$(grep -A5 'apiProxy' "$CONFIG_FILE" | grep -oE "target[[:space:]]*:[[:space:]]*['\"][^'\"]*['\"]" | head -1 | sed "s/^[^'\"]*//;s/^['\"]//;s/['\"]$//")
     [ -z "$API_PROXY_TARGET" ] && API_PROXY_TARGET="http://localhost:8080"
 
     # 提取 WebSocket 反向代理配置（NapCat 客户端连接）
-    WS_PROXY_ENABLED=$(grep -A6 'wsProxy' "$CONFIG_FILE" | grep -o '"enabled":[[:space:]]*[a-z]*' | head -1 | cut -d':' -f2 | tr -d ' ')
+    WS_PROXY_ENABLED=$(grep -A6 'wsProxy' "$CONFIG_FILE" | grep -o 'enabled[[:space:]]*:[[:space:]]*[a-z]*' | head -1 | cut -d':' -f2 | tr -d ' ')
     [ "$WS_PROXY_ENABLED" = "true" ] && WS_PROXY_ENABLED=true || WS_PROXY_ENABLED=false
 
-    WS_PROXY_PATH=$(grep -A6 'wsProxy' "$CONFIG_FILE" | grep -o '"path":[[:space:]]*"[^"]*"' | cut -d'"' -f4)
+    WS_PROXY_PATH=$(grep -A6 'wsProxy' "$CONFIG_FILE" | grep -oE "path[[:space:]]*:[[:space:]]*['\"][^'\"]*['\"]" | head -1 | sed "s/^[^'\"]*//;s/^['\"]//;s/['\"]$//")
     [ -z "$WS_PROXY_PATH" ] && WS_PROXY_PATH="/ws/"
 
-    WS_READ_TIMEOUT=$(grep -A6 'wsProxy' "$CONFIG_FILE" | grep -o '"readTimeout":[[:space:]]*"[^"]*"' | cut -d'"' -f4)
+    WS_READ_TIMEOUT=$(grep -A6 'wsProxy' "$CONFIG_FILE" | grep -oE "readTimeout[[:space:]]*:[[:space:]]*['\"][^'\"]*['\"]" | head -1 | sed "s/^[^'\"]*//;s/^['\"]//;s/['\"]$//")
     [ -z "$WS_READ_TIMEOUT" ] && WS_READ_TIMEOUT="86400s"
 else
     PORT=80

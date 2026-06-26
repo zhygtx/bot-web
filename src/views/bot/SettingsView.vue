@@ -30,6 +30,7 @@ const botRules = {
 
 const dockerDialogVisible = ref(false)
 const dockerCreateLoading = ref(false)
+const dockerDeleteLoading = ref(false)
 const dockerForm = reactive({ napcatToken: "" })
 const dockerFormRef = ref(null)
 const dockerRules = {
@@ -180,21 +181,38 @@ const deleteContainer = async () => {
     await ElMessageBox.confirm("确定要删除该容器吗？", "提示", {
       confirmButtonText: "确定", cancelButtonText: "取消", type: "warning"
     })
+    dockerDeleteLoading.value = true
     await request({ url: "/docker", method: "delete", params: { botQQ: botInfo.value.botQQ }, timeout: 30000 })
     containerInfo.value = { port: null, token: "" }
+    ElMessage.success("容器已删除")
   } catch (error) {
     if (error !== "cancel") {
       console.error("删除容器失败:", error)
-      throw error
     }
   } finally {
+    dockerDeleteLoading.value = false
     await getContainerInfo()
   }
 }
 
 const copyToClipboard = async (text) => {
   try {
-    await navigator.clipboard.writeText(text)
+    // 优先使用现代 Clipboard API（需要安全上下文：HTTPS 或 localhost）
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text)
+    } else {
+      // 回退方案：使用传统 execCommand（兼容非安全上下文，如 IP 访问）
+      const textArea = document.createElement('textarea')
+      textArea.value = text
+      textArea.style.position = 'fixed'
+      textArea.style.left = '-9999px'
+      textArea.style.top = '-9999px'
+      document.body.appendChild(textArea)
+      textArea.focus()
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+    }
     ElMessage.success("已复制到剪贴板")
   } catch {
     ElMessage.error("复制失败")
@@ -347,7 +365,7 @@ const handleLogout = async () => {
                 @click="openDockerDialog"
                 :icon="Plus"
               >创建</el-button>
-              <el-button v-else type="danger" size="small" @click="deleteContainer" :icon="Delete">删除</el-button>
+              <el-button v-else type="danger" size="small" @click="deleteContainer" :icon="Delete" :loading="dockerDeleteLoading">删除</el-button>
             </div>
           </div>
         </template>

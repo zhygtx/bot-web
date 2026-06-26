@@ -108,6 +108,9 @@ const showExecutionBar = ref(false) // 是否显示执行状态栏
 const showHistoryLog = ref(false) // 是否显示历史日志面板
 const nodeHeights = ref({}) // 每个节点的实际高度
 
+// BOT 在线状态轮询定时器
+let syncTimer = null
+
 // 刷新节点高度
 const refreshNodeHeights = () => {
   const el = canvasRef.value
@@ -1162,6 +1165,13 @@ onMounted(async () => {
   // 同步机器人信息（同时获取在线状态、加载事件/动作）
   await syncBotInfo(hasBotQQ, botEvents, botActions, loadBotEvents, loadBotActions, isBotOnline)
   
+  // 启动 BOT 在线状态轮询（有 BOT QQ 时才启动）
+  if (hasBotQQ.value) {
+    syncTimer = setInterval(() => {
+      syncBotInfo(hasBotQQ, botEvents, botActions, loadBotEvents, loadBotActions, isBotOnline)
+    }, 5000)
+  }
+  
   // 如果从插件详情页返回，先读取缓存内容
   if (fromPluginDetail && cacheId) {
     const savedCache = localStorage.getItem(`workflow_cache_${cacheId}`)
@@ -1222,6 +1232,10 @@ onMounted(async () => {
 
 // 清理事件监听器
 onUnmounted(() => {
+  if (syncTimer) {
+    clearInterval(syncTimer)
+    syncTimer = null
+  }
   document.removeEventListener('mousemove', handleMouseMoveExtended)
   document.removeEventListener('mouseup', handleMouseUpExtended)
   document.removeEventListener('mouseleave', handleMouseLeaveExtended)
@@ -1285,7 +1299,7 @@ onUnmounted(() => {
           </el-button>
           <el-button type="primary" @click="handleSaveAndTest" :disabled="hasBotEventNode || isCanvasEmpty" :title="isCanvasEmpty ? '画布上没有节点，无法保存并测试' : (hasBotEventNode ? '存在 BOT 事件节点，无法使用保存并测试功能' : '保存并测试')">保存并测试</el-button>
           <el-button type="success" @click="handleSaveWorkflow" :disabled="isCanvasEmpty" :title="isCanvasEmpty ? '画布上没有节点，无法保存' : '保存'">保存</el-button>
-          <el-button v-if="workflowId" type="warning" @click="showHistoryLog = !showHistoryLog">查看历史日志</el-button>
+          <el-button v-if="workflowId || workflowInfo.id" type="warning" @click="showHistoryLog = !showHistoryLog">查看历史日志</el-button>
         </div>
       </div>
       
@@ -1463,7 +1477,7 @@ onUnmounted(() => {
         </div>
         <div class="history-log-body">
           <WorkflowLogView
-            :workflow-id="workflowId"
+            :workflow-id="workflowId || workflowInfo.id"
             @log-toggle="handleHistoryLogToggle"
           />
         </div>

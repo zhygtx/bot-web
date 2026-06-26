@@ -84,7 +84,7 @@ const sendCode = async () => {
   try {
     // 发送验证码请求，设置超时时间为30秒
     await request({
-      url: '/email/sendVerificationCode',
+      url: '/email',
       method: 'post',
       params: {
         email: registerForm.email
@@ -111,6 +111,21 @@ const handleRegister = async () => {
   try {
     // 设置加载状态
     loading.value = true
+    
+    // 先校验验证码
+    const verifyResult = await request({
+      url: '/email/verifyCode',
+      method: 'get',
+      params: {
+        email: registerForm.email,
+        verificationCode: registerForm.code
+      }
+    })
+    if (!verifyResult.data) {
+      ElMessage.error('验证码错误')
+      loading.value = false
+      return
+    }
     
     // 发送注册请求
     await request({

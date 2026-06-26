@@ -79,7 +79,7 @@ const sendCode = async () => {
   try {
     // 发送验证码请求，设置超时时间为30秒
     await request({
-      url: '/email/sendVerificationCode',
+      url: '/email',
       method: 'post',
       params: {
         email: forgotPasswordForm.email
