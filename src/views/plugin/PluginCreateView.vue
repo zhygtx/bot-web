@@ -89,11 +89,10 @@ const loadPluginInfo = async () => {
         data = response.data
         pluginInfo.value = new PluginInfo(data)
       } else {
-        ElMessage.error(response.message || '加载插件信息失败')
         return
       }
     } catch (error) {
-      ElMessage.error('加载插件信息失败')
+      console.error('Error:', error)
       return
     } finally {
       loading.value = false
@@ -206,22 +205,16 @@ const submitForm = async () => {
     // 添加文件
     formData.append('file', fileList.value[0])
 
-    const response = await request({
+    await request({
       url: '/plugin',
       method: 'post',
       data: formData
     })
 
-    if (response.code === 200) {
-      ElMessage.success('操作成功')
-      // 保存成功时清除缓存
-      clearCache()
-      emit('close')
-    } else {
-      ElMessage.error(response.message || '操作失败')
-    }
+    clearCache()
+    emit('close')
   } catch (error) {
-    ElMessage.error('操作失败')
+    console.error('Error:', error)
   } finally {
     loading.value = false
   }

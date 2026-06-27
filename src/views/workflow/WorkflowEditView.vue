@@ -616,19 +616,17 @@ const handleMouseMoveForConnection = (e) => {
 // 处理鼠标释放事件（用于连线绘制）
 const handleMouseUpForConnection = (e) => {
   if (isDrawing.value) {
-    // 检查是否释放到另一个节点的端口上
+    // 检查是否释放到另一个节点上（整个节点都是可接受区域）
     const target = e.target
     const nodeElement = target.closest('.workflow-node')
     
     if (nodeElement) {
       const nodeId = nodeElement.getAttribute('data-node-id')
-      const portElement = target.closest('.node-dot')
       
-      if (nodeId && portElement && nodeId !== startNode.value.id) {
+      if (nodeId && nodeId !== startNode.value.id) {
         const targetNode = nodes.value.find(n => n.id === nodeId)
-        const targetPort = portElement.classList.contains('node-dot-left') ? 'left' : 'right'
         
-        if (targetNode && isValidConnection(startNode.value, targetNode, startPort.value, targetPort)) {
+        if (targetNode && isValidConnection(startNode.value, targetNode, startPort.value, 'left')) {
           // 创建连线
           const newConnection = {
             id: `conn_${startNode.value.id}_${targetNode.id}`,

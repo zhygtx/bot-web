@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElDialog, ElMessageBox, ElInput, ElSelect, ElOption, ElButton, ElIcon } from 'element-plus'
+import { ElDialog, ElMessageBox, ElInput, ElSelect, ElOption, ElButton, ElIcon } from 'element-plus'
 import { User, Clock, Lock, Unlock, Delete, Filter, Search, Refresh } from '@element-plus/icons-vue'
 import request from '../../utils/request'
 import { PluginInfo } from '../../models'
@@ -45,11 +45,9 @@ const loadPlugins = async () => {
     if (response.code === 200) {
       plugins.value = (response.data.list || []).map(plugin => new PluginInfo(plugin))
       total.value = response.data.total || 0
-    } else {
-      ElMessage.error(response.message || '加载插件失败')
     }
   } catch (error) {
-    ElMessage.error('加载插件失败')
+    console.error('Error:', error)
   } finally {
     loading.value = false
   }
@@ -73,11 +71,6 @@ const goToCreate = () => {
 
 const goToDetail = (pluginId, pluginVersionId) => {
   router.push(`/plugin/${pluginId}?versionId=${pluginVersionId}`)
-}
-
-const goToEdit = (pluginId) => {
-  currentPluginId.value = pluginId
-  dialogVisible.value = true
 }
 
 const closeDialog = () => {
@@ -133,7 +126,7 @@ const deletePlugin = async (pluginId) => {
       type: 'warning'
     })
     
-    const response = await request({
+    await request({
       url: '/plugin',
       method: 'delete',
       params: {
@@ -141,22 +134,16 @@ const deletePlugin = async (pluginId) => {
       }
     })
     
-    if (response.code === 200) {
-      ElMessage.success('删除插件成功')
-      loadPlugins()
-    } else {
-      ElMessage.error(response.message || '删除插件失败')
-    }
+    loadPlugins()
   } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error('删除插件失败')
-    }
+    // 用户取消（ElMessageBox 抛出 'cancel'），静默处理
+    // 其他错误已由 request.js 响应拦截器统一提示
   }
 }
 
 const togglePluginPublic = async (plugin) => {
   try {
-    const response = await request({
+    await request({
       url: '/plugin/editPublic',
       method: 'put',
       params: {
@@ -165,14 +152,9 @@ const togglePluginPublic = async (plugin) => {
       }
     })
     
-    if (response.code === 200) {
-      plugin.isPublic = !plugin.isPublic
-      ElMessage.success(plugin.isPublic ? '插件已设置为公开' : '插件已设置为私有')
-    } else {
-      ElMessage.error(response.message || '修改插件公开状态失败')
-    }
+    plugin.isPublic = !plugin.isPublic
   } catch (error) {
-    ElMessage.error('修改插件公开状态失败')
+    // 错误已由 request.js 响应拦截器统一提示
   }
 }
 
@@ -332,9 +314,6 @@ onMounted(() => {
 
 .filter-select {
   width: 150px;
-}
-
-.filter-actions {
 }
 
 .filter-spacer {

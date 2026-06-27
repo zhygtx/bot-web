@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElTabs, ElTabPane, ElCard, ElDescriptions, ElDescriptionsItem, ElButton, ElTag, ElDivider } from 'element-plus'
+import { ElTabs, ElTabPane, ElCard, ElDescriptions, ElDescriptionsItem, ElButton, ElTag, ElDivider } from 'element-plus'
 import { ArrowLeft, Edit } from '@element-plus/icons-vue'
 import request from '../../utils/request'
 import { PluginInfo } from '../../models'
@@ -90,11 +90,9 @@ const loadPluginDetail = async (versionId) => {
       if (pluginInfo.value.pluginVersionList && pluginInfo.value.pluginVersionList.length > 0) {
         activeVersion.value = pluginInfo.value.pluginVersionList[0].id
       }
-    } else {
-      ElMessage.error(response.message || '加载插件详情失败')
     }
   } catch (error) {
-    ElMessage.error('加载插件详情失败')
+    console.error('Error:', error)
   } finally {
     versionLoading.value = false
   }
@@ -146,22 +144,17 @@ const saveEdit = async () => {
       })
     }
     
-    const response = await request({
+    await request({
       url: '/plugin',
       method: 'put',
       data: editedPluginInfo.value
     })
     
-    if (response.code === 200) {
-      ElMessage.success('修改插件成功')
-      isEditMode.value = false
-      clearCache()
-      loadPluginDetail(activeVersion.value)
-    } else {
-      ElMessage.error(response.message || '修改插件失败')
-    }
+    isEditMode.value = false
+    clearCache()
+    loadPluginDetail(activeVersion.value)
   } catch (error) {
-    ElMessage.error('修改插件失败')
+    console.error('Error:', error)
   } finally {
     loading.value = false
   }
@@ -187,15 +180,6 @@ const handleUpdateVersionClose = () => {
   updateVersionDialogVisible.value = false
   loadVersionList()
   loadPluginDetail(activeVersion.value)
-}
-
-// 格式化文件大小
-const formatFileSize = (bytes) => {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
 // 监听版本标签变化 → 请求新版本数据
@@ -421,7 +405,7 @@ onMounted(async () => {
             <h4>方法类信息</h4>
             <div v-if="pluginInfo.pluginVersionList?.[0]?.methodClassInfoList && pluginInfo.pluginVersionList[0].methodClassInfoList.length > 0" class="method-classes-container">
               <el-card 
-                v-for="(methodClass, index) in (isEditMode ? editedVersion.methodClassInfoList : pluginInfo.pluginVersionList[0].methodClassInfoList)" 
+                v-for="methodClass in (isEditMode ? editedVersion.methodClassInfoList : pluginInfo.pluginVersionList[0].methodClassInfoList)" 
                 :key="methodClass.id" 
                 class="method-class-card"
                 shadow="hover"

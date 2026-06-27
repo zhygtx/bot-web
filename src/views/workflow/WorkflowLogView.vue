@@ -175,12 +175,9 @@ const fetchBigText = async (key, callback) => {
     if (response.code === 200) {
       bigTextDisplayCache.value[key] = response.data
       callback(response.data)
-    } else {
-      ElMessage.error(response.message || '获取大数据失败')
     }
   } catch (error) {
     console.error('Error:', error)
-    ElMessage.error('获取大数据失败')
   }
 }
 
@@ -214,12 +211,9 @@ const loadLogs = async () => {
         logs.value = response.data.map(normalizeLog)
         total.value = response.data.length
       }
-    } else {
-      ElMessage.error(response.message || '加载日志失败')
     }
   } catch (error) {
     console.error('Error:', error)
-    ElMessage.error('加载日志失败')
   } finally {
     loading.value = false
   }
@@ -247,12 +241,9 @@ const loadNodeLogs = async (log) => {
         executionTime: Number(nodeLog.executionTime) || nodeLog.executionTime
       }))
       log.nodeLogsLoaded = true
-    } else {
-      ElMessage.error(response.message || '加载节点日志失败')
     }
   } catch (error) {
     console.error('Error:', error)
-    ElMessage.error('加载节点日志失败')
   } finally {
     loadingNodeLogIds.value.delete(log.id)
   }

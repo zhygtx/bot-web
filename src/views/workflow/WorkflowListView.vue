@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessageBox } from 'element-plus'
 import { Delete } from '@element-plus/icons-vue'
 import request from '../../utils/request'
 
@@ -49,12 +49,9 @@ const loadWorkflows = async () => {
         averageNodeCount: Number(workflow.averageNodeCount) || 0,
         enabled: Boolean(workflow.enabled)
       }))
-    } else {
-      ElMessage.error(response.message || '加载工作流失败')
     }
   } catch (error) {
     console.error('Error:', error)
-    ElMessage.error('加载工作流失败')
   } finally {
     loading.value = false
   }
@@ -92,7 +89,7 @@ const deleteWorkflow = async (workflowId) => {
       type: 'warning'
     })
     
-    const response = await request({
+    await request({
       url: '/workflow',
       method: 'delete',
       params: {
@@ -100,22 +97,17 @@ const deleteWorkflow = async (workflowId) => {
       }
     })
     
-    if (response.code === 200) {
-      ElMessage.success('删除工作流成功')
-      loadWorkflows()
-    } else {
-      ElMessage.error(response.message || '删除工作流失败')
-    }
+    // 请求成功（code === 200）—— 成功提示由后端返回的 message 控制
+    loadWorkflows()
   } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error('删除工作流失败')
-    }
+    // 用户取消（ElMessageBox 抛出 'cancel'），静默处理
+    // 其他错误已由 request.js 响应拦截器统一提示
   }
 }
 
 const toggleWorkflowEnabled = async (workflow) => {
   try {
-    const response = await request({
+    await request({
       url: '/workflow/editEnabled',
       method: 'put',
       params: {
@@ -124,14 +116,10 @@ const toggleWorkflowEnabled = async (workflow) => {
       }
     })
     
-    if (response.code === 200) {
-      workflow.enabled = !workflow.enabled
-      ElMessage.success('状态修改成功')
-    } else {
-      ElMessage.error(response.message || '修改失败')
-    }
+    // 请求成功 —— 成功提示由后端返回的 message 控制
+    workflow.enabled = !workflow.enabled
   } catch (error) {
-    ElMessage.error('修改失败')
+    // 错误已由 request.js 响应拦截器统一提示
   }
 }
 
