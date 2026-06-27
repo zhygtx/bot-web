@@ -301,7 +301,7 @@ onMounted(() => {
   letter-spacing: 0.5px;
   z-index: 10;
   user-select: none;
-  pointer-events: none;
+  cursor: default;
 }
 
 .workflow-name {
