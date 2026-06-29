@@ -34,7 +34,7 @@ const loadPlugins = async () => {
     if (filters.value.content) {
       params.content = filters.value.content
     }
-    if (filters.value.isPublic !== '') {
+    if (filters.value.isPublic !== 'all') {
       params.isPublic = filters.value.isPublic === 'true'
     }
     const response = await request({
@@ -54,7 +54,7 @@ const loadPlugins = async () => {
 }
 
 const resetFilters = () => {
-  filters.value = { content: '', isPublic: '' }
+  filters.value = { content: '', isPublic: 'all' }
   pageNum.value = 1
   loadPlugins()
 }
@@ -179,8 +179,8 @@ onMounted(() => {
         </el-input>
       </div>
       <div class="filter-item">
-        <el-select v-model="filters.isPublic" placeholder="公开状态" class="filter-select" @change="handleSearch">
-          <el-option label="全部" value="" />
+        <el-select v-model="filters.isPublic" placeholder="全部" class="filter-select" @change="handleSearch">
+          <el-option label="全部" value="all" />
           <el-option label="公开" value="true" />
           <el-option label="私有" value="false" />
         </el-select>

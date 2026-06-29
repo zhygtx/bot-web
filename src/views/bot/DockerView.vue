@@ -79,12 +79,11 @@ const createContainer = async () => {
     containerInfo.value.createTime = new Date().toLocaleString()
     containerInfo.value.updateTime = new Date().toLocaleString()
     
-    ElMessage.success(`容器创建成功，端口号：${response.data}`)
     dialogVisible.value = false
     dockerForm.napcatToken = ''
     await getContainerInfo()
   } catch (error) {
-    ElMessage.error(error.message || '创建容器失败')
+    console.error('创建容器失败:', error)
   } finally {
     createLoading.value = false
   }
@@ -115,15 +114,9 @@ const deleteContainer = async () => {
       createTime: '',
       updateTime: ''
     }
-    
-    ElMessage.success('删除容器成功')
   } catch (error) {
     if (error !== 'cancel') {
-      if (error.code === 'ECONNABORTED') {
-        ElMessage.warning('删除请求超时，正在刷新容器信息...')
-      } else {
-        ElMessage.error(error.message || '删除容器失败')
-      }
+      console.error('删除容器失败:', error)
     }
   } finally {
     await getContainerInfo()

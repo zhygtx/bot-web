@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessageBox } from 'element-plus'
 import { Cpu, Monitor, User, SwitchButton } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../../stores/user'
@@ -43,7 +43,7 @@ const getUserInfo = async () => {
     })
     userInfo.value = response.data
   } catch (error) {
-    ElMessage.error(error.message || '获取用户信息失败')
+    console.error('获取用户信息失败:', error)
   } finally {
     loading.value = false
   }

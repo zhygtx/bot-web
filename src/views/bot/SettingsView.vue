@@ -19,7 +19,7 @@ const hasDocker = computed(() => !!containerInfo.value.port)
 
 const botDialogVisible = ref(false)
 const botDialogTitle = computed(() => botInfo.value.id ? "编辑机器人信息" : "添加机器人信息")
-const botForm = reactive({ botQQ: null })
+const botForm = reactive({ botQQ: null, token: '' })
 const botFormRef = ref(null)
 const botRules = {
   botQQ: [
@@ -101,8 +101,10 @@ const getContainerInfo = async () => {
 const openBotDialog = () => {
   if (botInfo.value.id) {
     botForm.botQQ = botInfo.value.botQQ
+    botForm.token = botInfo.value.token || ''
   } else {
     botForm.botQQ = null
+    botForm.token = ''
   }
   botDialogVisible.value = true
 }
@@ -114,7 +116,17 @@ const submitBot = async () => {
 
   try {
     if (botInfo.value.id) {
-      await request({ url: "/bot", method: "put", data: { id: botInfo.value.id, name: botInfo.value.name || "", botQQ: botForm.botQQ } })
+      // 编辑时发送完整数据：id、botQQ、token
+      await request({
+        url: "/bot",
+        method: "put",
+        data: {
+          id: botInfo.value.id,
+          name: botInfo.value.name || "",
+          botQQ: botForm.botQQ,
+          token: botForm.token
+        }
+      })
     } else {
       await request({ url: "/bot", method: "post", params: { name: botInfo.value.name || "", botQQ: botForm.botQQ } })
     }
@@ -184,7 +196,6 @@ const deleteContainer = async () => {
     dockerDeleteLoading.value = true
     await request({ url: "/docker", method: "delete", params: { botQQ: botInfo.value.botQQ }, timeout: 30000 })
     containerInfo.value = { port: null, token: "" }
-    ElMessage.success("容器已删除")
   } catch (error) {
     if (error !== "cancel") {
       console.error("删除容器失败:", error)
@@ -395,6 +406,9 @@ const handleLogout = async () => {
       <el-form ref="botFormRef" :model="botForm" :rules="botRules" label-width="100px">
         <el-form-item label="机器人QQ" prop="botQQ">
           <el-input v-model="botForm.botQQ" placeholder="请输入机器人QQ" />
+        </el-form-item>
+        <el-form-item label="Token" prop="token">
+          <el-input v-model="botForm.token" placeholder="请输入Token" show-password />
         </el-form-item>
       </el-form>
       <template #footer>
