@@ -47,9 +47,13 @@ service.interceptors.response.use(
       window.location.href = '/login'
     }
 
+    const businessError = new Error(res.message || 'Error')
+    businessError.code = res.code
+    businessError.data = res.data
+
     // 显示后端返回的错误消息，后端未返回消息时使用兜底文案
     ElMessage.error(res.message || '操作失败')
-    return Promise.reject(new Error(res.message || 'Error'))
+    return Promise.reject(businessError)
   },
   error => {
     console.error('响应错误:', error)

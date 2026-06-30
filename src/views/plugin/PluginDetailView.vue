@@ -2,7 +2,7 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElTabs, ElTabPane, ElCard, ElDescriptions, ElDescriptionsItem, ElButton, ElTag, ElDivider } from 'element-plus'
-import { ArrowLeft, Edit } from '@element-plus/icons-vue'
+import { ArrowLeft, Edit, MagicStick } from '@element-plus/icons-vue'
 import request from '../../utils/request'
 import { PluginInfo } from '../../models'
 import PluginCreateView from './PluginCreateView.vue'
@@ -175,6 +175,19 @@ const goToUpdateVersion = () => {
   updateVersionDialogVisible.value = true
 }
 
+const goToAIUpdate = () => {
+  const latestVersion = pluginInfo.value?.pluginVersionList?.[0]
+  router.push({
+    path: '/plugin/ai-create',
+    query: {
+      pluginId: pluginId.value,
+      entityPackage: latestVersion?.entityPackage || '',
+      methodPackage: latestVersion?.methodPackage || '',
+      mode: 'update'
+    }
+  })
+}
+
 // 更新版本弹窗关闭时刷新数据
 const handleUpdateVersionClose = () => {
   updateVersionDialogVisible.value = false
@@ -242,6 +255,10 @@ onMounted(async () => {
         返回
       </el-button>
       <div class="header-actions" v-if="!isEditMode && !isReadOnly">
+        <el-button type="primary" @click="goToAIUpdate" plain>
+          <el-icon><MagicStick /></el-icon>
+          AI 更新
+        </el-button>
         <el-button type="success" @click="goToEdit" plain>
           <el-icon><Edit /></el-icon>
           编辑插件

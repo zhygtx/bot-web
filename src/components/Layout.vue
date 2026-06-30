@@ -35,7 +35,8 @@ const showSidebar = computed(() => {
   
   if (currentPath.match(/^\/plugin\/[^/]+$/) && 
       currentPath !== '/plugin/list' && 
-      currentPath !== '/plugin/create') {
+      currentPath !== '/plugin/create' &&
+      currentPath !== '/plugin/ai-create') {
     return false
   }
   

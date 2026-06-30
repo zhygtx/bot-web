@@ -1,12 +1,26 @@
 // 全局菜单配置
-import { Connection, Operation, Monitor, Cpu, User, List, Clock, Setting } from '@element-plus/icons-vue'
+import { Connection, Operation, List, Clock, Setting, MagicStick } from '@element-plus/icons-vue'
 
 export const menuItems = [
   {
     path: '/plugin/list',
     name: 'plugin',
     label: '插件管理',
-    icon: Operation
+    icon: Operation,
+    children: [
+      {
+        path: '/plugin/list',
+        name: 'plugin-list',
+        label: '插件列表',
+        icon: List
+      },
+      {
+        path: '/plugin/ai-create',
+        name: 'plugin-ai-create',
+        label: 'AI 生成插件',
+        icon: MagicStick
+      }
+    ]
   },
   {
     path: '/workflow/list',
