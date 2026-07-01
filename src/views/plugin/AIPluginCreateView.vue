@@ -51,8 +51,6 @@ const vm = useAIPluginCreate()
         @update:chat-input="vm.chatInput.value = $event"
         @send="vm.sendPrompt"
         @undo="vm.undoToBeforeRound"
-        @delete-round="vm.deleteFromRound"
-        @regenerate="vm.regenerateRound"
       />
 
       <AICodePanel

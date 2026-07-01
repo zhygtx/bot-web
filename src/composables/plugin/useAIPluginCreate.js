@@ -1,6 +1,6 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { createPatch } from 'diff'
 import request from '../../utils/request'
 
@@ -219,11 +219,12 @@ export const useAIPluginCreate = () => {
     await scrollChatToBottom()
 
     try {
-      await sendPromptStream(text, assistantMessage)
+      await sendPromptStream(text, assistantMessage.id)
     } catch (error) {
-      assistantMessage.error = true
-      assistantMessage.content = `生成失败：${error.message || 'AI 生成失败'}`
-      ElMessage.error(error.message || 'AI 生成失败')
+      patchChatMessage(assistantMessage.id, {
+        error: true,
+        content: error.message || 'AI 生成失败'
+      })
     } finally {
       generationLoading.value = false
       draftSavePaused.value = false
@@ -232,7 +233,7 @@ export const useAIPluginCreate = () => {
     }
   }
 
-  const sendPromptStream = (text, assistantMessage) => {
+  const sendPromptStream = (text, assistantMessageId) => {
     const token = localStorage.getItem('token')
     if (!token) {
       return Promise.reject(new Error('登录状态已失效，请重新登录'))
@@ -264,15 +265,11 @@ export const useAIPluginCreate = () => {
 
       socket.onopen = () => {
         socket.send(JSON.stringify({
-          type: 'generate',
-          payload: conversationId.value
-            ? {
-                conversationId: conversationId.value,
-                instruction: text,
-                entityPackage: demandForm.value.entityPackage || DEFAULT_ENTITY_PACKAGE,
-                methodPackage: demandForm.value.methodPackage || DEFAULT_METHOD_PACKAGE
-              }
-            : buildInitialRequest(text)
+          type: 'message',
+          data: {
+            conversationId: conversationId.value || '',
+            message: text
+          }
         }))
       }
 
@@ -281,18 +278,24 @@ export const useAIPluginCreate = () => {
         if (!parsed) return
         if (parsed.type === 'delta') {
           rawText += parsed.data || ''
-          updateStreamingPreview(rawText, assistantMessage)
+          updateStreamingPreview(rawText, assistantMessageId)
           await scrollChatToBottom()
           return
         }
+        if (parsed.type === 'message_change') {
+          const progress = String(parsed.data || '')
+          patchChatMessage(assistantMessageId, {
+            progress,
+            content: progress,
+            hasBackendContent: true
+          })
+          return
+        }
         if (parsed.type === 'done') {
-          const payload = parsed.data || {}
-          syncGeneratedState(payload)
-          assistantMessage.round = payload.round || assistantMessage.round
-          assistantMessage.files = payload.files || []
-          assistantMessage.dependencies = payload.dependencies || []
-          assistantMessage.content = buildAssistantSummary(payload)
-          fillPublishInfo(payload, text)
+          const messages = Array.isArray(parsed.data) ? parsed.data : []
+          restoreConversationFromMessages(messages)
+          const latestPayload = getLatestAssistantPayload(messages)
+          if (latestPayload) fillPublishInfo(latestPayload, text)
           finish(resolve)
           return
         }
@@ -321,15 +324,12 @@ export const useAIPluginCreate = () => {
     }
   }
 
-  const updateStreamingPreview = (rawText, assistantMessage) => {
+  const updateStreamingPreview = (rawText, assistantMessageId) => {
     const files = parseStreamingFiles(rawText)
     const currentFilePath = getCurrentStreamingFilePath(rawText, files)
-    const progress = resolveStreamingProgress(rawText, files, currentFilePath, assistantMessage.progress)
 
     displayedFiles.value = files
-    assistantMessage.files = files
-    assistantMessage.progress = progress
-    assistantMessage.content = progress
+    patchChatMessage(assistantMessageId, { files })
     if (currentFilePath) {
       activeFilePath.value = currentFilePath
       activeTab.value = 'code'
@@ -338,29 +338,13 @@ export const useAIPluginCreate = () => {
     }
   }
 
-  const buildInitialRequest = requirements => ({
-    requirements,
-    entityPackage: demandForm.value.entityPackage || DEFAULT_ENTITY_PACKAGE,
-    methodPackage: demandForm.value.methodPackage || DEFAULT_METHOD_PACKAGE,
-    pluginId: demandForm.value.pluginId || null
-  })
-
-  const syncGeneratedState = data => {
-    const payload = normalizePayload(data)
-    previousFiles.value = generatedFiles.value
-    conversationId.value = payload.conversationId || conversationId.value
-    currentRound.value = payload.round || currentRound.value
-    generatedFiles.value = payload.files
-    dependencies.value = payload.dependencies
-    reviewResult.value = payload.reviewResult
-    displayedFiles.value = payload.files
-    activeFilePath.value = generatedFiles.value[0]?.filePath || ''
-  }
-
-  const buildAssistantSummary = data => {
-    const fileCount = data.files?.length || 0
-    const depCount = data.dependencies?.length || 0
-    return fileCount ? `已生成 ${fileCount} 个文件，声明 ${depCount} 个依赖。` : '代码已更新，可以查看预览。'
+  const patchChatMessage = (id, patch) => {
+    const index = chatMessages.value.findIndex(message => message.id === id)
+    if (index < 0) return
+    chatMessages.value[index] = {
+      ...chatMessages.value[index],
+      ...patch
+    }
   }
 
   const fillPublishInfo = (data, text) => {
@@ -374,83 +358,73 @@ export const useAIPluginCreate = () => {
     }
   }
 
-  const restoreMessagesAfterRound = round => {
-    if (round <= 0) {
-      chatMessages.value = [chatMessages.value[0]]
-      return
-    }
-    chatMessages.value = chatMessages.value.filter(message => message.round === 0 || message.round <= round)
-  }
+  const restoreConversationFromMessages = messages => {
+    const sortedMessages = normalizeConversationMessages(messages)
+    const assistantMessages = sortedMessages.filter(message => message.role === 'assistant')
+    const latestAssistant = assistantMessages[assistantMessages.length - 1]
+    const previousAssistant = assistantMessages[assistantMessages.length - 2]
+    const latestPayload = latestAssistant ? parseAssistantContent(latestAssistant.code || latestAssistant.message) : null
+    const previousPayload = previousAssistant ? parseAssistantContent(previousAssistant.code || previousAssistant.message) : null
 
-  const restoreConversationFromPayload = data => {
-    const payload = normalizePayload(data)
-    previousFiles.value = []
-    conversationId.value = payload.conversationId || conversationId.value
-    currentRound.value = payload.round || 0
-    generatedFiles.value = payload.files
-    displayedFiles.value = payload.files
-    dependencies.value = payload.dependencies
-    reviewResult.value = payload.reviewResult
+    const restoredMessages = [createWelcomeMessage()]
+    sortedMessages.forEach((message, index) => {
+      if (message.role === 'assistant') {
+        const payload = parseAssistantContent(message.code || message.message)
+        restoredMessages.push({
+          id: message.id || `assistant-${message.round}-${index}`,
+          role: 'assistant',
+          round: Number(message.round) || 0,
+          content: '代码生成完毕',
+          createTime: message.createTime || '',
+          files: payload.files,
+          dependencies: payload.dependencies,
+          pluginName: payload.pluginName,
+          pluginDescription: payload.pluginDescription,
+          reviewResult: payload.reviewResult
+        })
+        return
+      }
+      restoredMessages.push({
+        id: message.id || `user-${message.round}-${index}`,
+        role: 'user',
+        round: Number(message.round) || 0,
+        content: message.message || '',
+        createTime: message.createTime || ''
+      })
+    })
+
+    const maxRound = sortedMessages.reduce((max, message) => Math.max(max, Number(message.round) || 0), 0)
+    const firstMessage = sortedMessages[0]
+    chatMessages.value = restoredMessages
+    conversationId.value = firstMessage?.conversationId || conversationId.value
+    currentRound.value = maxRound
+    demandForm.value.pluginId = firstMessage?.pluginId || demandForm.value.pluginId
+    previousFiles.value = previousPayload?.files || []
+    generatedFiles.value = latestPayload?.files || []
+    displayedFiles.value = latestPayload?.files || []
+    dependencies.value = latestPayload?.dependencies || []
+    reviewResult.value = latestPayload?.reviewResult || null
     activeFilePath.value = generatedFiles.value[0]?.filePath || ''
-    fillPublishInfo(payload, '')
-    restoreMessagesAfterRound(currentRound.value)
+    if (latestPayload) fillPublishInfo({ ...latestPayload, round: 1 }, '')
     saveDraft()
   }
 
   const undoToBeforeRound = async round => {
     if (!conversationId.value || round !== currentRound.value || round <= 0) {
-      ElMessage.info('当前没有可撤销的上一轮')
       return
     }
     const userMessage = [...chatMessages.value].reverse().find(item => item.role === 'user' && item.round === round)
     generationLoading.value = true
     reviewVisible.value = false
     try {
-      const response = await request({
-        url: '/ai-plugin/conversation/undo',
+      await request({
+        url: '/ai-plugin',
         method: 'post',
-        data: { conversationId: conversationId.value, targetRound: round - 1 },
+        params: { conversationId: conversationId.value, round },
         timeout: 60000
       })
-      restoreConversationFromPayload(response.data || {})
+      await loadConversation(conversationId.value, false)
       chatInput.value = userMessage?.content || chatInput.value
-    } finally {
-      generationLoading.value = false
-    }
-  }
-
-  const regenerateRound = async message => {
-    const userMessage = [...chatMessages.value].reverse().find(item => item.role === 'user' && item.round === message.round)
-    if (!userMessage?.content) {
-      ElMessage.warning('没有找到对应的用户指令')
-      return
-    }
-    await deleteFromRound(message.round, false)
-    chatInput.value = userMessage.content
-    await sendPrompt()
-  }
-
-  const deleteFromRound = async (round, ask = true) => {
-    if (!conversationId.value || round <= 0) return
-    try {
-      if (ask) {
-        await ElMessageBox.confirm('确定删除此轮及之后的对话和生成内容吗？', '删除对话轮次', {
-          confirmButtonText: '确定',
-          cancelButtonText: '取消',
-          type: 'warning'
-        })
-      }
-      generationLoading.value = true
-      reviewVisible.value = false
-      const response = await request({
-        url: '/ai-plugin/conversation/delete-round',
-        method: 'post',
-        data: { conversationId: conversationId.value, round },
-        timeout: 60000
-      })
-      restoreConversationFromPayload(response.data || {})
-    } catch (error) {
-      if (error !== 'cancel') throw error
     } finally {
       generationLoading.value = false
     }
@@ -517,78 +491,18 @@ export const useAIPluginCreate = () => {
     }
   }
 
-  const parseAssistantContent = content => {
-    try {
-      const parsed = JSON.parse(content)
-      if (Array.isArray(parsed)) return { files: parsed, dependencies: [], reviewResult: null }
-      return {
-        files: Array.isArray(parsed.files) ? parsed.files : [],
-        dependencies: Array.isArray(parsed.dependencies) ? parsed.dependencies : [],
-        pluginName: parsed.pluginName || '',
-        pluginDescription: parsed.pluginDescription || '',
-        reviewResult: parsed.reviewResult || null
-      }
-    } catch (error) {
-      return { files: [], dependencies: [], pluginName: '', pluginDescription: '', reviewResult: null }
-    }
-  }
-
-  const loadConversation = async id => {
+  const loadConversation = async (id, showLoading = true) => {
     if (!id) return
-    historyLoading.value = true
+    if (showLoading) historyLoading.value = true
     try {
       const response = await request({
-        url: `/ai-plugin/conversation/${id}`,
+        url: `/ai-plugin/${id}`,
         method: 'get',
         timeout: 60000
       })
-      const data = response.data || {}
-      conversationId.value = data.conversationId || id
-      currentRound.value = data.currentRound || 0
-      demandForm.value.pluginId = data.pluginId || demandForm.value.pluginId
-
-      const restoredMessages = [chatMessages.value[0]]
-      let latestAssistantPayload = null
-      let previousAssistantPayload = null
-      ;(data.turns || []).forEach((turn, index) => {
-        if (turn.role === 'assistant') {
-          const payload = parseAssistantContent(turn.content)
-          previousAssistantPayload = latestAssistantPayload
-          latestAssistantPayload = payload
-          restoredMessages.push({
-            id: `history-${index}`,
-            role: 'assistant',
-            round: turn.round,
-            content: buildAssistantSummary(payload),
-            createTime: turn.createTime,
-            files: payload.files,
-            dependencies: payload.dependencies,
-            pluginName: payload.pluginName,
-            pluginDescription: payload.pluginDescription,
-            reviewResult: payload.reviewResult
-          })
-        } else {
-          restoredMessages.push({
-            id: `history-${index}`,
-            role: 'user',
-            round: turn.round,
-            content: turn.content,
-            createTime: turn.createTime
-          })
-        }
-      })
-      chatMessages.value = restoredMessages
-      if (latestAssistantPayload) {
-        previousFiles.value = previousAssistantPayload?.files || []
-        generatedFiles.value = latestAssistantPayload.files
-        displayedFiles.value = latestAssistantPayload.files
-        dependencies.value = latestAssistantPayload.dependencies
-        reviewResult.value = latestAssistantPayload.reviewResult
-        activeFilePath.value = generatedFiles.value[0]?.filePath || ''
-        fillPublishInfo({ ...latestAssistantPayload, round: 1 }, '')
-      }
+      restoreConversationFromMessages(Array.isArray(response.data) ? response.data : [])
     } finally {
-      historyLoading.value = false
+      if (showLoading) historyLoading.value = false
       scrollChatToBottom()
     }
   }
@@ -620,7 +534,7 @@ export const useAIPluginCreate = () => {
 
   const goBack = () => {
     saveDraft()
-    router.push('/plugin/list')
+    router.push('/plugin/ai-list')
   }
 
   onMounted(() => {
@@ -677,8 +591,6 @@ export const useAIPluginCreate = () => {
     saveDraftManually,
     deleteDraft,
     undoToBeforeRound,
-    regenerateRound,
-    deleteFromRound,
     confirmCompile,
     selectTreeNode,
     copyCurrentCode,
@@ -705,13 +617,52 @@ function createGeneratingMessage(round) {
     id: `assistant-stream-${Date.now()}`,
     role: 'assistant',
     round,
-    content: '正在获取上下文...',
+    content: '...',
     createTime: formatTime(),
     files: [],
     dependencies: [],
-    progress: '正在获取上下文',
+    progress: '...',
     reviewResult: null,
-    error: false
+    error: false,
+    hasBackendContent: false
+  }
+}
+
+function getLatestAssistantPayload(messages) {
+  const assistantMessages = normalizeConversationMessages(messages).filter(message => message.role === 'assistant')
+  const latestAssistant = assistantMessages[assistantMessages.length - 1]
+  return latestAssistant ? parseAssistantContent(latestAssistant.code || latestAssistant.message) : null
+}
+
+function normalizeConversationMessages(messages) {
+  const roleOrder = { user: 0, assistant: 1 }
+  return [...messages].sort((a, b) => {
+    const roundDiff = (Number(a.round) || 0) - (Number(b.round) || 0)
+    if (roundDiff !== 0) return roundDiff
+    return (roleOrder[a.role] ?? 9) - (roleOrder[b.role] ?? 9)
+  })
+}
+
+function parseAssistantContent(content) {
+  try {
+    const parsed = JSON.parse(content || '{}')
+    if (Array.isArray(parsed)) return { files: parsed.map(normalizeGeneratedFile), dependencies: [], reviewResult: null }
+    return {
+      files: Array.isArray(parsed.files) ? parsed.files.map(normalizeGeneratedFile) : [],
+      dependencies: Array.isArray(parsed.dependencies) ? parsed.dependencies : [],
+      pluginName: parsed.pluginName || '',
+      pluginDescription: parsed.pluginDescription || '',
+      reviewResult: parsed.reviewResult || null
+    }
+  } catch (error) {
+    return { files: [], dependencies: [], pluginName: '', pluginDescription: '', reviewResult: null }
+  }
+}
+
+function normalizeGeneratedFile(file) {
+  return {
+    filePath: (file.filePath || file.path || '').replace(/\\/g, '/'),
+    content: file.content || file.code || ''
   }
 }
 
@@ -752,7 +703,7 @@ function normalizePayload(data) {
   return {
     conversationId: data.conversationId,
     round: data.round || data.currentRound,
-    files: Array.isArray(data.files) ? data.files : [],
+    files: Array.isArray(data.files) ? data.files.map(normalizeGeneratedFile) : [],
     dependencies: Array.isArray(data.dependencies) ? data.dependencies : [],
     pluginName: data.pluginName || '',
     pluginDescription: data.pluginDescription || '',
@@ -771,25 +722,6 @@ function buildAIPluginWsUrl(token) {
 
 function isDisplayableGeneratedPath(filePath) {
   return filePath.startsWith('src/main/java/') || filePath.startsWith('src/main/resources/')
-}
-
-function extractLatestProgress(rawText) {
-  const matches = [...rawText.matchAll(/<progress>\s*([\s\S]*?)\s*<\/progress>/gi)]
-  return matches[matches.length - 1]?.[1]?.trim() || ''
-}
-
-function resolveStreamingProgress(rawText, files, currentFilePath, fallback) {
-  if (currentFilePath) {
-    return `正在生成 ${getFileName(currentFilePath)}`
-  }
-  if (files.length) {
-    return `正在生成 ${getFileName(files[files.length - 1].filePath)}`
-  }
-  const latestProgress = extractLatestProgress(rawText)
-  if (latestProgress && latestProgress !== '正在获取上下文') {
-    return latestProgress
-  }
-  return fallback || '正在获取上下文...'
 }
 
 function parseStreamingFiles(rawText) {
@@ -824,10 +756,6 @@ function getCurrentStreamingFilePath(rawText, files) {
 function getOpenFilePath(rawText) {
   const matches = [...rawText.matchAll(/<file\s+path="([^"]+)">/gi)]
   return matches[matches.length - 1]?.[1]?.trim().replace(/\\/g, '/') || ''
-}
-
-function getFileName(filePath) {
-  return filePath.split('/').pop() || filePath
 }
 
 function stripStreamTags(content) {

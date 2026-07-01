@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElDialog, ElMessageBox, ElInput, ElSelect, ElOption, ElButton, ElIcon } from 'element-plus'
-import { User, Clock, Lock, Unlock, Delete, Filter, Search, Refresh, MagicStick } from '@element-plus/icons-vue'
+import { User, Clock, Lock, Unlock, Delete, Filter, Search, Refresh } from '@element-plus/icons-vue'
 import request from '../../utils/request'
 import { PluginInfo } from '../../models'
 import PluginCreateView from './PluginCreateView.vue'
@@ -67,10 +67,6 @@ const handleSearch = () => {
 const goToCreate = () => {
   currentPluginId.value = null
   dialogVisible.value = true
-}
-
-const goToAICreate = () => {
-  router.push('/plugin/ai-create')
 }
 
 const goToDetail = (pluginId, pluginVersionId) => {
@@ -195,7 +191,6 @@ onMounted(() => {
       </div>
       <div class="filter-spacer"></div>
       <div class="filter-item">
-        <el-button :icon="MagicStick" type="primary" plain @click="goToAICreate">AI 生成插件</el-button>
         <el-button type="primary" @click="goToCreate">新建插件</el-button>
       </div>
     </div>

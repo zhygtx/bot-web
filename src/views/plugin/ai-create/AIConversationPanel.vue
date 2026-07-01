@@ -2,10 +2,8 @@
 import {
   Back,
   ChatDotRound,
-  Delete,
   MagicStick,
-  Promotion,
-  Refresh
+  Promotion
 } from '@element-plus/icons-vue'
 
 defineProps({
@@ -20,9 +18,7 @@ defineProps({
 const emit = defineEmits([
   'update:chatInput',
   'send',
-  'undo',
-  'delete-round',
-  'regenerate'
+  'undo'
 ])
 
 const chatScrollRef = defineModel('chatScrollRef')
@@ -64,31 +60,16 @@ const handleInputKeydown = event => {
             </p>
             <span v-if="message.createTime" class="message-time">{{ message.createTime }}</span>
           </div>
-          <div v-if="message.round > 0" class="message-actions">
+          <div
+            v-if="message.role === 'assistant' && message.round === currentRound && currentRound > 0"
+            class="message-actions"
+          >
             <el-button
-              v-if="message.role === 'user'"
-              class="message-icon-button"
-              :icon="Delete"
-              text
-              type="danger"
-              :disabled="generationLoading"
-              @click="emit('delete-round', message.round)"
-            />
-            <el-button
-              v-if="message.role === 'assistant' && message.round === currentRound && currentRound > 0"
               class="message-icon-button"
               :icon="Back"
               text
               :disabled="generationLoading"
               @click="emit('undo', message.round)"
-            />
-            <el-button
-              v-if="message.role === 'assistant'"
-              class="message-icon-button"
-              :icon="Refresh"
-              text
-              :disabled="generationLoading"
-              @click="emit('regenerate', message)"
             />
           </div>
         </div>
@@ -99,7 +80,7 @@ const handleInputKeydown = event => {
       <el-input
         :model-value="chatInput"
         type="textarea"
-        :rows="2"
+        :autosize="{ minRows: 2, maxRows: 6 }"
         maxlength="1000"
         show-word-limit
         resize="none"

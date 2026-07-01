@@ -15,8 +15,8 @@ export const menuItems = [
         icon: List
       },
       {
-        path: '/plugin/ai-create',
-        name: 'plugin-ai-create',
+        path: '/plugin/ai-list',
+        name: 'plugin-ai-list',
         label: 'AI 生成插件',
         icon: MagicStick
       }

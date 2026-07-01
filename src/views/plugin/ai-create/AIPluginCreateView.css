@@ -225,17 +225,17 @@
 
 .message-text-slide-enter-active,
 .message-text-slide-leave-active {
-  transition: opacity 0.18s ease, transform 0.18s ease;
+  transition: opacity 0.22s ease, transform 0.22s ease;
 }
 
 .message-text-slide-enter-from {
   opacity: 0;
-  transform: translateY(8px);
+  transform: translateY(100%);
 }
 
 .message-text-slide-leave-to {
   opacity: 0;
-  transform: translateY(-8px);
+  transform: translateY(-100%);
 }
 
 .message-time {
@@ -287,14 +287,18 @@
 
 .chat-input-box :deep(.el-textarea__inner) {
   min-height: 54px !important;
+  max-height: 152px !important;
   line-height: 1.45;
   padding: 7px 10px;
+  overflow-y: auto;
 }
 
 .chat-input-box .el-textarea__inner {
   min-height: 54px !important;
+  max-height: 152px !important;
   line-height: 1.45;
   padding: 7px 10px;
+  overflow-y: auto;
 }
 
 .input-hint {

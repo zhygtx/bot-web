@@ -51,6 +51,12 @@ const router = createRouter({
       meta: { title: '创建插件' }
     },
     {
+      path: '/plugin/ai-list',
+      name: 'plugin-ai-list',
+      component: () => import('../views/plugin/AIPluginListView.vue'),
+      meta: { title: 'AI 生成插件' }
+    },
+    {
       path: '/plugin/ai-create',
       name: 'plugin-ai-create',
       component: () => import('../views/plugin/AIPluginCreateView.vue'),
