@@ -31,6 +31,7 @@ export const useAIPluginCreate = () => {
   const compileStepIndex = ref(0)
   const webSocketRef = ref(null)
   const draftSavePaused = ref(false)
+  const autoSaveTick = ref(0)
 
   const demandForm = ref({
     entityPackage: route.query.entityPackage || DEFAULT_ENTITY_PACKAGE,
@@ -123,9 +124,9 @@ export const useAIPluginCreate = () => {
     localStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
   }
 
-  const saveDraftManually = () => {
+  const autoSaveDraft = () => {
     saveDraft(true)
-    ElMessage.success('草稿已保存')
+    autoSaveTick.value += 1
   }
 
   const deleteDraft = () => {
@@ -217,18 +218,22 @@ export const useAIPluginCreate = () => {
     const assistantMessage = createGeneratingMessage(nextRound)
     chatMessages.value.push(assistantMessage)
     await scrollChatToBottom()
+    let requestSucceeded = false
 
     try {
       await sendPromptStream(text, assistantMessage.id)
+      requestSucceeded = true
     } catch (error) {
       patchChatMessage(assistantMessage.id, {
         error: true,
+        loading: false,
+        waitingForBackend: false,
         content: error.message || 'AI 生成失败'
       })
     } finally {
       generationLoading.value = false
       draftSavePaused.value = false
-      saveDraft()
+      if (requestSucceeded) autoSaveDraft()
       scrollChatToBottom()
     }
   }
@@ -283,11 +288,22 @@ export const useAIPluginCreate = () => {
           return
         }
         if (parsed.type === 'message_change') {
-          const progress = String(parsed.data || '')
+          const progress = String(parsed.data || '').trim()
+          if (!progress) {
+            patchChatMessage(assistantMessageId, {
+              content: '...',
+              hasBackendContent: false,
+              loading: true,
+              waitingForBackend: true
+            })
+            return
+          }
           patchChatMessage(assistantMessageId, {
             progress,
             content: progress,
-            hasBackendContent: true
+            hasBackendContent: true,
+            loading: false,
+            waitingForBackend: false
           })
           return
         }
@@ -295,7 +311,7 @@ export const useAIPluginCreate = () => {
           const messages = Array.isArray(parsed.data) ? parsed.data : []
           restoreConversationFromMessages(messages)
           const latestPayload = getLatestAssistantPayload(messages)
-          if (latestPayload) fillPublishInfo(latestPayload, text)
+          if (latestPayload) syncPublishInfo(latestPayload, text)
           finish(resolve)
           return
         }
@@ -347,15 +363,21 @@ export const useAIPluginCreate = () => {
     }
   }
 
-  const fillPublishInfo = (data, text) => {
+  const syncPublishInfo = (data, text = '') => {
     const payload = normalizePayload(data || {})
-    if (payload.round !== 1) return
-    if (!publishForm.value.name) {
+    if (payload.pluginName) {
+      publishForm.value.name = payload.pluginName
+    } else if (!publishForm.value.name && text) {
       publishForm.value.name = payload.pluginName || inferPluginName(text)
     }
-    if (!publishForm.value.description) {
+    if (payload.pluginDescription) {
+      publishForm.value.description = payload.pluginDescription
+    } else if (!publishForm.value.description && text) {
       publishForm.value.description = payload.pluginDescription || text.slice(0, 80)
     }
+    if (payload.version) publishForm.value.version = payload.version
+    if (payload.changelog) publishForm.value.changelog = payload.changelog
+    if (typeof payload.isPublic === 'boolean') publishForm.value.isPublic = payload.isPublic
   }
 
   const restoreConversationFromMessages = messages => {
@@ -405,7 +427,7 @@ export const useAIPluginCreate = () => {
     dependencies.value = latestPayload?.dependencies || []
     reviewResult.value = latestPayload?.reviewResult || null
     activeFilePath.value = generatedFiles.value[0]?.filePath || ''
-    if (latestPayload) fillPublishInfo({ ...latestPayload, round: 1 }, '')
+    if (latestPayload) syncPublishInfo(latestPayload)
     saveDraft()
   }
 
@@ -423,8 +445,9 @@ export const useAIPluginCreate = () => {
         params: { conversationId: conversationId.value, round },
         timeout: 60000
       })
-      await loadConversation(conversationId.value, false)
+      await loadConversation(conversationId.value, false, false)
       chatInput.value = userMessage?.content || chatInput.value
+      autoSaveDraft()
     } finally {
       generationLoading.value = false
     }
@@ -478,6 +501,7 @@ export const useAIPluginCreate = () => {
       const versionId = response.data?.versionId
       reviewResult.value = null
       reviewVisible.value = false
+      autoSaveDraft()
       ElMessage.success('编译上传完成')
       if (pluginId) router.push(`/plugin/${pluginId}${versionId ? `?versionId=${versionId}` : ''}`)
     } catch (error) {
@@ -491,7 +515,7 @@ export const useAIPluginCreate = () => {
     }
   }
 
-  const loadConversation = async (id, showLoading = true) => {
+  const loadConversation = async (id, showLoading = true, animateAutoSave = true) => {
     if (!id) return
     if (showLoading) historyLoading.value = true
     try {
@@ -501,6 +525,7 @@ export const useAIPluginCreate = () => {
         timeout: 60000
       })
       restoreConversationFromMessages(Array.isArray(response.data) ? response.data : [])
+      if (animateAutoSave) autoSaveDraft()
     } finally {
       if (showLoading) historyLoading.value = false
       scrollChatToBottom()
@@ -569,6 +594,7 @@ export const useAIPluginCreate = () => {
     dependencies,
     reviewResult,
     reviewEnabled,
+    autoSaveTick,
     chatScrollRef,
     chatInput,
     publishForm,
@@ -588,7 +614,6 @@ export const useAIPluginCreate = () => {
     fileTree,
     diffLines,
     sendPrompt,
-    saveDraftManually,
     deleteDraft,
     undoToBeforeRound,
     confirmCompile,
@@ -624,7 +649,9 @@ function createGeneratingMessage(round) {
     progress: '...',
     reviewResult: null,
     error: false,
-    hasBackendContent: false
+    hasBackendContent: false,
+    loading: true,
+    waitingForBackend: true
   }
 }
 
@@ -650,12 +677,15 @@ function parseAssistantContent(content) {
     return {
       files: Array.isArray(parsed.files) ? parsed.files.map(normalizeGeneratedFile) : [],
       dependencies: Array.isArray(parsed.dependencies) ? parsed.dependencies : [],
-      pluginName: parsed.pluginName || '',
-      pluginDescription: parsed.pluginDescription || '',
+      pluginName: parsed.pluginName || parsed.name || '',
+      pluginDescription: parsed.pluginDescription || parsed.description || '',
+      version: parsed.version || '',
+      changelog: parsed.changelog || '',
+      isPublic: typeof parsed.isPublic === 'boolean' ? parsed.isPublic : undefined,
       reviewResult: parsed.reviewResult || null
     }
   } catch (error) {
-    return { files: [], dependencies: [], pluginName: '', pluginDescription: '', reviewResult: null }
+    return { files: [], dependencies: [], pluginName: '', pluginDescription: '', version: '', changelog: '', isPublic: undefined, reviewResult: null }
   }
 }
 
@@ -705,8 +735,11 @@ function normalizePayload(data) {
     round: data.round || data.currentRound,
     files: Array.isArray(data.files) ? data.files.map(normalizeGeneratedFile) : [],
     dependencies: Array.isArray(data.dependencies) ? data.dependencies : [],
-    pluginName: data.pluginName || '',
-    pluginDescription: data.pluginDescription || '',
+    pluginName: data.pluginName || data.name || '',
+    pluginDescription: data.pluginDescription || data.description || '',
+    version: data.version || '',
+    changelog: data.changelog || '',
+    isPublic: typeof data.isPublic === 'boolean' ? data.isPublic : undefined,
     reviewResult: data.reviewResult || null
   }
 }

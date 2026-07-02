@@ -23,6 +23,14 @@ const emit = defineEmits([
 
 const chatScrollRef = defineModel('chatScrollRef')
 
+const shouldShowTypingDots = (message, messages, isGenerating) => {
+  if (message.role !== 'assistant') return false
+  if (message.loading || message.waitingForBackend || (!message.hasBackendContent && message.content === '...')) return true
+
+  const latestAssistant = [...messages].reverse().find(item => item.role === 'assistant')
+  return Boolean(isGenerating && message.round > 0 && latestAssistant?.id === message.id && !message.hasBackendContent)
+}
+
 const handleInputKeydown = event => {
   if (event.key !== 'Enter') return
   if (event.altKey) return
@@ -54,7 +62,17 @@ const handleInputKeydown = event => {
         <div class="message-stack">
           <div class="message-bubble">
             <p class="message-text">
-              <Transition name="message-text-slide" mode="out-in">
+              <span
+                v-if="shouldShowTypingDots(message, chatMessages, generationLoading)"
+                :key="`${message.id}-loading`"
+                class="typing-dots"
+                aria-label="正在加载"
+              >
+                <i></i>
+                <i></i>
+                <i></i>
+              </span>
+              <Transition v-else name="message-text-slide" mode="out-in">
                 <span :key="message.content">{{ message.content }}</span>
               </Transition>
             </p>
