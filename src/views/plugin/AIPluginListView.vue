@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ChatLineRound, Clock, MagicStick, Plus, Refresh, Tickets } from '@element-plus/icons-vue'
+import { ChatLineRound, Clock, MagicStick, Plus, Refresh } from '@element-plus/icons-vue'
 import request from '../../utils/request'
 
 const router = useRouter()
@@ -57,11 +57,21 @@ const handleSizeChange = size => {
   loadConversations()
 }
 
+const parseLastCode = conversation => {
+  try {
+    if (!conversation.lastCode) return {}
+    return JSON.parse(conversation.lastCode)
+  } catch {
+    return {}
+  }
+}
+
 const formatStatus = status => {
   const map = {
-    DRAFT: { label: '历史草稿', type: 'info' },
+    DRAFT: { label: '草稿', type: 'info' },
     CURRENT: { label: '当前版本', type: 'success' },
-    PUBLISHED: { label: '已发布', type: 'primary' }
+    PUBLISHED: { label: '已发布', type: 'primary' },
+    PUBLISHED_DRAFT: { label: '已发布·有更新', type: 'warning' }
   }
   return map[status] || { label: status || '未知', type: 'info' }
 }
@@ -69,11 +79,6 @@ const formatStatus = status => {
 const formatTime = value => {
   if (!value) return '未知'
   return String(value).replace('T', ' ')
-}
-
-const shortId = value => {
-  if (!value) return '未生成'
-  return value.length > 18 ? `${value.slice(0, 8)}...${value.slice(-6)}` : value
 }
 
 onMounted(loadConversations)
@@ -106,29 +111,18 @@ onMounted(loadConversations)
             <div class="card-header">
               <div class="card-title">
                 <el-icon><ChatLineRound /></el-icon>
-                <strong>{{ conversation.pluginName || '未发布插件' }}</strong>
+                <strong>{{ parseLastCode(conversation).pluginName || '未发布插件' }}</strong>
               </div>
               <el-tag :type="formatStatus(conversation.status).type" effect="plain">
                 {{ formatStatus(conversation.status).label }}
               </el-tag>
             </div>
 
-            <div class="card-meta">
-              <div>
-                <span>会话</span>
-                <code>{{ shortId(conversation.conversationId) }}</code>
-              </div>
-              <div>
-                <span>插件</span>
-                <code>{{ shortId(conversation.pluginId) }}</code>
-              </div>
+            <div class="card-description">
+              {{ parseLastCode(conversation).pluginDescription || '暂无描述' }}
             </div>
 
             <div class="card-footer">
-              <span>
-                <el-icon><Tickets /></el-icon>
-                {{ conversation.pluginId ? '关联插件' : '新建草稿' }}
-              </span>
               <span>
                 <el-icon><Clock /></el-icon>
                 {{ formatTime(conversation.updateTime || conversation.createTime) }}
@@ -239,41 +233,33 @@ onMounted(loadConversations)
   font-size: 16px;
 }
 
-.card-meta {
-  display: grid;
-  gap: 10px;
+.card-description {
   padding: 12px;
+  margin-bottom: 18px;
   border: 1px solid var(--app-border-soft);
   border-radius: 8px;
   background: var(--app-bg-muted);
-}
-
-.card-meta div {
-  display: grid;
-  grid-template-columns: 42px 1fr;
-  gap: 8px;
-  align-items: center;
-}
-
-.card-meta span,
-.card-footer {
   color: var(--app-text-muted);
-  font-size: 12px;
-}
-
-.card-meta code {
+  font-size: 13px;
+  line-height: 1.6;
+  min-height: 48px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: Consolas, Monaco, monospace;
-  color: var(--app-text-soft);
 }
 
 .card-footer {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 12px;
   margin-top: 18px;
+}
+
+.card-footer,
+.card-footer span {
+  color: var(--app-text-muted);
+  font-size: 12px;
 }
 
 .card-footer span {

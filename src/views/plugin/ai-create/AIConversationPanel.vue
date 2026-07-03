@@ -18,7 +18,8 @@ defineProps({
 const emit = defineEmits([
   'update:chatInput',
   'send',
-  'undo'
+  'undo',
+  'cancel'
 ])
 
 const chatScrollRef = defineModel('chatScrollRef')
@@ -108,9 +109,14 @@ const handleInputKeydown = event => {
         @keydown="handleInputKeydown"
       />
       <el-button
+        v-if="generationLoading"
+        type="danger"
+        @click="emit('cancel')"
+      >停止</el-button>
+      <el-button
+        v-else
         type="primary"
         :icon="conversationId ? Promotion : MagicStick"
-        :loading="generationLoading"
         @click="emit('send')"
       />
       <div class="input-hint">Enter 发送，Alt + Enter 换行</div>

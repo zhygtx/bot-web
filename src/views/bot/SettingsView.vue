@@ -2,7 +2,7 @@
 import { ref, reactive, computed, onMounted } from "vue"
 import { useRouter } from "vue-router"
 import { ElMessage, ElMessageBox } from "element-plus"
-import { Edit, Delete, Plus, User, Cpu, Monitor, CopyDocument } from "@element-plus/icons-vue"
+import { Edit, Delete, Plus, User, Cpu, Monitor, CopyDocument, Connection, View, Hide } from "@element-plus/icons-vue"
 import request from "../../utils/request"
 
 const router = useRouter()
@@ -40,6 +40,34 @@ const dockerRules = {
   ]
 }
 
+// ─── AI配置 ───
+const aiConfig = ref({ id: "", apiProvider: "", baseUrl: "", apiKey: "", model: "" })
+const hasAIConfig = computed(() => !!aiConfig.value.id)
+const showApiKey = ref(false)
+
+const aiDialogVisible = ref(false)
+const aiSaveLoading = ref(false)
+const aiTestLoading = ref(false)
+const aiDialogTitle = computed(() => aiConfig.value.id ? "编辑AI配置" : "添加AI配置")
+const aiForm = reactive({ apiProvider: "", baseUrl: "", apiKey: "", model: "" })
+const aiFormRef = ref(null)
+const aiRules = {
+  apiProvider: [{ required: true, message: "请选择API格式", trigger: "change" }],
+  baseUrl: [{ required: true, message: "请输入接口地址", trigger: "blur" }],
+  apiKey: [{ required: true, message: "请输入API密钥", trigger: "blur" }],
+  model: [{ required: true, message: "请输入模型名称", trigger: "blur" }]
+}
+
+const apiProviderOptions = [
+  { label: "OpenAI", value: "OPENAI" },
+  { label: "Anthropic", value: "ANTHROPIC" }
+]
+
+const getApiProviderLabel = (value) => {
+  const option = apiProviderOptions.find(o => o.value === value)
+  return option ? option.label : value || "-"
+}
+
 onMounted(() => {
   if (typeof window !== "undefined") {
     currentHost.value = window.location.hostname || "localhost"
@@ -49,7 +77,7 @@ onMounted(() => {
 
 const loadAll = async () => {
   loading.value = true
-  await Promise.all([getUserInfo(), getBotInfo(), getContainerInfo()])
+  await Promise.all([getUserInfo(), getBotInfo(), getContainerInfo(), getAIConfig()])
   loading.value = false
 }
 
@@ -244,6 +272,109 @@ const handleLogout = async () => {
     }
   }
 }
+
+// ─── AI配置 方法 ───
+const getAIConfig = async () => {
+  try {
+    const response = await request({ url: "/user-ai-config", method: "get" })
+    if (response.data) {
+      aiConfig.value = {
+        id: response.data.id || "",
+        apiProvider: response.data.apiProvider || "",
+        baseUrl: response.data.baseUrl || "",
+        apiKey: response.data.apiKey || "",
+        model: response.data.model || ""
+      }
+    }
+  } catch (e) {
+    aiConfig.value = { id: "", apiProvider: "", baseUrl: "", apiKey: "", model: "" }
+  }
+}
+
+const openAIDialog = () => {
+  if (aiConfig.value.id) {
+    aiForm.apiProvider = aiConfig.value.apiProvider
+    aiForm.baseUrl = aiConfig.value.baseUrl
+    aiForm.apiKey = aiConfig.value.apiKey
+    aiForm.model = aiConfig.value.model
+  } else {
+    aiForm.apiProvider = ""
+    aiForm.baseUrl = ""
+    aiForm.apiKey = ""
+    aiForm.model = ""
+  }
+  aiDialogVisible.value = true
+}
+
+const doSaveAI = async () => {
+  if (aiConfig.value.id) {
+    await request({
+      url: "/user-ai-config",
+      method: "put",
+      data: {
+        id: aiConfig.value.id,
+        apiProvider: aiForm.apiProvider,
+        baseUrl: aiForm.baseUrl,
+        apiKey: aiForm.apiKey,
+        model: aiForm.model
+      }
+    })
+  } else {
+    await request({
+      url: "/user-ai-config",
+      method: "post",
+      data: {
+        apiProvider: aiForm.apiProvider,
+        baseUrl: aiForm.baseUrl,
+        apiKey: aiForm.apiKey,
+        model: aiForm.model
+      }
+    })
+  }
+}
+
+const submitAI = async () => {
+  if (!aiFormRef.value) return
+  const valid = await aiFormRef.value.validate()
+  if (!valid) return
+  aiSaveLoading.value = true
+  try {
+    await doSaveAI()
+    aiDialogVisible.value = false
+    showApiKey.value = false
+    await getAIConfig()
+  } catch (e) {
+    // 错误已由拦截器处理
+  } finally {
+    aiSaveLoading.value = false
+  }
+}
+
+const testAI = async () => {
+  aiTestLoading.value = true
+  try {
+    await request({ url: "/user-ai-config/test", method: "get" })
+  } catch (e) {
+    // 错误已由拦截器处理
+  } finally {
+    aiTestLoading.value = false
+  }
+}
+
+const deleteAIConfig = async () => {
+  try {
+    await ElMessageBox.confirm("确定要删除AI配置吗？", "删除确认", {
+      confirmButtonText: "确定", cancelButtonText: "取消", type: "warning"
+    })
+    await request({ url: "/user-ai-config", method: "delete" })
+    showApiKey.value = false
+    aiConfig.value = { id: "", apiProvider: "", baseUrl: "", apiKey: "", model: "" }
+  } catch (error) {
+    if (error !== "cancel") {
+      // 错误已由拦截器处理
+    }
+  }
+}
 </script>
 
 <template>
@@ -399,6 +530,68 @@ const handleLogout = async () => {
         </div>
         <el-empty v-else description="暂无Docker容器" :image-size="60" />
       </el-card>
+
+      <!-- 卡片4: AI配置 -->
+      <el-card class="settings-card">
+        <template #header>
+          <div class="card-header">
+            <div class="card-title">
+              <el-icon class="card-icon"><Connection /></el-icon>
+              <span>AI配置</span>
+            </div>
+            <div class="card-actions">
+              <el-button
+                v-if="!hasAIConfig"
+                type="primary"
+                size="small"
+                @click="openAIDialog"
+                :icon="Plus"
+              >添加</el-button>
+              <template v-else>
+                <el-button type="success" size="small" @click="testAI" :loading="aiTestLoading">测试</el-button>
+                <el-button type="primary" size="small" @click="openAIDialog" :icon="Edit">编辑</el-button>
+                <el-button type="danger" size="small" @click="deleteAIConfig" :icon="Delete">删除</el-button>
+              </template>
+            </div>
+          </div>
+        </template>
+        <div class="card-body" v-if="hasAIConfig">
+          <div class="info-row">
+            <span class="info-label">API格式</span>
+            <span class="info-value">{{ getApiProviderLabel(aiConfig.apiProvider) }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">接口地址</span>
+            <span class="info-value">{{ aiConfig.baseUrl || "-" }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">API密钥</span>
+            <span class="info-value">
+              <span class="credential-value">{{ showApiKey ? aiConfig.apiKey : "••••••••" }}</span>
+              <el-button
+                :icon="showApiKey ? Hide : View"
+                size="small"
+                text
+                class="copy-btn"
+                @click="showApiKey = !showApiKey"
+              />
+              <el-button
+                v-if="aiConfig.apiKey"
+                :icon="CopyDocument"
+                size="small"
+                text
+                class="copy-btn"
+                @click="copyToClipboard(aiConfig.apiKey)"
+              />
+            </span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">模型名称</span>
+            <span class="info-value">{{ aiConfig.model || "-" }}</span>
+          </div>
+        </div>
+        <el-empty v-else description="暂无AI配置" :image-size="60" />
+      </el-card>
     </div>
 
     <!-- Bot 对话框 -->
@@ -427,6 +620,35 @@ const handleLogout = async () => {
       <template #footer>
         <el-button @click="dockerDialogVisible = false">取消</el-button>
         <el-button type="primary" @click="createContainer" :loading="dockerCreateLoading">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- AI配置 对话框 -->
+    <el-dialog v-model="aiDialogVisible" :title="aiDialogTitle" width="500px">
+      <el-form ref="aiFormRef" :model="aiForm" :rules="aiRules" label-width="100px">
+        <el-form-item label="API格式" prop="apiProvider">
+          <el-select v-model="aiForm.apiProvider" placeholder="请选择API格式" style="width: 100%">
+            <el-option
+              v-for="item in apiProviderOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="接口地址" prop="baseUrl">
+          <el-input v-model="aiForm.baseUrl" placeholder="请输入接口地址，如 https://api.openai.com" />
+        </el-form-item>
+        <el-form-item label="API密钥" prop="apiKey">
+          <el-input v-model="aiForm.apiKey" placeholder="请输入API密钥" show-password />
+        </el-form-item>
+        <el-form-item label="模型名称" prop="model">
+          <el-input v-model="aiForm.model" placeholder="请输入模型名称，如 gpt-4o" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="aiDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitAI" :loading="aiSaveLoading">保存</el-button>
       </template>
     </el-dialog>
   </div>

@@ -197,6 +197,17 @@ export const useAIPluginCreate = () => {
     }
   }
 
+  const cancelGeneration = () => {
+    if (!webSocketRef.value) return
+    try {
+      if (webSocketRef.value.readyState === WebSocket.OPEN) {
+        webSocketRef.value.send(JSON.stringify({ type: 'cancel' }))
+      }
+    } catch (error) {
+      // ignore closed socket
+    }
+  }
+
   const sendPrompt = async () => {
     const text = chatInput.value.trim()
     if (!text) {
@@ -224,11 +235,14 @@ export const useAIPluginCreate = () => {
       await sendPromptStream(text, assistantMessage.id)
       requestSucceeded = true
     } catch (error) {
+      const latestMsg = chatMessages.value.find(m => m.id === assistantMessage.id)
+      const wasInterrupted = latestMsg?.interrupted === true
       patchChatMessage(assistantMessage.id, {
-        error: true,
+        error: !wasInterrupted,
+        interrupted: wasInterrupted,
         loading: false,
         waitingForBackend: false,
-        content: error.message || 'AI 生成失败'
+        content: wasInterrupted ? (latestMsg.content || '已取消') : (error.message || 'AI 生成失败')
       })
     } finally {
       generationLoading.value = false
@@ -313,6 +327,15 @@ export const useAIPluginCreate = () => {
           const latestPayload = getLatestAssistantPayload(messages)
           if (latestPayload) syncPublishInfo(latestPayload, text)
           finish(resolve)
+          return
+        }
+        if (parsed.type === 'cancelled') {
+          patchChatMessage(assistantMessageId, {
+            interrupted: true,
+            loading: false,
+            waitingForBackend: false
+          })
+          finish(() => reject(new Error('已取消生成')))
           return
         }
         if (parsed.type === 'error') {
@@ -435,6 +458,7 @@ export const useAIPluginCreate = () => {
     if (!conversationId.value || round !== currentRound.value || round <= 0) {
       return
     }
+
     const userMessage = [...chatMessages.value].reverse().find(item => item.role === 'user' && item.round === round)
     generationLoading.value = true
     reviewVisible.value = false
@@ -614,6 +638,7 @@ export const useAIPluginCreate = () => {
     fileTree,
     diffLines,
     sendPrompt,
+    cancelGeneration,
     deleteDraft,
     undoToBeforeRound,
     confirmCompile,

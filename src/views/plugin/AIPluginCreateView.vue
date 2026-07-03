@@ -53,6 +53,7 @@ const vm = useAIPluginCreate()
         :current-round="vm.currentRound.value"
         @update:chat-input="vm.chatInput.value = $event"
         @send="vm.sendPrompt"
+        @cancel="vm.cancelGeneration"
         @undo="vm.undoToBeforeRound"
       />
 
