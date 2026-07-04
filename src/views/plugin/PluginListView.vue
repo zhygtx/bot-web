@@ -20,7 +20,7 @@ const currentPluginId = ref(null)
 // 多条件筛选
 const filters = ref({
   content: '',
-  isPublic: ''
+  isPublic: 'all'
 })
 
 const loadPlugins = async () => {
@@ -34,7 +34,7 @@ const loadPlugins = async () => {
     if (filters.value.content) {
       params.content = filters.value.content
     }
-    if (filters.value.isPublic !== 'all') {
+    if (filters.value.isPublic === 'true' || filters.value.isPublic === 'false') {
       params.isPublic = filters.value.isPublic === 'true'
     }
     const response = await request({

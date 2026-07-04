@@ -1,5 +1,5 @@
 <script setup>
-import { ArrowLeft, CircleCheck, Delete, Right, UploadFilled } from '@element-plus/icons-vue'
+import { ArrowLeft, Right, UploadFilled } from '@element-plus/icons-vue'
 import { useAIPluginCreate } from '../../composables/plugin/useAIPluginCreate'
 import AIConversationPanel from './ai-create/AIConversationPanel.vue'
 import AICodePanel from './ai-create/AICodePanel.vue'
@@ -22,11 +22,6 @@ const vm = useAIPluginCreate()
         <el-tag v-if="vm.reviewBadge.value" :type="vm.reviewBadge.value.type" effect="plain">
           {{ vm.reviewBadge.value.text }}
         </el-tag>
-        <div :key="vm.autoSaveTick.value" class="autosave-indicator" aria-live="polite">
-          <el-icon><CircleCheck /></el-icon>
-          <span>自动保存</span>
-        </div>
-        <el-button :icon="Delete" @click="vm.deleteDraft">删除草稿</el-button>
         <el-button
           type="primary"
           :icon="UploadFilled"
@@ -35,9 +30,11 @@ const vm = useAIPluginCreate()
           class="compile-button"
           @click="vm.confirmCompile"
         >
-          <span class="compile-label" :class="{ rolling: vm.compileLoading.value }">
-            {{ vm.compileButtonText.value }}
-          </span>
+          <Transition name="compile-label-slide" mode="out-in">
+            <span :key="vm.compileButtonTextKey.value" class="compile-label">
+              {{ vm.compileButtonText.value }}
+            </span>
+          </Transition>
         </el-button>
       </div>
     </div>

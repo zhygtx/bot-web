@@ -1,12 +1,18 @@
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { createPatch } from 'diff'
 import request from '../../utils/request'
 
 const DEFAULT_ENTITY_PACKAGE = 'com.example.entity'
 const DEFAULT_METHOD_PACKAGE = 'com.example.service'
-const DRAFT_KEY = 'ai-plugin-create-draft'
+const LEGACY_DRAFT_KEY = 'ai-plugin-create-draft'
+
+const createDemandFormFromRoute = (query = {}) => ({
+  entityPackage: query.entityPackage || DEFAULT_ENTITY_PACKAGE,
+  methodPackage: query.methodPackage || DEFAULT_METHOD_PACKAGE,
+  pluginId: query.pluginId || ''
+})
 
 export const useAIPluginCreate = () => {
   const route = useRoute()
@@ -18,7 +24,7 @@ export const useAIPluginCreate = () => {
   const reviewVisible = ref(false)
   const activeTab = ref('code')
   const activeFilePath = ref('')
-  const conversationId = ref(route.query.conversationId || '')
+  const conversationId = ref('')
   const currentRound = ref(0)
   const generatedFiles = ref([])
   const previousFiles = ref([])
@@ -28,16 +34,10 @@ export const useAIPluginCreate = () => {
   const chatScrollRef = ref(null)
   const chatInput = ref('')
   const reviewEnabled = ref(false)
-  const compileStepIndex = ref(0)
+  const compileStatusText = ref('')
   const webSocketRef = ref(null)
-  const draftSavePaused = ref(false)
-  const autoSaveTick = ref(0)
 
-  const demandForm = ref({
-    entityPackage: route.query.entityPackage || DEFAULT_ENTITY_PACKAGE,
-    methodPackage: route.query.methodPackage || DEFAULT_METHOD_PACKAGE,
-    pluginId: route.query.pluginId || ''
-  })
+  const demandForm = ref(createDemandFormFromRoute(route.query))
 
   const publishForm = ref({
     name: '',
@@ -68,12 +68,9 @@ export const useAIPluginCreate = () => {
   const totalCodeLines = computed(() => visibleFiles.value.reduce((sum, file) => sum + (file.content?.split('\n').length || 0), 0))
   const compileButtonText = computed(() => {
     if (!compileLoading.value) return '确认编译并上传'
-    return compileStepLabels.value[compileStepIndex.value] || '处理中'
+    return compileStatusText.value || '正在连接编译服务'
   })
-  const compileStepLabels = computed(() => {
-    const labels = ['Maven 编译', '扫描校验', '上传插件']
-    return reviewEnabled.value ? ['代码审查', ...labels] : labels
-  })
+  const compileButtonTextKey = computed(() => `${compileLoading.value ? 'loading' : 'idle'}-${compileButtonText.value}`)
   const reviewBadge = computed(() => {
     if (!reviewVisible.value || !reviewResult.value) return null
     return reviewResult.value.passed === false ? { type: 'danger', text: '审查未通过' } : null
@@ -109,34 +106,11 @@ export const useAIPluginCreate = () => {
     if (wrap) wrap.scrollTop = wrap.scrollHeight
   }
 
-  const saveDraft = (force = false) => {
-    if (draftSavePaused.value && !force) return
-    if (!conversationId.value && !chatInput.value && !hasGeneratedCode.value) return
-    draftSavePaused.value = false
-    const draft = {
-      conversationId: conversationId.value,
-      currentRound: currentRound.value,
-      demandForm: demandForm.value,
-      publishForm: publishForm.value,
-      chatInput: chatInput.value,
-      updateTime: new Date().toISOString()
-    }
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
+  const clearLegacyDraft = () => {
+    localStorage.removeItem(LEGACY_DRAFT_KEY)
   }
 
-  const autoSaveDraft = () => {
-    saveDraft(true)
-    autoSaveTick.value += 1
-  }
-
-  const deleteDraft = () => {
-    localStorage.removeItem(DRAFT_KEY)
-    resetPageState()
-    draftSavePaused.value = true
-    ElMessage.success('当前草稿已删除')
-  }
-
-  const resetPageState = () => {
+  const resetPageState = (query = {}) => {
     try {
       webSocketRef.value?.close?.()
     } catch (error) {
@@ -156,13 +130,9 @@ export const useAIPluginCreate = () => {
     dependencies.value = []
     reviewResult.value = null
     chatInput.value = ''
-    compileStepIndex.value = 0
+    compileStatusText.value = ''
     webSocketRef.value = null
-    demandForm.value = {
-      entityPackage: DEFAULT_ENTITY_PACKAGE,
-      methodPackage: DEFAULT_METHOD_PACKAGE,
-      pluginId: ''
-    }
+    demandForm.value = createDemandFormFromRoute(query)
     publishForm.value = {
       name: '',
       description: '',
@@ -171,30 +141,6 @@ export const useAIPluginCreate = () => {
       isPublic: true
     }
     chatMessages.value = [createWelcomeMessage()]
-    if (Object.keys(route.query || {}).length) {
-      router.replace({ path: route.path })
-    }
-  }
-
-  const restoreDraft = () => {
-    if (conversationId.value) return
-    try {
-      const raw = localStorage.getItem(DRAFT_KEY)
-      if (!raw) return
-      const draft = JSON.parse(raw)
-      if (!draft?.conversationId) {
-        if (draft?.publishForm) publishForm.value = { ...publishForm.value, ...draft.publishForm }
-        if (draft?.chatInput) chatInput.value = draft.chatInput
-        return
-      }
-      conversationId.value = draft.conversationId
-      currentRound.value = draft.currentRound || 0
-      demandForm.value = { ...demandForm.value, ...(draft.demandForm || {}) }
-      publishForm.value = { ...publishForm.value, ...(draft.publishForm || {}) }
-      chatInput.value = draft.chatInput || ''
-    } catch (error) {
-      localStorage.removeItem(DRAFT_KEY)
-    }
   }
 
   const cancelGeneration = () => {
@@ -229,11 +175,8 @@ export const useAIPluginCreate = () => {
     const assistantMessage = createGeneratingMessage(nextRound)
     chatMessages.value.push(assistantMessage)
     await scrollChatToBottom()
-    let requestSucceeded = false
-
     try {
       await sendPromptStream(text, assistantMessage.id)
-      requestSucceeded = true
     } catch (error) {
       const latestMsg = chatMessages.value.find(m => m.id === assistantMessage.id)
       const wasInterrupted = latestMsg?.interrupted === true
@@ -246,8 +189,6 @@ export const useAIPluginCreate = () => {
       })
     } finally {
       generationLoading.value = false
-      draftSavePaused.value = false
-      if (requestSucceeded) autoSaveDraft()
       scrollChatToBottom()
     }
   }
@@ -451,7 +392,6 @@ export const useAIPluginCreate = () => {
     reviewResult.value = latestPayload?.reviewResult || null
     activeFilePath.value = generatedFiles.value[0]?.filePath || ''
     if (latestPayload) syncPublishInfo(latestPayload)
-    saveDraft()
   }
 
   const undoToBeforeRound = async round => {
@@ -471,7 +411,6 @@ export const useAIPluginCreate = () => {
       })
       await loadConversation(conversationId.value, false, false)
       chatInput.value = userMessage?.content || chatInput.value
-      autoSaveDraft()
     } finally {
       generationLoading.value = false
     }
@@ -496,50 +435,98 @@ export const useAIPluginCreate = () => {
     }
     if (!validatePublishForm()) return
     compileLoading.value = true
-    compileStepIndex.value = 0
+    compileStatusText.value = '正在连接编译服务'
     reviewVisible.value = false
 
-    const timer = window.setInterval(() => {
-      compileStepIndex.value = Math.min(compileStepIndex.value + 1, compileStepLabels.value.length - 1)
-    }, 1200)
     try {
-      const response = await request({
-        url: '/ai-plugin/conversation/compile',
-        method: 'post',
-        data: {
-          files: generatedFiles.value,
-          dependencies: dependencies.value,
-          name: publishForm.value.name.trim(),
-          description: publishForm.value.description.trim(),
-          version: publishForm.value.version.trim(),
-          changelog: publishForm.value.changelog.trim(),
-          entityPackage: demandForm.value.entityPackage || DEFAULT_ENTITY_PACKAGE,
-          methodPackage: demandForm.value.methodPackage || DEFAULT_METHOD_PACKAGE,
-          isPublic: publishForm.value.isPublic,
-          conversationId: conversationId.value,
-          reviewResult: reviewResult.value
-        },
-        timeout: 180000
-      })
-      const pluginId = response.data?.pluginId
-      const versionId = response.data?.versionId
+      const pluginId = await sendCompileStream()
       reviewResult.value = null
       reviewVisible.value = false
-      autoSaveDraft()
       ElMessage.success('编译上传完成')
-      if (pluginId) router.push(`/plugin/${pluginId}${versionId ? `?versionId=${versionId}` : ''}`)
+      if (pluginId) router.push(`/plugin/${pluginId}`)
     } catch (error) {
-      reviewResult.value = error.data?.reviewResult || reviewResult.value
-      reviewVisible.value = reviewResult.value?.passed === false
-      if (reviewVisible.value) activeTab.value = 'review'
+      ElMessage.error(error.message || '编译上传失败')
     } finally {
-      window.clearInterval(timer)
       compileLoading.value = false
-      compileStepIndex.value = 0
+      compileStatusText.value = ''
     }
   }
 
-  const loadConversation = async (id, showLoading = true, animateAutoSave = true) => {
+  const sendCompileStream = () => {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      return Promise.reject(new Error('登录状态已失效，请重新登录'))
+    }
+
+    return new Promise((resolve, reject) => {
+      let settled = false
+      const socket = new WebSocket(buildAIPluginWsUrl(token))
+      webSocketRef.value = socket
+
+      const finish = callback => {
+        if (settled) return
+        settled = true
+        if (webSocketRef.value === socket) webSocketRef.value = null
+        try {
+          if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+            socket.close()
+          }
+        } catch (error) {
+          // ignore closed socket
+        }
+        callback()
+      }
+
+      socket.onopen = () => {
+        socket.send(JSON.stringify({
+          type: 'compile',
+          data: buildCompilePayload()
+        }))
+      }
+
+      socket.onmessage = event => {
+        const parsed = parseWsMessage(event.data)
+        if (!parsed) return
+        if (parsed.type === 'compile_change') {
+          compileStatusText.value = normalizeCompileStatus(parsed.data)
+          return
+        }
+        if (parsed.type === 'done') {
+          const pluginId = normalizeDonePluginId(parsed.data)
+          finish(() => resolve(pluginId))
+          return
+        }
+        if (parsed.type === 'error') {
+          finish(() => reject(new Error(parsed.data?.message || normalizeCompileStatus(parsed.data) || '编译上传失败')))
+        }
+      }
+
+      socket.onerror = () => {
+        finish(() => reject(new Error('WebSocket 连接异常，编译上传中断')))
+      }
+
+      socket.onclose = () => {
+        if (!settled) {
+          finish(() => reject(new Error('WebSocket 连接已关闭，编译上传中断')))
+        }
+      }
+    })
+  }
+
+  const buildCompilePayload = () => ({
+    userId: localStorage.getItem('userId') || '',
+    conversationId: conversationId.value,
+    pluginName: publishForm.value.name.trim(),
+    pluginDescription: publishForm.value.description.trim(),
+    pluginId: demandForm.value.pluginId || '',
+    isPublic: publishForm.value.isPublic,
+    entityPackage: demandForm.value.entityPackage || DEFAULT_ENTITY_PACKAGE,
+    methodPackage: demandForm.value.methodPackage || DEFAULT_METHOD_PACKAGE,
+    pluginVersion: publishForm.value.version.trim(),
+    pluginChangeDescription: publishForm.value.changelog.trim()
+  })
+
+  const loadConversation = async (id, showLoading = true) => {
     if (!id) return
     if (showLoading) historyLoading.value = true
     try {
@@ -549,7 +536,6 @@ export const useAIPluginCreate = () => {
         timeout: 60000
       })
       restoreConversationFromMessages(Array.isArray(response.data) ? response.data : [])
-      if (animateAutoSave) autoSaveDraft()
     } finally {
       if (showLoading) historyLoading.value = false
       scrollChatToBottom()
@@ -582,22 +568,25 @@ export const useAIPluginCreate = () => {
   const highlightLine = line => tokenizeJavaLine(line)
 
   const goBack = () => {
-    saveDraft()
     router.push('/plugin/ai-list')
   }
 
-  onMounted(() => {
+  const initializePageFromRoute = async () => {
+    clearLegacyDraft()
+    resetPageState(route.query)
+    const routeConversationId = route.query.conversationId || ''
+    conversationId.value = routeConversationId
+    if (routeConversationId) await loadConversation(routeConversationId)
+  }
+
+  onMounted(async () => {
     loadAIPluginConfig()
-    restoreDraft()
-    if (conversationId.value) loadConversation(conversationId.value)
+    await initializePageFromRoute()
   })
 
-  onBeforeRouteLeave(() => {
-    saveDraft()
-  })
+  watch(() => route.fullPath, initializePageFromRoute)
 
   onBeforeUnmount(() => {
-    saveDraft()
     try {
       webSocketRef.value?.close?.()
     } catch (error) {
@@ -618,7 +607,6 @@ export const useAIPluginCreate = () => {
     dependencies,
     reviewResult,
     reviewEnabled,
-    autoSaveTick,
     chatScrollRef,
     chatInput,
     publishForm,
@@ -634,12 +622,12 @@ export const useAIPluginCreate = () => {
     selectedFileName,
     totalCodeLines,
     compileButtonText,
+    compileButtonTextKey,
     reviewBadge,
     fileTree,
     diffLines,
     sendPrompt,
     cancelGeneration,
-    deleteDraft,
     undoToBeforeRound,
     confirmCompile,
     selectTreeNode,
@@ -767,6 +755,17 @@ function normalizePayload(data) {
     isPublic: typeof data.isPublic === 'boolean' ? data.isPublic : undefined,
     reviewResult: data.reviewResult || null
   }
+}
+
+function normalizeCompileStatus(data) {
+  if (typeof data === 'string') return data.trim()
+  if (data?.message) return String(data.message).trim()
+  return ''
+}
+
+function normalizeDonePluginId(data) {
+  if (typeof data === 'string') return data
+  return data?.pluginId || data?.id || ''
 }
 
 function buildAIPluginWsUrl(token) {
