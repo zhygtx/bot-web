@@ -221,6 +221,30 @@ generate_nginx_config() {
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_read_timeout $WS_READ_TIMEOUT;
         proxy_send_timeout $WS_READ_TIMEOUT;
+    }
+
+# SSE 流式端点（AI 插件代码生成 / 编译），必须关闭代理缓冲
+    location /ai-plugin/generate {
+        proxy_pass $API_PROXY_TARGET;
+        proxy_http_version 1.1;
+        proxy_set_header Connection '';
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_read_timeout 300s;
+    }
+    location /ai-plugin/compile {
+        proxy_pass $API_PROXY_TARGET;
+        proxy_http_version 1.1;
+        proxy_set_header Connection '';
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_read_timeout 300s;
     }"
     fi
 

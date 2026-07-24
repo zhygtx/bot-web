@@ -1,16 +1,16 @@
 <script setup>
 import {
   Back,
-  ChatDotRound,
-  MagicStick,
-  Promotion
+  Top,
+  VideoPause
 } from '@element-plus/icons-vue'
+import AIMessageMarkdown from './AIMessageMarkdown.vue'
+import AIToolCallBlock from './AIToolCallBlock.vue'
 
 defineProps({
   chatMessages: { type: Array, required: true },
   chatInput: { type: String, default: '' },
   conversationId: { type: String, default: '' },
-  shortConversationId: { type: String, default: '未开始' },
   generationLoading: { type: Boolean, default: false },
   currentRound: { type: Number, default: 0 }
 })
@@ -24,48 +24,46 @@ const emit = defineEmits([
 
 const chatScrollRef = defineModel('chatScrollRef')
 
-const shouldShowTypingDots = (message, messages, isGenerating) => {
-  if (message.role !== 'assistant') return false
-  if (message.loading || message.waitingForBackend || (!message.hasBackendContent && message.content === '...')) return true
+const shouldShowTypingDots = message => {
+  return message.role === 'assistant' && (message.loading || message.waitingForBackend) && !message.parts?.length
+}
 
-  const latestAssistant = [...messages].reverse().find(item => item.role === 'assistant')
-  return Boolean(isGenerating && message.round > 0 && latestAssistant?.id === message.id && !message.hasBackendContent)
+const messageParts = message => {
+  if (Array.isArray(message.parts) && message.parts.length) return message.parts
+  return message.content ? [{ type: 'text', content: message.content }] : []
+}
+
+const toolCallForPart = (message, part) => {
+  return message.toolCalls?.[part.toolCallId] || null
 }
 
 const handleInputKeydown = event => {
   if (event.key !== 'Enter') return
-  if (event.altKey) return
+  if (event.altKey || event.shiftKey) return
   event.preventDefault()
   emit('send')
 }
 </script>
 
 <template>
-  <section class="panel conversation-panel">
-    <div class="panel-header">
-      <div>
-        <h2>对话</h2>
-        <p>会话ID：{{ shortConversationId }}</p>
-      </div>
-    </div>
-
+  <section class="conversation-shell">
     <el-scrollbar ref="chatScrollRef" class="chat-history">
-      <div
-        v-for="message in chatMessages"
-        :key="message.id"
-        class="message-row"
-        :class="[message.role, { error: message.error }]"
-      >
-        <div class="avatar">
-          <el-icon v-if="message.role === 'assistant'"><ChatDotRound /></el-icon>
-          <span v-else>我</span>
-          </div>
-        <div class="message-stack">
-          <div class="message-bubble">
-            <p class="message-text">
+      <div class="conversation-feed">
+        <div
+          v-for="message in chatMessages"
+          :key="message.id"
+          class="message-row"
+          :class="[message.role, { error: message.error }]"
+        >
+          <div class="message-stack">
+            <div v-if="message.role === 'user'" class="message-meta">
+              <span>你</span>
+              <span v-if="message.createTime">{{ message.createTime }}</span>
+            </div>
+
+            <div class="message-surface">
               <span
-                v-if="shouldShowTypingDots(message, chatMessages, generationLoading)"
-                :key="`${message.id}-loading`"
+                v-if="shouldShowTypingDots(message)"
                 class="typing-dots"
                 aria-label="正在加载"
               >
@@ -73,53 +71,65 @@ const handleInputKeydown = event => {
                 <i></i>
                 <i></i>
               </span>
-              <Transition v-else name="message-text-slide" mode="out-in">
-                <span :key="message.content">{{ message.content }}</span>
-              </Transition>
-            </p>
-            <span v-if="message.createTime" class="message-time">{{ message.createTime }}</span>
-          </div>
-          <div
-            v-if="message.role === 'assistant' && message.round === currentRound && currentRound > 0"
-            class="message-actions"
-          >
-            <el-button
-              class="message-icon-button"
-              :icon="Back"
-              text
-              :disabled="generationLoading"
-              @click="emit('undo', message.round)"
-            />
+
+              <template v-else>
+                <template v-for="(part, index) in messageParts(message)" :key="`${message.id}-${index}`">
+                  <AIMessageMarkdown
+                    v-if="part.type === 'text' && part.content"
+                    :content="part.content"
+                    :class="{ 'user-markdown': message.role === 'user' }"
+                  />
+                  <AIToolCallBlock
+                    v-else-if="part.type === 'tool_call'"
+                    :tool-call="toolCallForPart(message, part)"
+                  />
+                </template>
+              </template>
+            </div>
+
+            <div
+              v-if="message.role === 'assistant' && message.round === currentRound && currentRound > 0"
+              class="message-actions"
+            >
+              <el-button
+                :icon="Back"
+                text
+                size="small"
+                :disabled="generationLoading"
+                @click="emit('undo', message.round)"
+              >
+                撤回本轮
+              </el-button>
+            </div>
           </div>
         </div>
       </div>
     </el-scrollbar>
 
-    <div class="chat-input-box">
-      <el-input
-        :model-value="chatInput"
-        type="textarea"
-        :autosize="{ minRows: 2, maxRows: 6 }"
-        maxlength="1000"
-        show-word-limit
-        resize="none"
+    <div class="composer">
+      <textarea
+        class="composer-input"
+        :value="chatInput"
+        maxlength="2000"
         :disabled="generationLoading"
-        placeholder="描述你想生成或修改的插件功能..."
-        @update:model-value="emit('update:chatInput', $event)"
+        placeholder="描述插件要处理的事件、动作、参数和返回结果..."
+        @input="emit('update:chatInput', $event.target.value)"
         @keydown="handleInputKeydown"
-      />
+      ></textarea>
       <el-button
         v-if="generationLoading"
-        type="danger"
+        class="composer-send-button stop"
+        circle
+        :icon="VideoPause"
         @click="emit('cancel')"
-      >停止</el-button>
+      />
       <el-button
         v-else
-        type="primary"
-        :icon="conversationId ? Promotion : MagicStick"
+        class="composer-send-button"
+        circle
+        :icon="Top"
         @click="emit('send')"
       />
-      <div class="input-hint">Enter 发送，Alt + Enter 换行</div>
     </div>
   </section>
 </template>

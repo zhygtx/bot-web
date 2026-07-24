@@ -19,7 +19,6 @@ export const useAIPluginCreate = () => {
   const router = useRouter()
 
   const generationLoading = ref(false)
-  const compileLoading = ref(false)
   const historyLoading = ref(false)
   const reviewVisible = ref(false)
   const activeTab = ref('code')
@@ -34,7 +33,6 @@ export const useAIPluginCreate = () => {
   const chatScrollRef = ref(null)
   const chatInput = ref('')
   const reviewEnabled = ref(false)
-  const compileStatusText = ref('')
   const webSocketRef = ref(null)
 
   const demandForm = ref(createDemandFormFromRoute(route.query))
@@ -56,7 +54,7 @@ export const useAIPluginCreate = () => {
   const codeLineCount = computed(() => activeFile.value?.content?.split('\n').length || 0)
   const reviewIssues = computed(() => Array.isArray(reviewResult.value?.issues) ? reviewResult.value.issues : [])
   const reviewPassed = computed(() => reviewResult.value == null || reviewResult.value.passed === true)
-  const canCompile = computed(() => hasGeneratedCode.value && !compileLoading.value && !generationLoading.value)
+  const canCompile = computed(() => false)
   const shortConversationId = computed(() => {
     if (!conversationId.value) return '未开始'
     return conversationId.value.length > 12 ? `${conversationId.value.slice(0, 8)}...` : conversationId.value
@@ -66,11 +64,8 @@ export const useAIPluginCreate = () => {
     return path.split('/').pop() || '未选择文件'
   })
   const totalCodeLines = computed(() => visibleFiles.value.reduce((sum, file) => sum + (file.content?.split('\n').length || 0), 0))
-  const compileButtonText = computed(() => {
-    if (!compileLoading.value) return '确认编译并上传'
-    return compileStatusText.value || '正在连接编译服务'
-  })
-  const compileButtonTextKey = computed(() => `${compileLoading.value ? 'loading' : 'idle'}-${compileButtonText.value}`)
+  const compileButtonText = computed(() => '编译并上传 TODO')
+  const compileButtonTextKey = computed(() => compileButtonText.value)
   const reviewBadge = computed(() => {
     if (!reviewVisible.value || !reviewResult.value) return null
     return reviewResult.value.passed === false ? { type: 'danger', text: '审查未通过' } : null
@@ -117,7 +112,6 @@ export const useAIPluginCreate = () => {
       // ignore closed socket
     }
     generationLoading.value = false
-    compileLoading.value = false
     historyLoading.value = false
     reviewVisible.value = false
     activeTab.value = 'code'
@@ -130,7 +124,6 @@ export const useAIPluginCreate = () => {
     dependencies.value = []
     reviewResult.value = null
     chatInput.value = ''
-    compileStatusText.value = ''
     webSocketRef.value = null
     demandForm.value = createDemandFormFromRoute(query)
     publishForm.value = {
@@ -170,6 +163,7 @@ export const useAIPluginCreate = () => {
       role: 'user',
       round: nextRound,
       content: text,
+      parts: [{ type: 'text', content: text }],
       createTime: formatTime()
     })
     const assistantMessage = createGeneratingMessage(nextRound)
@@ -185,7 +179,8 @@ export const useAIPluginCreate = () => {
         interrupted: wasInterrupted,
         loading: false,
         waitingForBackend: false,
-        content: wasInterrupted ? (latestMsg.content || '已取消') : (error.message || 'AI 生成失败')
+        content: wasInterrupted ? (latestMsg.content || '已取消') : (error.message || 'AI 生成失败'),
+        parts: [{ type: 'text', content: wasInterrupted ? (latestMsg.content || '已取消') : (error.message || 'AI 生成失败') }]
       })
     } finally {
       generationLoading.value = false
@@ -236,8 +231,24 @@ export const useAIPluginCreate = () => {
       socket.onmessage = async event => {
         const parsed = parseWsMessage(event.data)
         if (!parsed) return
+        if (parsed.type === 'assistant_text_delta') {
+          const content = parsed.data?.content || ''
+          rawText += content
+          applyAssistantTextDelta(assistantMessageId, parsed.data)
+          updateStreamingPreview(rawText, assistantMessageId)
+          await scrollChatToBottom()
+          return
+        }
+        if (parsed.type === 'tool_call_start' || parsed.type === 'tool_call_finish' || parsed.type === 'tool_call_error') {
+          applyToolCallEvent(assistantMessageId, parsed.data)
+          await scrollChatToBottom()
+          return
+        }
         if (parsed.type === 'delta') {
           rawText += parsed.data || ''
+          applyAssistantTextDelta(assistantMessageId, {
+            content: parsed.data || ''
+          })
           updateStreamingPreview(rawText, assistantMessageId)
           await scrollChatToBottom()
           return
@@ -318,6 +329,56 @@ export const useAIPluginCreate = () => {
     }
   }
 
+  const applyAssistantTextDelta = (assistantMessageId, data = {}) => {
+    const content = data.content || ''
+    if (!content) return
+    const index = chatMessages.value.findIndex(message => message.id === assistantMessageId)
+    if (index < 0) return
+    const message = chatMessages.value[index]
+    const parts = normalizeMessageParts(message.parts, message.content === '...' ? '' : message.content)
+    const partIndex = Number.isInteger(data.partIndex) ? data.partIndex : findAppendableTextPartIndex(parts)
+    ensurePartSlot(parts, partIndex)
+    const part = parts[partIndex]
+    if (part?.type === 'text') {
+      part.content = `${part.content || ''}${content}`
+    } else {
+      parts[partIndex] = { type: 'text', content }
+    }
+    const nextContent = parts.filter(part => part.type === 'text').map(part => part.content || '').join('')
+    patchChatMessage(assistantMessageId, {
+      parts,
+      content: nextContent,
+      hasBackendContent: true,
+      loading: false,
+      waitingForBackend: false
+    })
+  }
+
+  const applyToolCallEvent = (assistantMessageId, data = {}) => {
+    const toolCallId = data.toolCallId || data.id
+    if (!toolCallId) return
+    const index = chatMessages.value.findIndex(message => message.id === assistantMessageId)
+    if (index < 0) return
+    const message = chatMessages.value[index]
+    const parts = normalizeMessageParts(message.parts, message.content === '...' ? '' : message.content)
+    const toolCalls = { ...(message.toolCalls || {}) }
+    toolCalls[toolCallId] = normalizeToolCall({
+      ...(toolCalls[toolCallId] || {}),
+      ...data,
+      toolCallId
+    })
+    const partIndex = Number.isInteger(data.partIndex) ? data.partIndex : parts.length
+    ensurePartSlot(parts, partIndex)
+    parts[partIndex] = { type: 'tool_call', toolCallId }
+    patchChatMessage(assistantMessageId, {
+      parts,
+      toolCalls,
+      hasBackendContent: true,
+      loading: false,
+      waitingForBackend: false
+    })
+  }
+
   const patchChatMessage = (id, patch) => {
     const index = chatMessages.value.findIndex(message => message.id === id)
     if (index < 0) return
@@ -360,7 +421,9 @@ export const useAIPluginCreate = () => {
           id: message.id || `assistant-${message.round}-${index}`,
           role: 'assistant',
           round: Number(message.round) || 0,
-          content: '代码生成完毕',
+          content: payload.textContent || '代码生成完毕',
+          parts: normalizeMessageParts(message.messageParts, payload.textContent || '代码生成完毕'),
+          toolCalls: normalizeToolCallMap(message.toolCalls),
           createTime: message.createTime || '',
           files: payload.files,
           dependencies: payload.dependencies,
@@ -375,6 +438,7 @@ export const useAIPluginCreate = () => {
         role: 'user',
         round: Number(message.round) || 0,
         content: message.message || '',
+        parts: [{ type: 'text', content: message.message || '' }],
         createTime: message.createTime || ''
       })
     })
@@ -416,115 +480,22 @@ export const useAIPluginCreate = () => {
     }
   }
 
-  const validatePublishForm = () => {
-    if (!publishForm.value.name.trim()) {
-      ElMessage.warning('请输入插件名称')
-      return false
-    }
-    if (!publishForm.value.version.trim()) {
-      ElMessage.warning('请输入版本号')
-      return false
-    }
-    return true
+  const confirmCompile = () => {
+    // TODO: 编译并上传流程后续重新设计后再接入。
+    ElMessage.info('编译并上传功能待后续实现')
   }
 
-  const confirmCompile = async () => {
-    if (!hasGeneratedCode.value) {
-      ElMessage.warning('请先生成代码')
-      return
+  const updateFileContent = (filePath, content) => {
+    const updateList = files => files.map(file => (
+      file.filePath === filePath ? { ...file, content } : file
+    ))
+    if (displayedFiles.value.some(file => file.filePath === filePath)) {
+      displayedFiles.value = updateList(displayedFiles.value)
     }
-    if (!validatePublishForm()) return
-    compileLoading.value = true
-    compileStatusText.value = '正在连接编译服务'
-    reviewVisible.value = false
-
-    try {
-      const pluginId = await sendCompileStream()
-      reviewResult.value = null
-      reviewVisible.value = false
-      ElMessage.success('编译上传完成')
-      if (pluginId) router.push(`/plugin/${pluginId}`)
-    } catch (error) {
-      ElMessage.error(error.message || '编译上传失败')
-    } finally {
-      compileLoading.value = false
-      compileStatusText.value = ''
+    if (generatedFiles.value.some(file => file.filePath === filePath)) {
+      generatedFiles.value = updateList(generatedFiles.value)
     }
   }
-
-  const sendCompileStream = () => {
-    const token = localStorage.getItem('token')
-    if (!token) {
-      return Promise.reject(new Error('登录状态已失效，请重新登录'))
-    }
-
-    return new Promise((resolve, reject) => {
-      let settled = false
-      const socket = new WebSocket(buildAIPluginWsUrl(token))
-      webSocketRef.value = socket
-
-      const finish = callback => {
-        if (settled) return
-        settled = true
-        if (webSocketRef.value === socket) webSocketRef.value = null
-        try {
-          if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
-            socket.close()
-          }
-        } catch (error) {
-          // ignore closed socket
-        }
-        callback()
-      }
-
-      socket.onopen = () => {
-        socket.send(JSON.stringify({
-          type: 'compile',
-          data: buildCompilePayload()
-        }))
-      }
-
-      socket.onmessage = event => {
-        const parsed = parseWsMessage(event.data)
-        if (!parsed) return
-        if (parsed.type === 'compile_change') {
-          compileStatusText.value = normalizeCompileStatus(parsed.data)
-          return
-        }
-        if (parsed.type === 'done') {
-          const pluginId = normalizeDonePluginId(parsed.data)
-          finish(() => resolve(pluginId))
-          return
-        }
-        if (parsed.type === 'error') {
-          finish(() => reject(new Error(parsed.data?.message || normalizeCompileStatus(parsed.data) || '编译上传失败')))
-        }
-      }
-
-      socket.onerror = () => {
-        finish(() => reject(new Error('WebSocket 连接异常，编译上传中断')))
-      }
-
-      socket.onclose = () => {
-        if (!settled) {
-          finish(() => reject(new Error('WebSocket 连接已关闭，编译上传中断')))
-        }
-      }
-    })
-  }
-
-  const buildCompilePayload = () => ({
-    userId: localStorage.getItem('userId') || '',
-    conversationId: conversationId.value,
-    pluginName: publishForm.value.name.trim(),
-    pluginDescription: publishForm.value.description.trim(),
-    pluginId: demandForm.value.pluginId || '',
-    isPublic: publishForm.value.isPublic,
-    entityPackage: demandForm.value.entityPackage || DEFAULT_ENTITY_PACKAGE,
-    methodPackage: demandForm.value.methodPackage || DEFAULT_METHOD_PACKAGE,
-    pluginVersion: publishForm.value.version.trim(),
-    pluginChangeDescription: publishForm.value.changelog.trim()
-  })
 
   const loadConversation = async (id, showLoading = true) => {
     if (!id) return
@@ -596,7 +567,6 @@ export const useAIPluginCreate = () => {
 
   return {
     generationLoading,
-    compileLoading,
     historyLoading,
     reviewVisible,
     activeTab,
@@ -604,11 +574,13 @@ export const useAIPluginCreate = () => {
     conversationId,
     currentRound,
     generatedFiles,
+    visibleFiles,
     dependencies,
     reviewResult,
     reviewEnabled,
     chatScrollRef,
     chatInput,
+    demandForm,
     publishForm,
     chatMessages,
     isUpdateMode,
@@ -630,6 +602,7 @@ export const useAIPluginCreate = () => {
     cancelGeneration,
     undoToBeforeRound,
     confirmCompile,
+    updateFileContent,
     selectTreeNode,
     copyCurrentCode,
     highlightLine,
@@ -643,6 +616,7 @@ function createWelcomeMessage() {
     role: 'assistant',
     round: 0,
     content: '请描述你想生成的插件需求，我会生成 Java 源码、依赖和审查结果。',
+    parts: [{ type: 'text', content: '请描述你想生成的插件需求，我会生成 Java 源码、依赖和审查结果。' }],
     createTime: '',
     files: [],
     dependencies: [],
@@ -660,6 +634,8 @@ function createGeneratingMessage(round) {
     files: [],
     dependencies: [],
     progress: '...',
+    parts: [],
+    toolCalls: {},
     reviewResult: null,
     error: false,
     hasBackendContent: false,
@@ -686,8 +662,11 @@ function normalizeConversationMessages(messages) {
 function parseAssistantContent(content) {
   try {
     const parsed = JSON.parse(content || '{}')
-    if (Array.isArray(parsed)) return { files: parsed.map(normalizeGeneratedFile), dependencies: [], reviewResult: null }
+    if (Array.isArray(parsed)) {
+      return { files: parsed.map(normalizeGeneratedFile), dependencies: [], reviewResult: null, textContent: '代码生成完毕' }
+    }
     return {
+      textContent: parsed.text || parsed.content || parsed.message || '',
       files: Array.isArray(parsed.files) ? parsed.files.map(normalizeGeneratedFile) : [],
       dependencies: Array.isArray(parsed.dependencies) ? parsed.dependencies : [],
       pluginName: parsed.pluginName || parsed.name || '',
@@ -698,7 +677,86 @@ function parseAssistantContent(content) {
       reviewResult: parsed.reviewResult || null
     }
   } catch (error) {
-    return { files: [], dependencies: [], pluginName: '', pluginDescription: '', version: '', changelog: '', isPublic: undefined, reviewResult: null }
+    return {
+      textContent: normalizeAssistantPlainText(content || ''),
+      files: parseStreamingFiles(content || ''),
+      dependencies: [],
+      pluginName: '',
+      pluginDescription: '',
+      version: '',
+      changelog: '',
+      isPublic: undefined,
+      reviewResult: null
+    }
+  }
+}
+
+function normalizeAssistantPlainText(content) {
+  return stripStreamTags(content || '').replace(/<file\s+path="[^"]*">/gi, '').trim()
+}
+
+function parseJsonMaybe(value, fallback) {
+  if (Array.isArray(value)) return value
+  if (value == null || value === '') return fallback
+  if (typeof value !== 'string') return value
+  try {
+    return JSON.parse(value)
+  } catch (error) {
+    return fallback
+  }
+}
+
+function normalizeMessageParts(rawParts, fallbackText = '') {
+  const parsed = parseJsonMaybe(rawParts, [])
+  if (Array.isArray(parsed) && parsed.length) {
+    return parsed.map(part => {
+      if (part?.type === 'tool_call') {
+        return { type: 'tool_call', toolCallId: part.toolCallId }
+      }
+      return { type: 'text', content: part?.content || '' }
+    })
+  }
+  return fallbackText ? [{ type: 'text', content: fallbackText }] : []
+}
+
+function ensurePartSlot(parts, partIndex) {
+  while (parts.length <= partIndex) {
+    parts.push({ type: 'text', content: '' })
+  }
+}
+
+function findAppendableTextPartIndex(parts) {
+  const lastIndex = parts.length - 1
+  if (lastIndex >= 0 && parts[lastIndex]?.type === 'text') return lastIndex
+  return parts.length
+}
+
+function normalizeToolCallMap(rawToolCalls) {
+  const map = {}
+  const list = parseJsonMaybe(rawToolCalls, rawToolCalls || [])
+  if (!Array.isArray(list)) return map
+  list.forEach(item => {
+    const normalized = normalizeToolCall(item)
+    if (normalized.toolCallId) map[normalized.toolCallId] = normalized
+  })
+  return map
+}
+
+function normalizeToolCall(raw = {}) {
+  const tool = raw.tool || {}
+  const toolCallId = raw.toolCallId || raw.id
+  return {
+    ...raw,
+    id: raw.id || toolCallId,
+    toolCallId,
+    status: raw.status || 'RUNNING',
+    method: raw.method || tool.name || '',
+    displayName: raw.displayName || tool.displayName || raw.method || tool.name || '工具调用',
+    description: raw.description || tool.description || '',
+    category: raw.category || tool.category || 'tool',
+    argumentsPreview: parseJsonMaybe(raw.argumentsPreview, parseJsonMaybe(raw.argumentsPreviewJson, [])) || [],
+    resultPreview: parseJsonMaybe(raw.resultPreview, parseJsonMaybe(raw.resultPreviewJson, null)),
+    errorMessage: raw.errorMessage || ''
   }
 }
 
@@ -755,17 +813,6 @@ function normalizePayload(data) {
     isPublic: typeof data.isPublic === 'boolean' ? data.isPublic : undefined,
     reviewResult: data.reviewResult || null
   }
-}
-
-function normalizeCompileStatus(data) {
-  if (typeof data === 'string') return data.trim()
-  if (data?.message) return String(data.message).trim()
-  return ''
-}
-
-function normalizeDonePluginId(data) {
-  if (typeof data === 'string') return data
-  return data?.pluginId || data?.id || ''
 }
 
 function buildAIPluginWsUrl(token) {
