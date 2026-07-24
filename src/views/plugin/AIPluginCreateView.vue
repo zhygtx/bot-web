@@ -15,6 +15,14 @@ import './ai-create/AIPluginCreateView.css'
 const vm = useAIPluginCreate()
 const codeDialogVisible = ref(false)
 const publishDialogVisible = ref(false)
+const conversationPanelRef = ref(null)
+
+// 将子组件的 chatScrollRef 同步到 composable
+const syncScrollRef = () => {
+  if (conversationPanelRef.value?.chatScrollRef) {
+    vm.chatScrollRef.value = conversationPanelRef.value.chatScrollRef
+  }
+}
 </script>
 
 <template>
@@ -46,12 +54,13 @@ const publishDialogVisible = ref(false)
 
     <main class="ai-workbench-main">
       <AIConversationPanel
-        v-model:chat-scroll-ref="vm.chatScrollRef.value"
+        ref="conversationPanelRef"
         :chat-messages="vm.chatMessages.value"
         :chat-input="vm.chatInput.value"
         :conversation-id="vm.conversationId.value"
         :generation-loading="vm.generationLoading.value"
         :current-round="vm.currentRound.value"
+        @vue:mounted="syncScrollRef"
         @update:chat-input="vm.chatInput.value = $event"
         @send="vm.sendPrompt"
         @cancel="vm.cancelGeneration"

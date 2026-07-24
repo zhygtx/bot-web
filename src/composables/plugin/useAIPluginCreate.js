@@ -97,8 +97,8 @@ export const useAIPluginCreate = () => {
 
   const scrollChatToBottom = async () => {
     await nextTick()
-    const wrap = chatScrollRef.value?.wrapRef
-    if (wrap) wrap.scrollTop = wrap.scrollHeight
+    const el = chatScrollRef.value
+    if (el) el.scrollTop = el.scrollHeight
   }
 
   const clearLegacyDraft = () => {
@@ -107,9 +107,9 @@ export const useAIPluginCreate = () => {
 
   const resetPageState = (query = {}) => {
     try {
-      webSocketRef.value?.close?.()
+      webSocketRef.value?.abort?.()
     } catch (error) {
-      // ignore closed socket
+      // ignore
     }
     generationLoading.value = false
     historyLoading.value = false
@@ -139,11 +139,9 @@ export const useAIPluginCreate = () => {
   const cancelGeneration = () => {
     if (!webSocketRef.value) return
     try {
-      if (webSocketRef.value.readyState === WebSocket.OPEN) {
-        webSocketRef.value.send(JSON.stringify({ type: 'cancel' }))
-      }
+      webSocketRef.value.abort?.()
     } catch (error) {
-      // ignore closed socket
+      // ignore
     }
   }
 
@@ -188,7 +186,7 @@ export const useAIPluginCreate = () => {
     }
   }
 
-  const sendPromptStream = (text, assistantMessageId) => {
+  const sendPromptStream = async (text, assistantMessageId) => {
     const token = localStorage.getItem('token')
     if (!token) {
       return Promise.reject(new Error('登录状态已失效，请重新登录'))
@@ -198,118 +196,127 @@ export const useAIPluginCreate = () => {
     activeFilePath.value = ''
     activeTab.value = 'code'
 
-    return new Promise((resolve, reject) => {
-      let rawText = ''
-      let settled = false
-      const socket = new WebSocket(buildAIPluginWsUrl(token))
-      webSocketRef.value = socket
+    let rawText = ''
+    const controller = new AbortController()
+    webSocketRef.value = { abort: () => controller.abort() }
 
+    const baseUrl = import.meta.env.DEV ? 'http://localhost:8080' : '/api'
+    const params = new URLSearchParams()
+    params.append('message', text)
+    if (conversationId.value) params.append('conversationId', conversationId.value)
+
+    let response
+    try {
+      response = await fetch(`${baseUrl}/ai-plugin/generate?${params}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal
+      })
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        return Promise.reject(new Error('已取消生成'))
+      }
+      return Promise.reject(new Error('SSE 连接异常，AI 生成中断'))
+    }
+
+    if (!response.ok) {
+      return Promise.reject(new Error(`请求失败 (${response.status})`))
+    }
+
+    return new Promise((resolve, reject) => {
+      let settled = false
       const finish = callback => {
         if (settled) return
         settled = true
-        if (webSocketRef.value === socket) webSocketRef.value = null
-        try {
-          if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
-            socket.close()
-          }
-        } catch (error) {
-          // ignore closed socket
-        }
+        if (webSocketRef.value) webSocketRef.value = null
         callback()
       }
 
-      socket.onopen = () => {
-        socket.send(JSON.stringify({
-          type: 'message',
-          data: {
-            conversationId: conversationId.value || '',
-            message: text
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      const processChunk = async () => {
+        // eventName / eventDataLines 必须跨 chunk 保持状态：
+        // SSE 事件可能被 TCP 分片切断（尤其 done 事件含完整消息列表，体积大），
+        // event: 行和 data: 行可能分属不同 chunk，若每次 read() 都重置会丢失事件名。
+        let eventName = ''
+        let eventDataLines = []
+        try {
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) {
+              if (!settled) finish(() => reject(new Error('SSE 连接已关闭，AI 生成中断')))
+              return
+            }
+
+            buffer += decoder.decode(value, { stream: true })
+            const lines = buffer.split('\n')
+            buffer = lines.pop() || ''
+
+            for (const line of lines) {
+              if (line.startsWith('event:')) {
+                eventName = line.slice(6).trim()
+              } else if (line.startsWith('data:')) {
+                eventDataLines.push(line.slice(5))
+              } else if (line === '' && eventDataLines.length) {
+                const dataStr = eventDataLines.join('\n').trim()
+                const parsed = parseSSEEvent(eventName, dataStr)
+                eventName = ''
+                eventDataLines = []
+
+                if (!parsed) continue
+                if (parsed.type === 'assistant_text_delta') {
+                  const content = parsed.data?.content || ''
+                  rawText += content
+                  applyAssistantTextDelta(assistantMessageId, parsed.data)
+                  updateStreamingPreview(rawText, assistantMessageId)
+                  await scrollChatToBottom()
+                } else if (parsed.type === 'tool_call_start' || parsed.type === 'tool_call_finish' || parsed.type === 'tool_call_error') {
+                  applyToolCallEvent(assistantMessageId, parsed.data)
+                  await scrollChatToBottom()
+                } else if (parsed.type === 'delta') {
+                  rawText += parsed.data || ''
+                  applyAssistantTextDelta(assistantMessageId, { content: parsed.data || '' })
+                  updateStreamingPreview(rawText, assistantMessageId)
+                  await scrollChatToBottom()
+                } else if (parsed.type === 'message_change') {
+                  const progress = String(parsed.data || '').trim()
+                  if (!progress) {
+                    patchChatMessage(assistantMessageId, { content: '...', hasBackendContent: false, loading: true, waitingForBackend: true })
+                  } else {
+                    patchChatMessage(assistantMessageId, { progress, content: progress, hasBackendContent: true, loading: false, waitingForBackend: false })
+                  }
+                } else if (parsed.type === 'done') {
+                  finalizeAssistantMessage(assistantMessageId, parsed.data, text)
+                  finish(resolve)
+                  return
+                } else if (parsed.type === 'cancelled') {
+                  patchChatMessage(assistantMessageId, { interrupted: true, loading: false, waitingForBackend: false })
+                  finish(() => reject(new Error('已取消生成')))
+                  return
+                } else if (parsed.type === 'error') {
+                  finish(() => reject(new Error(parsed.data?.message || 'AI 生成失败')))
+                  return
+                }
+              }
+            }
           }
-        }))
-      }
-
-      socket.onmessage = async event => {
-        const parsed = parseWsMessage(event.data)
-        if (!parsed) return
-        if (parsed.type === 'assistant_text_delta') {
-          const content = parsed.data?.content || ''
-          rawText += content
-          applyAssistantTextDelta(assistantMessageId, parsed.data)
-          updateStreamingPreview(rawText, assistantMessageId)
-          await scrollChatToBottom()
-          return
-        }
-        if (parsed.type === 'tool_call_start' || parsed.type === 'tool_call_finish' || parsed.type === 'tool_call_error') {
-          applyToolCallEvent(assistantMessageId, parsed.data)
-          await scrollChatToBottom()
-          return
-        }
-        if (parsed.type === 'delta') {
-          rawText += parsed.data || ''
-          applyAssistantTextDelta(assistantMessageId, {
-            content: parsed.data || ''
-          })
-          updateStreamingPreview(rawText, assistantMessageId)
-          await scrollChatToBottom()
-          return
-        }
-        if (parsed.type === 'message_change') {
-          const progress = String(parsed.data || '').trim()
-          if (!progress) {
-            patchChatMessage(assistantMessageId, {
-              content: '...',
-              hasBackendContent: false,
-              loading: true,
-              waitingForBackend: true
-            })
-            return
-          }
-          patchChatMessage(assistantMessageId, {
-            progress,
-            content: progress,
-            hasBackendContent: true,
-            loading: false,
-            waitingForBackend: false
-          })
-          return
-        }
-        if (parsed.type === 'done') {
-          const messages = Array.isArray(parsed.data) ? parsed.data : []
-          restoreConversationFromMessages(messages)
-          const latestPayload = getLatestAssistantPayload(messages)
-          if (latestPayload) syncPublishInfo(latestPayload, text)
-          finish(resolve)
-          return
-        }
-        if (parsed.type === 'cancelled') {
-          patchChatMessage(assistantMessageId, {
-            interrupted: true,
-            loading: false,
-            waitingForBackend: false
-          })
-          finish(() => reject(new Error('已取消生成')))
-          return
-        }
-        if (parsed.type === 'error') {
-          finish(() => reject(new Error(parsed.data?.message || 'AI 生成失败')))
+        } catch (error) {
+          if (error.name === 'AbortError') return
+          if (!settled) finish(() => reject(new Error(`SSE 读取异常: ${error.message}`)))
         }
       }
 
-      socket.onerror = () => {
-        finish(() => reject(new Error('WebSocket 连接异常，AI 生成中断')))
-      }
-
-      socket.onclose = () => {
-        if (!settled) {
-          finish(() => reject(new Error('WebSocket 连接已关闭，AI 生成中断')))
-        }
-      }
+      processChunk()
     })
   }
 
-  const parseWsMessage = raw => {
+  const parseSSEEvent = (eventName, dataStr) => {
+    if (!eventName || !dataStr) return null
     try {
-      return JSON.parse(raw)
+      const data = JSON.parse(dataStr)
+      return { type: eventName, data }
     } catch (error) {
       return null
     }
@@ -405,57 +412,116 @@ export const useAIPluginCreate = () => {
     if (typeof payload.isPublic === 'boolean') publishForm.value.isPublic = payload.isPublic
   }
 
-  const restoreConversationFromMessages = messages => {
-    const sortedMessages = normalizeConversationMessages(messages)
-    const assistantMessages = sortedMessages.filter(message => message.role === 'assistant')
-    const latestAssistant = assistantMessages[assistantMessages.length - 1]
-    const previousAssistant = assistantMessages[assistantMessages.length - 2]
-    const latestPayload = latestAssistant ? parseAssistantContent(latestAssistant.code || latestAssistant.message) : null
-    const previousPayload = previousAssistant ? parseAssistantContent(previousAssistant.code || previousAssistant.message) : null
+  /**
+   * done 事件处理：用后端返回的完整 assistant 消息更新当前流式消息。
+   * 不再整体替换 chatMessages，只更新本轮消息的 parts/files/toolCalls/publishInfo。
+   */
+  const finalizeAssistantMessage = (assistantMessageId, data, userText) => {
+    if (!data) return
 
-    const restoredMessages = [createWelcomeMessage()]
-    sortedMessages.forEach((message, index) => {
-      if (message.role === 'assistant') {
-        const payload = parseAssistantContent(message.code || message.message)
-        restoredMessages.push({
-          id: message.id || `assistant-${message.round}-${index}`,
-          role: 'assistant',
-          round: Number(message.round) || 0,
-          content: payload.textContent || '代码生成完毕',
-          parts: normalizeMessageParts(message.messageParts, payload.textContent || '代码生成完毕'),
-          toolCalls: normalizeToolCallMap(message.toolCalls),
-          createTime: message.createTime || '',
-          files: payload.files,
-          dependencies: payload.dependencies,
-          pluginName: payload.pluginName,
-          pluginDescription: payload.pluginDescription,
-          reviewResult: payload.reviewResult
-        })
-        return
-      }
-      restoredMessages.push({
-        id: message.id || `user-${message.round}-${index}`,
-        role: 'user',
-        round: Number(message.round) || 0,
-        content: message.message || '',
-        parts: [{ type: 'text', content: message.message || '' }],
-        createTime: message.createTime || ''
-      })
+    // 更新会话 ID 和轮次（首次生成时 conversationId 刚创建）
+    if (data.conversationId) conversationId.value = data.conversationId
+    if (data.round) currentRound.value = data.round
+
+    // 解析 messageParts（后端返回 JSON 字符串）并更新当前消息
+    const parts = normalizeMessageParts(data.messageParts, '')
+    const textContent = parts.filter(p => p.type === 'text').map(p => p.content || '').join('')
+
+    // 解析工具调用记录
+    const toolCalls = normalizeToolCallMap(data.toolCalls)
+
+    // 更新当前流式消息的最终状态
+    patchChatMessage(assistantMessageId, {
+      parts,
+      content: textContent || '代码生成完毕',
+      toolCalls,
+      loading: false,
+      waitingForBackend: false,
+      hasBackendContent: true
     })
 
-    const maxRound = sortedMessages.reduce((max, message) => Math.max(max, Number(message.round) || 0), 0)
+    // 更新文件列表（codes → files）
+    if (Array.isArray(data.codes) && data.codes.length) {
+      const files = data.codes.map(normalizeGeneratedFile)
+      generatedFiles.value = files
+      displayedFiles.value = files
+      if (!activeFilePath.value && files.length) {
+        activeFilePath.value = files[0].filePath
+      }
+    }
+
+    // 更新发布信息
+    syncPublishInfo(data, userText)
+  }
+
+  const restoreConversationFromMessages = messages => {
+    if (!Array.isArray(messages) || !messages.length) return
+
+    // 按 round 排序
+    const sortedMessages = [...messages].sort((a, b) => (Number(a.round) || 0) - (Number(b.round) || 0))
+
+    // 一条 AIChatMessage 记录同时包含 userMessage（用户输入）和 messageParts（AI 回复），
+    // 需要拆成两条前端消息：user + assistant
+    const extractFiles = msg => Array.isArray(msg?.codes) ? msg.codes.map(normalizeGeneratedFile) : []
+
+    const latestRoundMessage = sortedMessages[sortedMessages.length - 1]
+    const previousRoundMessage = sortedMessages[sortedMessages.length - 2]
+    const latestFiles = extractFiles(latestRoundMessage)
+    const previousFiles = extractFiles(previousRoundMessage)
+
+    const restoredMessages = [createWelcomeMessage()]
+    sortedMessages.forEach(message => {
+      const round = Number(message.round) || 0
+
+      // 用户消息
+      if (message.userMessage != null && message.userMessage !== '') {
+        restoredMessages.push({
+          id: `${message.id}-user`,
+          role: 'user',
+          round,
+          content: message.userMessage,
+          parts: [{ type: 'text', content: message.userMessage }],
+          createTime: message.createTime || ''
+        })
+      }
+
+      // AI 消息
+      if (message.messageParts != null && message.messageParts !== '') {
+        const parts = normalizeMessageParts(message.messageParts, '')
+        const textContent = parts.filter(p => p.type === 'text').map(p => p.content || '').join('')
+        const toolCalls = normalizeToolCallMap(message.toolCalls)
+
+        restoredMessages.push({
+          id: message.id,
+          role: 'assistant',
+          round,
+          content: textContent || '代码生成完毕',
+          parts,
+          toolCalls,
+          createTime: message.createTime || '',
+          files: extractFiles(message),
+          dependencies: [],
+          pluginName: message.pluginName || '',
+          pluginDescription: message.pluginDescription || '',
+          reviewResult: null
+        })
+      }
+    })
+
+    const maxRound = sortedMessages.reduce((max, m) => Math.max(max, Number(m.round) || 0), 0)
     const firstMessage = sortedMessages[0]
+
     chatMessages.value = restoredMessages
     conversationId.value = firstMessage?.conversationId || conversationId.value
     currentRound.value = maxRound
     demandForm.value.pluginId = firstMessage?.pluginId || demandForm.value.pluginId
-    previousFiles.value = previousPayload?.files || []
-    generatedFiles.value = latestPayload?.files || []
-    displayedFiles.value = latestPayload?.files || []
-    dependencies.value = latestPayload?.dependencies || []
-    reviewResult.value = latestPayload?.reviewResult || null
-    activeFilePath.value = generatedFiles.value[0]?.filePath || ''
-    if (latestPayload) syncPublishInfo(latestPayload)
+    previousFiles.value = previousFiles
+    generatedFiles.value = latestFiles
+    displayedFiles.value = latestFiles
+    dependencies.value = []
+    reviewResult.value = null
+    activeFilePath.value = latestFiles[0]?.filePath || ''
+    if (latestRoundMessage) syncPublishInfo(latestRoundMessage)
   }
 
   const undoToBeforeRound = async round => {
@@ -559,9 +625,9 @@ export const useAIPluginCreate = () => {
 
   onBeforeUnmount(() => {
     try {
-      webSocketRef.value?.close?.()
+      webSocketRef.value?.abort?.()
     } catch (error) {
-      // ignore closed socket
+      // ignore
     }
   })
 
@@ -642,12 +708,6 @@ function createGeneratingMessage(round) {
     loading: true,
     waitingForBackend: true
   }
-}
-
-function getLatestAssistantPayload(messages) {
-  const assistantMessages = normalizeConversationMessages(messages).filter(message => message.role === 'assistant')
-  const latestAssistant = assistantMessages[assistantMessages.length - 1]
-  return latestAssistant ? parseAssistantContent(latestAssistant.code || latestAssistant.message) : null
 }
 
 function normalizeConversationMessages(messages) {
@@ -751,11 +811,15 @@ function normalizeToolCall(raw = {}) {
     toolCallId,
     status: raw.status || 'RUNNING',
     method: raw.method || tool.name || '',
-    displayName: raw.displayName || tool.displayName || raw.method || tool.name || '工具调用',
+    displayName: raw.displayName || tool.displayName || '工具调用',
     description: raw.description || tool.description || '',
     category: raw.category || tool.category || 'tool',
-    argumentsPreview: parseJsonMaybe(raw.argumentsPreview, parseJsonMaybe(raw.argumentsPreviewJson, [])) || [],
-    resultPreview: parseJsonMaybe(raw.resultPreview, parseJsonMaybe(raw.resultPreviewJson, null)),
+    // 实时推送：data.arguments；历史数据：argumentsPreviewJson
+    argumentsPreview: parseJsonMaybe(raw.arguments,
+                       parseJsonMaybe(raw.argumentsPreview,
+                       parseJsonMaybe(raw.argumentsPreviewJson, []))) || [],
+    // 实时推送：data.result {success, summary, detail}；历史数据：resultPreviewJson
+    resultPreview: raw.result || parseJsonMaybe(raw.resultPreviewJson, raw.resultPreview || null),
     errorMessage: raw.errorMessage || ''
   }
 }
@@ -765,39 +829,6 @@ function normalizeGeneratedFile(file) {
     filePath: (file.filePath || file.path || '').replace(/\\/g, '/'),
     content: file.content || file.code || ''
   }
-}
-
-function buildFileTree(files) {
-  const root = []
-  const rootMap = new Map()
-  const ensureNode = (children, map, part, path, leaf = false) => {
-    if (map.has(path)) return map.get(path)
-    const node = { id: path, label: part, path: leaf ? path : '', leaf, children: leaf ? undefined : [] }
-    children.push(node)
-    map.set(path, node)
-    return node
-  }
-  files.forEach(file => {
-    const parts = file.filePath.split('/').filter(Boolean)
-    let children = root
-    let map = rootMap
-    let currentPath = ''
-    parts.forEach((part, index) => {
-      currentPath = currentPath ? `${currentPath}/${part}` : part
-      const leaf = index === parts.length - 1
-      const node = ensureNode(children, map, part, currentPath, leaf)
-      if (!leaf) {
-        node._map = node._map || new Map()
-        children = node.children
-        map = node._map
-      }
-    })
-  })
-  const stripMaps = nodes => nodes.map(({ _map, ...node }) => ({
-    ...node,
-    children: node.children ? stripMaps(node.children) : undefined
-  }))
-  return stripMaps(root)
 }
 
 function normalizePayload(data) {
@@ -815,17 +846,55 @@ function normalizePayload(data) {
   }
 }
 
-function buildAIPluginWsUrl(token) {
-  const query = `token=${encodeURIComponent(token)}`
-  if (import.meta.env.DEV) {
-    return `ws://localhost:8080/ws/ai-plugin?${query}`
-  }
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  return `${protocol}//${window.location.host}/ws/ai-plugin?${query}`
-}
-
 function isDisplayableGeneratedPath(filePath) {
   return filePath.startsWith('src/main/java/') || filePath.startsWith('src/main/resources/')
+}
+
+function buildFileTree(files) {
+  const root = []
+  const rootMap = new Map()
+  const ensureNode = (children, map, part, path, leaf = false, originalPath = '') => {
+    if (map.has(path)) return map.get(path)
+    const node = {
+      id: path,
+      label: part,
+      path: leaf ? (originalPath || path) : '',
+      leaf,
+      children: leaf ? undefined : []
+    }
+    children.push(node)
+    map.set(path, node)
+    return node
+  }
+  files.forEach(file => {
+    const parts = file.filePath.split('/').filter(Boolean)
+    // 压缩前3层（如 src/main/java）为一个节点
+    let effectiveParts
+    if (parts.length >= 3) {
+      effectiveParts = [`${parts[0]}.${parts[1]}.${parts[2]}`, ...parts.slice(3)]
+    } else {
+      effectiveParts = parts
+    }
+    let children = root
+    let map = rootMap
+    let currentPath = ''
+    effectiveParts.forEach((part, index) => {
+      currentPath = currentPath ? `${currentPath}/${part}` : part
+      const leaf = index === effectiveParts.length - 1
+      // 叶子节点使用原始文件路径
+      const node = ensureNode(children, map, part, currentPath, leaf, leaf ? file.filePath : '')
+      if (!leaf) {
+        node._map = node._map || new Map()
+        children = node.children
+        map = node._map
+      }
+    })
+  })
+  const stripMaps = nodes => nodes.map(({ _map, ...node }) => ({
+    ...node,
+    children: node.children ? stripMaps(node.children) : undefined
+  }))
+  return stripMaps(root)
 }
 
 function parseStreamingFiles(rawText) {
