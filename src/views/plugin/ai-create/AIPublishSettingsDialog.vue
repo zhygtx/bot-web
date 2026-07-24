@@ -1,10 +1,11 @@
 <script setup>
 defineProps({
   modelValue: { type: Boolean, default: false },
-  publishForm: { type: Object, required: true }
+  publishForm: { type: Object, required: true },
+  saving: { type: Boolean, default: false }
 })
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'confirm', 'cancel'])
 </script>
 
 <template>
@@ -34,5 +35,10 @@ const emit = defineEmits(['update:modelValue'])
         <el-input v-model="publishForm.changelog" type="textarea" :rows="3" resize="none" />
       </el-form-item>
     </el-form>
+
+    <template #footer>
+      <el-button @click="emit('cancel')">取消</el-button>
+      <el-button type="primary" :loading="saving" @click="emit('confirm')">修改</el-button>
+    </template>
   </el-dialog>
 </template>

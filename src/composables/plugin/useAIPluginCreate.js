@@ -1,7 +1,6 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { createPatch } from 'diff'
 import request from '../../utils/request'
 
 const DEFAULT_ENTITY_PACKAGE = 'com.example.entity'
@@ -26,8 +25,8 @@ export const useAIPluginCreate = () => {
   const conversationId = ref('')
   const currentRound = ref(0)
   const generatedFiles = ref([])
-  const previousFiles = ref([])
   const displayedFiles = ref([])
+  const codeLoading = ref(false)
   const dependencies = ref([])
   const reviewResult = ref(null)
   const chatScrollRef = ref(null)
@@ -45,10 +44,9 @@ export const useAIPluginCreate = () => {
     isPublic: true
   })
 
-  const chatMessages = ref([createWelcomeMessage()])
+  const chatMessages = ref([])
 
   const isUpdateMode = computed(() => Boolean(demandForm.value.pluginId))
-  const hasGeneratedCode = computed(() => generatedFiles.value.length > 0)
   const visibleFiles = computed(() => displayedFiles.value.length ? displayedFiles.value : generatedFiles.value)
   const activeFile = computed(() => visibleFiles.value.find(file => file.filePath === activeFilePath.value) || visibleFiles.value[0])
   const codeLineCount = computed(() => activeFile.value?.content?.split('\n').length || 0)
@@ -73,27 +71,18 @@ export const useAIPluginCreate = () => {
 
   const fileTree = computed(() => buildFileTree(visibleFiles.value))
 
-  const diffText = computed(() => {
-    if (!activeFile.value) return ''
-    const previousFile = previousFiles.value.find(file => file.filePath === activeFile.value.filePath)
-    if (!previousFile) {
-      return createPatch(activeFile.value.filePath, '', activeFile.value.content || '', 'previous', 'current')
+  // 最后一条非加载中的 assistant 消息 ID，用于按 messageId 查询代码
+  const lastAssistantMessageId = computed(() => {
+    for (let i = chatMessages.value.length - 1; i >= 0; i--) {
+      const msg = chatMessages.value[i]
+      if (msg.role === 'assistant' && !msg.loading) {
+        return msg.id
+      }
     }
-    return createPatch(activeFile.value.filePath, previousFile.content || '', activeFile.value.content || '', 'previous', 'current')
+    return ''
   })
 
-  const diffLines = computed(() => {
-    return diffText.value
-      .split('\n')
-      .filter(line => !line.startsWith('Index:') && !line.startsWith('==='))
-      .map((line, index) => {
-        let type = 'context'
-        if (line.startsWith('+') && !line.startsWith('+++')) type = 'added'
-        if (line.startsWith('-') && !line.startsWith('---')) type = 'removed'
-        if (line.startsWith('@@')) type = 'hunk'
-        return { id: index, text: line || ' ', type }
-      })
-  })
+  const canViewCode = computed(() => Boolean(lastAssistantMessageId.value) && !generationLoading.value)
 
   const scrollChatToBottom = async () => {
     await nextTick()
@@ -119,7 +108,6 @@ export const useAIPluginCreate = () => {
     conversationId.value = ''
     currentRound.value = 0
     generatedFiles.value = []
-    previousFiles.value = []
     displayedFiles.value = []
     dependencies.value = []
     reviewResult.value = null
@@ -133,7 +121,7 @@ export const useAIPluginCreate = () => {
       changelog: 'AI 自动生成',
       isPublic: true
     }
-    chatMessages.value = [createWelcomeMessage()]
+    chatMessages.value = []
   }
 
   const cancelGeneration = () => {
@@ -414,7 +402,8 @@ export const useAIPluginCreate = () => {
 
   /**
    * done 事件处理：用后端返回的完整 assistant 消息更新当前流式消息。
-   * 不再整体替换 chatMessages，只更新本轮消息的 parts/files/toolCalls/publishInfo。
+   * 不再整体替换 chatMessages，只更新本轮消息的 parts/toolCalls/publishInfo。
+   * 代码文件不再随消息体返回，改为点击"查看代码文件"时按 messageId 查询。
    */
   const finalizeAssistantMessage = (assistantMessageId, data, userText) => {
     if (!data) return
@@ -430,8 +419,9 @@ export const useAIPluginCreate = () => {
     // 解析工具调用记录
     const toolCalls = normalizeToolCallMap(data.toolCalls)
 
-    // 更新当前流式消息的最终状态
+    // 更新当前流式消息的最终状态，并将 ID 更新为后端消息 ID（用于后续按 messageId 查询代码）
     patchChatMessage(assistantMessageId, {
+      id: data.id || assistantMessageId,
       parts,
       content: textContent || '代码生成完毕',
       toolCalls,
@@ -439,16 +429,6 @@ export const useAIPluginCreate = () => {
       waitingForBackend: false,
       hasBackendContent: true
     })
-
-    // 更新文件列表（codes → files）
-    if (Array.isArray(data.codes) && data.codes.length) {
-      const files = data.codes.map(normalizeGeneratedFile)
-      generatedFiles.value = files
-      displayedFiles.value = files
-      if (!activeFilePath.value && files.length) {
-        activeFilePath.value = files[0].filePath
-      }
-    }
 
     // 更新发布信息
     syncPublishInfo(data, userText)
@@ -462,14 +442,8 @@ export const useAIPluginCreate = () => {
 
     // 一条 AIChatMessage 记录同时包含 userMessage（用户输入）和 messageParts（AI 回复），
     // 需要拆成两条前端消息：user + assistant
-    const extractFiles = msg => Array.isArray(msg?.codes) ? msg.codes.map(normalizeGeneratedFile) : []
-
-    const latestRoundMessage = sortedMessages[sortedMessages.length - 1]
-    const previousRoundMessage = sortedMessages[sortedMessages.length - 2]
-    const latestFiles = extractFiles(latestRoundMessage)
-    const previousFiles = extractFiles(previousRoundMessage)
-
-    const restoredMessages = [createWelcomeMessage()]
+    // 代码文件不再随消息体返回，点击"查看代码文件"时按 messageId 查询
+    const restoredMessages = []
     sortedMessages.forEach(message => {
       const round = Number(message.round) || 0
 
@@ -499,8 +473,6 @@ export const useAIPluginCreate = () => {
           parts,
           toolCalls,
           createTime: message.createTime || '',
-          files: extractFiles(message),
-          dependencies: [],
           pluginName: message.pluginName || '',
           pluginDescription: message.pluginDescription || '',
           reviewResult: null
@@ -510,17 +482,14 @@ export const useAIPluginCreate = () => {
 
     const maxRound = sortedMessages.reduce((max, m) => Math.max(max, Number(m.round) || 0), 0)
     const firstMessage = sortedMessages[0]
+    const latestRoundMessage = sortedMessages[sortedMessages.length - 1]
 
     chatMessages.value = restoredMessages
     conversationId.value = firstMessage?.conversationId || conversationId.value
     currentRound.value = maxRound
     demandForm.value.pluginId = firstMessage?.pluginId || demandForm.value.pluginId
-    previousFiles.value = previousFiles
-    generatedFiles.value = latestFiles
-    displayedFiles.value = latestFiles
     dependencies.value = []
     reviewResult.value = null
-    activeFilePath.value = latestFiles[0]?.filePath || ''
     if (latestRoundMessage) syncPublishInfo(latestRoundMessage)
   }
 
@@ -576,6 +545,78 @@ export const useAIPluginCreate = () => {
     } finally {
       if (showLoading) historyLoading.value = false
       scrollChatToBottom()
+    }
+  }
+
+  // 按 messageId 查询代码文件列表
+  const loadCodeByMessageId = async messageId => {
+    if (!messageId) return []
+    codeLoading.value = true
+    try {
+      const response = await request({
+        url: `/code/${messageId}`,
+        method: 'get',
+        timeout: 30000
+      })
+      const codeList = Array.isArray(response.data) ? response.data : []
+      return codeList.map(normalizeGeneratedFile)
+    } catch (error) {
+      ElMessage.error('加载代码文件失败')
+      return []
+    } finally {
+      codeLoading.value = false
+    }
+  }
+
+  // 点击"查看代码文件"时调用：按最后一条 assistant 消息 ID 查询代码并刷新文件列表
+  const openCodeDialog = async () => {
+    const messageId = lastAssistantMessageId.value
+    if (!messageId) {
+      ElMessage.warning('暂无可查看的代码消息')
+      return false
+    }
+    const files = await loadCodeByMessageId(messageId)
+    if (!files.length) {
+      ElMessage.warning('该消息暂无代码文件')
+      return false
+    }
+    generatedFiles.value = files
+    displayedFiles.value = files
+    activeFilePath.value = files[0].filePath
+    return true
+  }
+
+  const publishSaving = ref(false)
+
+  // 更新发布配置（按最后一条 assistant 消息 ID）
+  const updatePublishSettings = async () => {
+    const messageId = lastAssistantMessageId.value
+    if (!messageId) {
+      ElMessage.warning('暂无可更新的消息，请先生成代码')
+      return false
+    }
+    publishSaving.value = true
+    try {
+      await request({
+        url: '/ai-plugin',
+        method: 'put',
+        data: {
+          id: messageId,
+          pluginName: publishForm.value.name,
+          pluginDescription: publishForm.value.description,
+          version: publishForm.value.version,
+          changelog: publishForm.value.changelog,
+          isPublic: publishForm.value.isPublic
+        },
+        timeout: 30000
+      })
+      ElMessage.success('更新成功')
+      return true
+    } catch (error) {
+      ElMessage.error(error?.message || '更新失败')
+      return false
+    } finally {
+      publishSaving.value = false
     }
   }
 
@@ -641,6 +682,8 @@ export const useAIPluginCreate = () => {
     currentRound,
     generatedFiles,
     visibleFiles,
+    codeLoading,
+    canViewCode,
     dependencies,
     reviewResult,
     reviewEnabled,
@@ -650,7 +693,6 @@ export const useAIPluginCreate = () => {
     publishForm,
     chatMessages,
     isUpdateMode,
-    hasGeneratedCode,
     activeFile,
     codeLineCount,
     reviewIssues,
@@ -663,7 +705,6 @@ export const useAIPluginCreate = () => {
     compileButtonTextKey,
     reviewBadge,
     fileTree,
-    diffLines,
     sendPrompt,
     cancelGeneration,
     undoToBeforeRound,
@@ -672,21 +713,10 @@ export const useAIPluginCreate = () => {
     selectTreeNode,
     copyCurrentCode,
     highlightLine,
-    goBack
-  }
-}
-
-function createWelcomeMessage() {
-  return {
-    id: 'welcome',
-    role: 'assistant',
-    round: 0,
-    content: '请描述你想生成的插件需求，我会生成 Java 源码、依赖和审查结果。',
-    parts: [{ type: 'text', content: '请描述你想生成的插件需求，我会生成 Java 源码、依赖和审查结果。' }],
-    createTime: '',
-    files: [],
-    dependencies: [],
-    reviewResult: null
+    goBack,
+    openCodeDialog,
+    publishSaving,
+    updatePublishSettings
   }
 }
 

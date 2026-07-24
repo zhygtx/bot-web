@@ -23,6 +23,23 @@ const syncScrollRef = () => {
     vm.chatScrollRef.value = conversationPanelRef.value.chatScrollRef
   }
 }
+
+// 点击"查看代码文件"：先按最后一条消息 ID 查询代码，再打开弹窗
+const handleViewCode = async () => {
+  const ok = await vm.openCodeDialog()
+  if (ok) codeDialogVisible.value = true
+}
+
+// 更新发布配置：调用接口成功后关闭弹窗
+const handlePublishConfirm = async () => {
+  const ok = await vm.updatePublishSettings()
+  if (ok) publishDialogVisible.value = false
+}
+
+// 取消：直接关闭弹窗
+const handlePublishCancel = () => {
+  publishDialogVisible.value = false
+}
 </script>
 
 <template>
@@ -38,7 +55,7 @@ const syncScrollRef = () => {
 
       <div class="topbar-actions">
         <el-button :icon="Setting" @click="publishDialogVisible = true">发布设置</el-button>
-        <el-button :icon="FolderOpened" :disabled="!vm.visibleFiles.value.length" @click="codeDialogVisible = true">
+        <el-button :icon="FolderOpened" :disabled="!vm.canViewCode.value" :loading="vm.codeLoading.value" @click="handleViewCode">
           查看代码文件
         </el-button>
         <el-button
@@ -82,6 +99,9 @@ const syncScrollRef = () => {
     <AIPublishSettingsDialog
       v-model="publishDialogVisible"
       :publish-form="vm.publishForm.value"
+      :saving="vm.publishSaving.value"
+      @confirm="handlePublishConfirm"
+      @cancel="handlePublishCancel"
     />
   </div>
 </template>

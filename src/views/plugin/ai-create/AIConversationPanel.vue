@@ -240,7 +240,7 @@ const canSend = computed(() => {
         :value="chatInput"
         maxlength="2000"
         :disabled="generationLoading"
-        placeholder="描述插件要处理的事件、动作、参数和返回结果..."
+        placeholder="请详细描述需要生成的插件需要的功能"
         @input="emit('update:chatInput', $event.target.value)"
         @keydown="handleInputKeydown"
       ></textarea>
