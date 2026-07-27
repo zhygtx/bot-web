@@ -771,6 +771,12 @@ html.dark .composer-send-button.el-button.loading:hover {
   font-size: 12px;
 }
 
+.dialog-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .code-files-dialog :deep(.el-dialog__body) {
   padding-top: 8px;
 }

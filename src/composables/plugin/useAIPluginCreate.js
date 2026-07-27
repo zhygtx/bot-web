@@ -26,6 +26,7 @@ export const useAIPluginCreate = () => {
   const currentRound = ref(0)
   const generatedFiles = ref([])
   const displayedFiles = ref([])
+  const previousFiles = ref([])
   const codeLoading = ref(false)
   const dependencies = ref([])
   const reviewResult = ref(null)
@@ -89,6 +90,52 @@ export const useAIPluginCreate = () => {
 
   const fileTree = computed(() => buildFileTree(visibleFiles.value))
 
+  // 上一轮 assistant 消息 ID（用于查询上轮代码以展示变更）
+  const previousAssistantMessageId = computed(() => {
+    const targetRound = currentRound.value - 1
+    if (targetRound < 1) return ''
+    for (let i = chatMessages.value.length - 1; i >= 0; i--) {
+      const msg = chatMessages.value[i]
+      if (msg.role === 'assistant' && Number(msg.round) === targetRound && !msg.loading) {
+        return msg.id
+      }
+    }
+    return ''
+  })
+
+  // 合并当前轮与上轮代码文件，标记每项状态：modified/added/deleted/unchanged
+  const diffFiles = computed(() => {
+    const currentMap = new Map(visibleFiles.value.map(f => [f.filePath, f.content || '']))
+    const previousMap = new Map(previousFiles.value.map(f => [f.filePath, f.content || '']))
+    const allPaths = new Set([...currentMap.keys(), ...previousMap.keys()])
+    const result = []
+    allPaths.forEach(filePath => {
+      const inCurrent = currentMap.has(filePath)
+      const inPrevious = previousMap.has(filePath)
+      const currentContent = currentMap.get(filePath) ?? ''
+      const previousContent = previousMap.get(filePath) ?? ''
+      let status
+      if (inCurrent && !inPrevious) status = 'added'
+      else if (!inCurrent && inPrevious) status = 'deleted'
+      else if (currentContent !== previousContent) status = 'modified'
+      else status = 'unchanged'
+      result.push({ filePath, status, currentContent, previousContent })
+    })
+    return result.sort((a, b) => a.filePath.localeCompare(b.filePath))
+  })
+
+  const diffFileTree = computed(() => buildFileTree(diffFiles.value))
+
+  const activeDiffFile = computed(() =>
+    diffFiles.value.find(f => f.filePath === activeFilePath.value) || diffFiles.value[0] || null
+  )
+
+  const diffStats = computed(() => {
+    const stats = { added: 0, modified: 0, deleted: 0, unchanged: 0, total: diffFiles.value.length }
+    diffFiles.value.forEach(f => { stats[f.status]++ })
+    return stats
+  })
+
   // 最后一条非加载中的 assistant 消息 ID，用于按 messageId 查询代码
   const lastAssistantMessageId = computed(() => {
     for (let i = chatMessages.value.length - 1; i >= 0; i--) {
@@ -128,6 +175,7 @@ export const useAIPluginCreate = () => {
     currentRound.value = 0
     generatedFiles.value = []
     displayedFiles.value = []
+    previousFiles.value = []
     dependencies.value = []
     reviewResult.value = null
     chatInput.value = ''
@@ -639,18 +687,23 @@ export const useAIPluginCreate = () => {
     }
   }
 
+  // 按 messageId 查询代码文件列表（纯查询，不管理 loading/错误提示）
+  const fetchCodeList = async messageId => {
+    if (!messageId) return []
+    const response = await request({
+      url: `/code/${messageId}`,
+      method: 'get',
+      timeout: 30000
+    })
+    return (Array.isArray(response.data) ? response.data : []).map(normalizeGeneratedFile)
+  }
+
   // 按 messageId 查询代码文件列表
   const loadCodeByMessageId = async messageId => {
     if (!messageId) return []
     codeLoading.value = true
     try {
-      const response = await request({
-        url: `/code/${messageId}`,
-        method: 'get',
-        timeout: 30000
-      })
-      const codeList = Array.isArray(response.data) ? response.data : []
-      return codeList.map(normalizeGeneratedFile)
+      return await fetchCodeList(messageId)
     } catch (error) {
       ElMessage.error('加载代码文件失败')
       return []
@@ -659,22 +712,35 @@ export const useAIPluginCreate = () => {
     }
   }
 
-  // 点击"查看代码文件"时调用：按最后一条 assistant 消息 ID 查询代码并刷新文件列表
+  // 点击"查看代码文件"时调用：同时查询当前轮与上一轮的代码，用于代码视图与变更视图
   const openCodeDialog = async () => {
     const messageId = lastAssistantMessageId.value
     if (!messageId) {
       ElMessage.warning('暂无可查看的代码消息')
       return false
     }
-    const files = await loadCodeByMessageId(messageId)
-    if (!files.length) {
-      ElMessage.warning('该消息暂无代码文件')
+    const prevMessageId = previousAssistantMessageId.value
+    codeLoading.value = true
+    try {
+      const [files, prevFiles] = await Promise.all([
+        fetchCodeList(messageId),
+        prevMessageId ? fetchCodeList(prevMessageId) : Promise.resolve([])
+      ])
+      if (!files.length) {
+        ElMessage.warning('该消息暂无代码文件')
+        return false
+      }
+      generatedFiles.value = files
+      displayedFiles.value = files
+      previousFiles.value = prevFiles
+      activeFilePath.value = files[0].filePath
+      return true
+    } catch (error) {
+      ElMessage.error('加载代码文件失败')
       return false
+    } finally {
+      codeLoading.value = false
     }
-    generatedFiles.value = files
-    displayedFiles.value = files
-    activeFilePath.value = files[0].filePath
-    return true
   }
 
   const publishSaving = ref(false)
@@ -797,6 +863,9 @@ export const useAIPluginCreate = () => {
     compileButtonTextKey,
     reviewBadge,
     fileTree,
+    diffFileTree,
+    activeDiffFile,
+    diffStats,
     sendPrompt,
     cancelGeneration,
     undoToBeforeRound,
@@ -979,7 +1048,7 @@ function isDisplayableGeneratedPath(filePath) {
 function buildFileTree(files) {
   const root = []
   const rootMap = new Map()
-  const ensureNode = (children, map, part, path, leaf = false, originalPath = '') => {
+  const ensureNode = (children, map, part, path, leaf = false, originalPath = '', status) => {
     if (map.has(path)) return map.get(path)
     const node = {
       id: path,
@@ -988,6 +1057,7 @@ function buildFileTree(files) {
       leaf,
       children: leaf ? undefined : []
     }
+    if (leaf && status) node.status = status
     children.push(node)
     map.set(path, node)
     return node
@@ -1007,8 +1077,8 @@ function buildFileTree(files) {
     effectiveParts.forEach((part, index) => {
       currentPath = currentPath ? `${currentPath}/${part}` : part
       const leaf = index === effectiveParts.length - 1
-      // 叶子节点使用原始文件路径
-      const node = ensureNode(children, map, part, currentPath, leaf, leaf ? file.filePath : '')
+      // 叶子节点使用原始文件路径，并保留 status（用于变更视图着色）
+      const node = ensureNode(children, map, part, currentPath, leaf, leaf ? file.filePath : '', file.status)
       if (!leaf) {
         node._map = node._map || new Map()
         children = node.children

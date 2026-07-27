@@ -50,7 +50,7 @@ const isActive = (node) => node.path === props.activeFilePath
     <div v-for="node in fileTree" :key="node.id" class="tree-item-wrapper">
       <div
         class="tree-item"
-        :class="{ active: isActive(node) }"
+        :class="{ active: isActive(node), [`status-${node.status}`]: !!node.status }"
         @click="toggleExpand(node)"
       >
         <span class="tree-item-icon">
@@ -100,6 +100,20 @@ const isActive = (node) => node.path === props.activeFilePath
   background: rgba(64, 158, 255, 0.12);
   color: var(--app-primary, #409eff);
   font-weight: 500;
+}
+
+/* 变更视图：按文件状态着色（置于 .active 之后，同等优先级下后定义生效） */
+.tree-item.status-modified {
+  color: #71CA9A;
+}
+
+.tree-item.status-added {
+  color: #ABE78C;
+}
+
+.tree-item.status-deleted {
+  color: #b0b0b0;
+  text-decoration: line-through;
 }
 
 .tree-item-icon {
