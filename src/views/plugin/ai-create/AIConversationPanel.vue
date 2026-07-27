@@ -135,6 +135,29 @@ const toolCallForPart = (message, part) => {
   return message.toolCalls?.[part.toolCallId] || null
 }
 
+const toggleThinking = (message, partIndex) => {
+  const part = message.parts?.[partIndex]
+  if (part?.type === 'thinking') {
+    part.expanded = !part.expanded
+  }
+}
+
+const toggleThinkingFull = (message, partIndex) => {
+  const part = message.parts?.[partIndex]
+  if (part?.type === 'thinking') {
+    part.fullExpanded = !part.fullExpanded
+  }
+}
+
+// 判断思考内容是否需要“展开全部”：流式期间不显示，且行数需超过阈值
+const THINKING_LINE_THRESHOLD = 12
+const shouldShowExpandAll = (part) => {
+  if (!part || part.type !== 'thinking') return false
+  if (part.streaming) return false
+  const lines = (part.content || '').split(/\r?\n/).length
+  return lines >= THINKING_LINE_THRESHOLD
+}
+
 const handleInputKeydown = event => {
   if (event.key !== 'Enter') return
   if (event.altKey || event.shiftKey) return
@@ -208,11 +231,65 @@ const canSend = computed(() => {
                     :content="part.content"
                     :class="{ 'user-markdown': message.role === 'user' }"
                   />
+                  <div
+                    v-else-if="part.type === 'thinking' && part.content"
+                    class="thinking-section"
+                  >
+                    <div class="thinking-toggle" @click="toggleThinking(message, index)">
+                      <span class="thinking-label">思考过程</span>
+                      <svg
+                        class="thinking-chevron"
+                        :class="{ expanded: part.expanded }"
+                        viewBox="0 0 16 16"
+                        width="12"
+                        height="12"
+                      >
+                        <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </div>
+                    <div v-show="part.expanded" class="thinking-body">
+                      <div
+                        class="thinking-content-scroll"
+                        :class="{ 'is-clamped': !part.fullExpanded && shouldShowExpandAll(part) }"
+                      >
+                        <AIMessageMarkdown
+                          :content="part.content"
+                          class="thinking-markdown"
+                        />
+                      </div>
+                      <div
+                        v-if="shouldShowExpandAll(part)"
+                        class="thinking-expand-all"
+                        @click="toggleThinkingFull(message, index)"
+                      >
+                        <template v-if="!part.fullExpanded">
+                          <span>展开全部</span>
+                          <svg viewBox="0 0 16 16" width="12" height="12">
+                            <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                          </svg>
+                        </template>
+                        <template v-else>
+                          <span>收起</span>
+                          <svg viewBox="0 0 16 16" width="12" height="12">
+                            <path d="M4 10l4-4 4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                          </svg>
+                        </template>
+                      </div>
+                    </div>
+                  </div>
                   <AIToolCallBlock
                     v-else-if="part.type === 'tool_call'"
                     :tool-call="toolCallForPart(message, part)"
                   />
                 </template>
+
+                <!-- 思考结束到下一段内容到达之间的过渡样式 -->
+                <div v-if="message.preparing" class="preparing-indicator">
+                  <span class="preparing-dot"></span>
+                  <span class="preparing-dot"></span>
+                  <span class="preparing-dot"></span>
+                  <span class="preparing-text">正在准备调用工具</span>
+                </div>
               </template>
             </div>
 

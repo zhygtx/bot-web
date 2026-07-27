@@ -44,6 +44,8 @@ const editorHost = ref(null)
 const editor = shallowRef(null)
 let applyingExternalValue = false
 let monacoApi = null
+// 创建锁：防止 watch(modelValue) 和 @opened 同时触发 createEditor 导致重复创建
+let isCreating = false
 
 // 文件树可见性
 const treeVisible = ref(true)
@@ -65,27 +67,36 @@ const language = computed(() => {
 const editorTheme = computed(() => isDark.value ? 'vs-dark' : 'vs')
 
 const createEditor = async () => {
-  await nextTick()
-  if (!editorHost.value || editor.value) return
-  monacoApi = monacoApi || await import('monaco-editor')
-  editor.value = monacoApi.editor.create(editorHost.value, {
-    value: props.activeFile?.content || '',
-    language: language.value,
-    theme: editorTheme.value,
-    automaticLayout: true,
-    minimap: { enabled: false },
-    fontSize: 14,
-    lineHeight: 20,
-    scrollBeyondLastLine: false,
-    wordWrap: 'on',
-    readOnly: true,
-    renderLineHighlight: 'line',
-    smoothScrolling: true,
-    cursorBlinking: 'smooth',
-    padding: { top: 8 }
-  })
-  // 延迟触发 layout 确保容器尺寸已计算完成
-  setTimeout(() => editor.value?.layout(), 100)
+  // 加锁防止重入（watch 和 @opened 可能同时触发）
+  if (isCreating || editor.value) return
+  if (!editorHost.value) return
+  isCreating = true
+  try {
+    await nextTick()
+    if (editor.value || !editorHost.value) return
+    monacoApi = monacoApi || await import('monaco-editor')
+    if (editor.value) return
+    editor.value = monacoApi.editor.create(editorHost.value, {
+      value: props.activeFile?.content || '',
+      language: language.value,
+      theme: editorTheme.value,
+      automaticLayout: true,
+      minimap: { enabled: false },
+      fontSize: 14,
+      lineHeight: 20,
+      scrollBeyondLastLine: false,
+      wordWrap: 'on',
+      readOnly: true,
+      renderLineHighlight: 'line',
+      smoothScrolling: true,
+      cursorBlinking: 'smooth',
+      padding: { top: 8 }
+    })
+    // 延迟触发 layout 确保容器尺寸已计算完成
+    setTimeout(() => editor.value?.layout(), 100)
+  } finally {
+    isCreating = false
+  }
 }
 
 const disposeEditor = () => {
@@ -93,6 +104,12 @@ const disposeEditor = () => {
     editor.value.dispose()
     editor.value = null
   }
+  // 清理容器残留属性，避免下次创建时报 "Element already has context attribute"
+  if (editorHost.value) {
+    editorHost.value.removeAttribute('data-context')
+    editorHost.value.innerHTML = ''
+  }
+  isCreating = false
 }
 
 const syncEditor = () => {

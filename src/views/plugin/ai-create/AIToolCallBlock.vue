@@ -14,8 +14,8 @@ const title = computed(() => props.toolCall?.displayName || '工具调用')
 
 <template>
   <div class="tool-call-bar" :class="{ running: isRunning, error: isError }">
-    <span class="tool-bar-icon">
-      <el-icon v-if="isRunning" class="is-loading"><Loading /></el-icon>
+    <span class="tool-bar-icon" :class="{ 'is-loading': isRunning }">
+      <el-icon v-if="isRunning"><Loading /></el-icon>
       <el-icon v-else-if="isError"><WarningFilled /></el-icon>
       <el-icon v-else><CircleCheck /></el-icon>
     </span>
@@ -26,3 +26,14 @@ const title = computed(() => props.toolCall?.displayName || '工具调用')
     </span>
   </div>
 </template>
+
+<style scoped>
+.tool-bar-icon.is-loading .el-icon {
+  animation: rotating 2s linear infinite;
+}
+
+@keyframes rotating {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+</style>

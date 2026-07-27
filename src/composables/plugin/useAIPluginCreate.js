@@ -46,6 +46,24 @@ export const useAIPluginCreate = () => {
 
   const chatMessages = ref([])
 
+  // 思考流暂停 500ms 后显示"正在准备调用工具"过渡样式（兜底模型决策空窗）
+  let thinkingIdleTimer = null
+  const clearThinkingIdleTimer = () => {
+    if (thinkingIdleTimer) {
+      clearTimeout(thinkingIdleTimer)
+      thinkingIdleTimer = null
+    }
+  }
+
+  // 思考或文本流暂停 500ms 后显示"正在准备调用工具"过渡样式（兜底模型决策空窗）
+  const schedulePreparingIdle = (assistantMessageId) => {
+    clearThinkingIdleTimer()
+    thinkingIdleTimer = setTimeout(() => {
+      patchChatMessage(assistantMessageId, { preparing: true })
+      thinkingIdleTimer = null
+    }, 500)
+  }
+
   const isUpdateMode = computed(() => Boolean(demandForm.value.pluginId))
   const visibleFiles = computed(() => displayedFiles.value.length ? displayedFiles.value : generatedFiles.value)
   const activeFile = computed(() => visibleFiles.value.find(file => file.filePath === activeFilePath.value) || visibleFiles.value[0])
@@ -95,6 +113,7 @@ export const useAIPluginCreate = () => {
   }
 
   const resetPageState = (query = {}) => {
+    clearThinkingIdleTimer()
     try {
       webSocketRef.value?.abort?.()
     } catch (error) {
@@ -125,6 +144,7 @@ export const useAIPluginCreate = () => {
   }
 
   const cancelGeneration = () => {
+    clearThinkingIdleTimer()
     if (!webSocketRef.value) return
     try {
       webSocketRef.value.abort?.()
@@ -169,6 +189,7 @@ export const useAIPluginCreate = () => {
         parts: [{ type: 'text', content: wasInterrupted ? (latestMsg.content || '已取消') : (error.message || 'AI 生成失败') }]
       })
     } finally {
+      clearThinkingIdleTimer()
       generationLoading.value = false
       scrollChatToBottom()
     }
@@ -259,14 +280,25 @@ export const useAIPluginCreate = () => {
                   rawText += content
                   applyAssistantTextDelta(assistantMessageId, parsed.data)
                   updateStreamingPreview(rawText, assistantMessageId)
+                  collapseAllThinkingInMessage(assistantMessageId)
+                  patchChatMessage(assistantMessageId, { preparing: false })
+                  await scrollChatToBottom()
+                } else if (parsed.type === 'assistant_thinking_delta') {
+                  applyAssistantThinkingDelta(assistantMessageId, parsed.data)
                   await scrollChatToBottom()
                 } else if (parsed.type === 'tool_call_start' || parsed.type === 'tool_call_finish' || parsed.type === 'tool_call_error') {
+                  clearThinkingIdleTimer()
                   applyToolCallEvent(assistantMessageId, parsed.data)
+                  collapseAllThinkingInMessage(assistantMessageId)
+                  patchChatMessage(assistantMessageId, { preparing: false })
                   await scrollChatToBottom()
                 } else if (parsed.type === 'delta') {
+                  clearThinkingIdleTimer()
                   rawText += parsed.data || ''
                   applyAssistantTextDelta(assistantMessageId, { content: parsed.data || '' })
                   updateStreamingPreview(rawText, assistantMessageId)
+                  collapseAllThinkingInMessage(assistantMessageId)
+                  patchChatMessage(assistantMessageId, { preparing: false })
                   await scrollChatToBottom()
                 } else if (parsed.type === 'message_change') {
                   const progress = String(parsed.data || '').trim()
@@ -276,14 +308,17 @@ export const useAIPluginCreate = () => {
                     patchChatMessage(assistantMessageId, { progress, content: progress, hasBackendContent: true, loading: false, waitingForBackend: false })
                   }
                 } else if (parsed.type === 'done') {
+                  clearThinkingIdleTimer()
                   finalizeAssistantMessage(assistantMessageId, parsed.data, text)
                   finish(resolve)
                   return
                 } else if (parsed.type === 'cancelled') {
+                  clearThinkingIdleTimer()
                   patchChatMessage(assistantMessageId, { interrupted: true, loading: false, waitingForBackend: false })
                   finish(() => reject(new Error('已取消生成')))
                   return
                 } else if (parsed.type === 'error') {
+                  clearThinkingIdleTimer()
                   finish(() => reject(new Error(parsed.data?.message || 'AI 生成失败')))
                   return
                 }
@@ -345,8 +380,57 @@ export const useAIPluginCreate = () => {
       content: nextContent,
       hasBackendContent: true,
       loading: false,
-      waitingForBackend: false
+      waitingForBackend: false,
+      preparing: false
     })
+    schedulePreparingIdle(assistantMessageId)
+  }
+
+  const applyAssistantThinkingDelta = (assistantMessageId, data = {}) => {
+    const content = data.content || ''
+    if (!content) return
+    const index = chatMessages.value.findIndex(message => message.id === assistantMessageId)
+    if (index < 0) return
+    const message = chatMessages.value[index]
+    const parts = normalizeMessageParts(message.parts, message.content === '...' ? '' : message.content)
+    const partIndex = Number.isInteger(data.partIndex) ? data.partIndex : parts.length
+    ensurePartSlot(parts, partIndex)
+    const part = parts[partIndex]
+    if (part?.type === 'thinking') {
+      part.content = `${part.content || ''}${content}`
+      part.expanded = true
+      part.streaming = true
+    } else {
+      parts[partIndex] = { type: 'thinking', content, expanded: true, streaming: true, fullExpanded: false }
+    }
+    const nextContent = parts.filter(part => part.type === 'text').map(part => part.content || '').join('')
+    patchChatMessage(assistantMessageId, {
+      parts,
+      content: nextContent,
+      hasBackendContent: true,
+      loading: false,
+      waitingForBackend: false,
+      preparing: false
+    })
+    schedulePreparingIdle(assistantMessageId)
+  }
+
+  const collapseAllThinking = (parts) => {
+    parts.forEach(part => {
+      if (part?.type === 'thinking') {
+        part.expanded = false
+        part.streaming = false
+      }
+    })
+  }
+
+  const collapseAllThinkingInMessage = (assistantMessageId) => {
+    const index = chatMessages.value.findIndex(message => message.id === assistantMessageId)
+    if (index < 0) return
+    const message = chatMessages.value[index]
+    const parts = normalizeMessageParts(message.parts, message.content === '...' ? '' : message.content)
+    collapseAllThinking(parts)
+    patchChatMessage(assistantMessageId, { parts })
   }
 
   const applyToolCallEvent = (assistantMessageId, data = {}) => {
@@ -357,14 +441,23 @@ export const useAIPluginCreate = () => {
     const message = chatMessages.value[index]
     const parts = normalizeMessageParts(message.parts, message.content === '...' ? '' : message.content)
     const toolCalls = { ...(message.toolCalls || {}) }
-    toolCalls[toolCallId] = normalizeToolCall({
-      ...(toolCalls[toolCallId] || {}),
-      ...data,
-      toolCallId
-    })
-    const partIndex = Number.isInteger(data.partIndex) ? data.partIndex : parts.length
-    ensurePartSlot(parts, partIndex)
+    const existing = toolCalls[toolCallId] || {}
+
+    // 合并 toolCall 数据：finish/error 事件不携带 arguments，保留 start 时的参数预览
+    const merged = { ...existing, ...data, toolCallId }
+    if (Array.isArray(data.arguments) && data.arguments.length === 0 && existing.argumentsPreview?.length) {
+      merged.arguments = existing.argumentsPreview
+    }
+    toolCalls[toolCallId] = normalizeToolCall(merged)
+
+    // 通过 toolCallId 找到已有 part；没有则追加新 part（start 事件一定会新增）
+    let partIndex = parts.findIndex(part => part.type === 'tool_call' && part.toolCallId === toolCallId)
+    if (partIndex < 0) {
+      partIndex = Number.isInteger(data.partIndex) ? data.partIndex : parts.length
+      ensurePartSlot(parts, partIndex)
+    }
     parts[partIndex] = { type: 'tool_call', toolCallId }
+
     patchChatMessage(assistantMessageId, {
       parts,
       toolCalls,
@@ -385,15 +478,12 @@ export const useAIPluginCreate = () => {
 
   const syncPublishInfo = (data, text = '') => {
     const payload = normalizePayload(data || {})
+    // 仅在后端明确返回了插件元信息时才更新，避免用用户原始 prompt 填充
     if (payload.pluginName) {
       publishForm.value.name = payload.pluginName
-    } else if (!publishForm.value.name && text) {
-      publishForm.value.name = payload.pluginName || inferPluginName(text)
     }
     if (payload.pluginDescription) {
       publishForm.value.description = payload.pluginDescription
-    } else if (!publishForm.value.description && text) {
-      publishForm.value.description = payload.pluginDescription || text.slice(0, 80)
     }
     if (payload.version) publishForm.value.version = payload.version
     if (payload.changelog) publishForm.value.changelog = payload.changelog
@@ -427,7 +517,8 @@ export const useAIPluginCreate = () => {
       toolCalls,
       loading: false,
       waitingForBackend: false,
-      hasBackendContent: true
+      hasBackendContent: true,
+      preparing: false
     })
 
     // 更新发布信息
@@ -665,6 +756,7 @@ export const useAIPluginCreate = () => {
   watch(() => route.fullPath, initializePageFromRoute)
 
   onBeforeUnmount(() => {
+    clearThinkingIdleTimer()
     try {
       webSocketRef.value?.abort?.()
     } catch (error) {
@@ -736,7 +828,8 @@ function createGeneratingMessage(round) {
     error: false,
     hasBackendContent: false,
     loading: true,
-    waitingForBackend: true
+    waitingForBackend: true,
+    preparing: false
   }
 }
 
@@ -802,6 +895,9 @@ function normalizeMessageParts(rawParts, fallbackText = '') {
     return parsed.map(part => {
       if (part?.type === 'tool_call') {
         return { type: 'tool_call', toolCallId: part.toolCallId }
+      }
+      if (part?.type === 'thinking') {
+        return { type: 'thinking', content: part?.content || '', expanded: false, streaming: false, fullExpanded: false }
       }
       return { type: 'text', content: part?.content || '' }
     })
@@ -974,13 +1070,6 @@ function normalizeStreamingFileContent(content) {
 function formatTime() {
   const now = new Date()
   return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
-}
-
-function inferPluginName(requirements) {
-  const trimmed = requirements.replace(/\s+/g, '')
-  if (!trimmed) return ''
-  const match = trimmed.match(/(?:做一个|生成一个|创建一个|需要一个|开发一个)?([^，。,.、\s]{2,16})(?:插件|系统|功能)/)
-  return match?.[1] ? `${match[1]}插件` : `${trimmed.slice(0, 10)}插件`
 }
 
 const JAVA_KEYWORDS = new Set([

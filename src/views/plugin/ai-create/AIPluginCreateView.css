@@ -436,6 +436,208 @@
   color: var(--app-text-muted);
 }
 
+/* —— 思考过程：纯文本 toggle + 带边框的 body —— */
+.thinking-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 6px 0;
+}
+
+.thinking-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+  padding: 2px 0;
+  cursor: pointer;
+  user-select: none;
+  color: var(--app-text-muted);
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
+}
+
+.thinking-toggle:hover {
+  opacity: 1;
+}
+
+.thinking-label {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+
+.thinking-chevron {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.thinking-chevron.expanded {
+  transform: rotate(180deg);
+}
+
+.thinking-body {
+  border: 1px solid var(--app-border-soft);
+  border-radius: 8px;
+  background: var(--app-bg-muted);
+  overflow: hidden;
+}
+
+.thinking-content-scroll {
+  padding: 10px 14px;
+}
+
+.thinking-content-scroll.is-clamped {
+  max-height: 360px;
+  overflow: hidden;
+  position: relative;
+}
+
+.thinking-content-scroll.is-clamped::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 60px;
+  background: linear-gradient(to bottom, transparent, var(--app-bg-muted));
+  pointer-events: none;
+}
+
+.thinking-expand-all {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 0;
+  border-top: 1px solid var(--app-border-soft);
+  font-size: 12px;
+  color: var(--app-text-muted);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.thinking-expand-all:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--app-text);
+}
+
+html.dark .thinking-expand-all:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* 思考内容用 markdown 渲染，但视觉权重比正文弱 */
+.thinking-markdown {
+  color: var(--app-text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.thinking-markdown > *:first-child {
+  margin-top: 0;
+}
+
+.thinking-markdown > *:last-child {
+  margin-bottom: 0;
+}
+
+.thinking-markdown p {
+  margin: 0 0 6px;
+}
+
+.thinking-markdown h3,
+.thinking-markdown h4,
+.thinking-markdown h5 {
+  margin: 8px 0 4px;
+  font-size: 13px;
+  color: var(--app-text-soft);
+}
+
+.thinking-markdown ul {
+  margin: 4px 0 6px;
+  padding-left: 18px;
+}
+
+.thinking-markdown li {
+  margin: 2px 0;
+}
+
+.thinking-markdown code {
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.06);
+  font-family: Consolas, Monaco, monospace;
+  font-size: 0.9em;
+  color: var(--app-text-soft);
+}
+
+html.dark .thinking-markdown code {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.thinking-markdown pre {
+  margin: 6px 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.04);
+  font-size: 12px;
+}
+
+html.dark .thinking-markdown pre {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.thinking-markdown pre code {
+  padding: 0;
+  background: transparent;
+}
+
+.thinking-markdown strong {
+  color: var(--app-text-soft);
+  font-weight: 600;
+}
+
+.thinking-markdown blockquote {
+  margin: 4px 0;
+  padding: 2px 10px;
+  border-left: 2px solid var(--app-border-soft);
+  color: var(--app-text-muted);
+}
+
+/* ───── 思考结束到下一段内容到达的过渡指示器 ───── */
+.preparing-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  margin: 4px 0;
+  border-radius: 6px;
+  background: rgba(64, 158, 255, 0.06);
+  color: var(--app-text-muted);
+  font-size: 12px;
+}
+
+.preparing-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--app-text-muted);
+  animation: preparing-bounce 1.2s infinite ease-in-out;
+}
+
+.preparing-dot:nth-child(2) { animation-delay: 0.15s; }
+.preparing-dot:nth-child(3) { animation-delay: 0.3s; }
+
+.preparing-text {
+  margin-left: 2px;
+}
+
+@keyframes preparing-bounce {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1); }
+}
+
 .composer {
   width: min(920px, 100%);
   margin: 0 auto 20px;
