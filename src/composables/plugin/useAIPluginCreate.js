@@ -323,29 +323,19 @@ export const useAIPluginCreate = () => {
                 eventDataLines = []
 
                 if (!parsed) continue
-                if (parsed.type === 'assistant_text_delta') {
-                  const content = parsed.data?.content || ''
-                  rawText += content
-                  applyAssistantTextDelta(assistantMessageId, parsed.data)
-                  updateStreamingPreview(rawText, assistantMessageId)
-                  collapseAllThinkingInMessage(assistantMessageId)
-                  patchChatMessage(assistantMessageId, { preparing: false })
-                  await scrollChatToBottom()
-                } else if (parsed.type === 'assistant_thinking_delta') {
-                  applyAssistantThinkingDelta(assistantMessageId, parsed.data)
-                  await scrollChatToBottom()
-                } else if (parsed.type === 'tool_call_start' || parsed.type === 'tool_call_finish' || parsed.type === 'tool_call_error') {
+                if (parsed.type === 'delta') {
+                  // 统一增量事件：data.type 区分 thinking / text / tool_call
+                  const data = parsed.data || {}
                   clearThinkingIdleTimer()
-                  applyToolCallEvent(assistantMessageId, parsed.data)
-                  collapseAllThinkingInMessage(assistantMessageId)
-                  patchChatMessage(assistantMessageId, { preparing: false })
-                  await scrollChatToBottom()
-                } else if (parsed.type === 'delta') {
-                  clearThinkingIdleTimer()
-                  rawText += parsed.data || ''
-                  applyAssistantTextDelta(assistantMessageId, { content: parsed.data || '' })
-                  updateStreamingPreview(rawText, assistantMessageId)
-                  collapseAllThinkingInMessage(assistantMessageId)
+                  if (data.type === 'thinking') {
+                    applyAssistantThinkingDelta(assistantMessageId, data)
+                  } else if (data.type === 'text') {
+                    rawText += data.content || ''
+                    applyAssistantTextDelta(assistantMessageId, data)
+                    updateStreamingPreview(rawText, assistantMessageId)
+                  } else if (data.type === 'tool_call') {
+                    applyToolCallEvent(assistantMessageId, data)
+                  }
                   patchChatMessage(assistantMessageId, { preparing: false })
                   await scrollChatToBottom()
                 } else if (parsed.type === 'message_change') {
@@ -414,13 +404,14 @@ export const useAIPluginCreate = () => {
     if (index < 0) return
     const message = chatMessages.value[index]
     const parts = normalizeMessageParts(message.parts, message.content === '...' ? '' : message.content)
-    const partIndex = Number.isInteger(data.partIndex) ? data.partIndex : findAppendableTextPartIndex(parts)
-    ensurePartSlot(parts, partIndex)
-    const part = parts[partIndex]
-    if (part?.type === 'text') {
-      part.content = `${part.content || ''}${content}`
+    // 收到正文：自动折叠所有思考 part
+    collapseAllThinking(parts)
+    // 同类型 part 末尾追加，否则新建
+    const last = parts[parts.length - 1]
+    if (last?.type === 'text') {
+      last.content = `${last.content || ''}${content}`
     } else {
-      parts[partIndex] = { type: 'text', content }
+      parts.push({ type: 'text', content })
     }
     const nextContent = parts.filter(part => part.type === 'text').map(part => part.content || '').join('')
     patchChatMessage(assistantMessageId, {
@@ -441,15 +432,14 @@ export const useAIPluginCreate = () => {
     if (index < 0) return
     const message = chatMessages.value[index]
     const parts = normalizeMessageParts(message.parts, message.content === '...' ? '' : message.content)
-    const partIndex = Number.isInteger(data.partIndex) ? data.partIndex : parts.length
-    ensurePartSlot(parts, partIndex)
-    const part = parts[partIndex]
-    if (part?.type === 'thinking') {
-      part.content = `${part.content || ''}${content}`
-      part.expanded = true
-      part.streaming = true
+    // 同类型 part 末尾追加，否则新建
+    const last = parts[parts.length - 1]
+    if (last?.type === 'thinking') {
+      last.content = `${last.content || ''}${content}`
+      last.expanded = true
+      last.streaming = true
     } else {
-      parts[partIndex] = { type: 'thinking', content, expanded: true, streaming: true, fullExpanded: false }
+      parts.push({ type: 'thinking', content, expanded: true, streaming: true, fullExpanded: false })
     }
     const nextContent = parts.filter(part => part.type === 'text').map(part => part.content || '').join('')
     patchChatMessage(assistantMessageId, {
@@ -482,33 +472,29 @@ export const useAIPluginCreate = () => {
   }
 
   const applyToolCallEvent = (assistantMessageId, data = {}) => {
-    const toolCallId = data.toolCallId || data.id
-    if (!toolCallId) return
+    const name = data.name
+    const status = data.status
     const index = chatMessages.value.findIndex(message => message.id === assistantMessageId)
     if (index < 0) return
     const message = chatMessages.value[index]
     const parts = normalizeMessageParts(message.parts, message.content === '...' ? '' : message.content)
-    const toolCalls = { ...(message.toolCalls || {}) }
-    const existing = toolCalls[toolCallId] || {}
-
-    // 合并 toolCall 数据：finish/error 事件不携带 arguments，保留 start 时的参数预览
-    const merged = { ...existing, ...data, toolCallId }
-    if (Array.isArray(data.arguments) && data.arguments.length === 0 && existing.argumentsPreview?.length) {
-      merged.arguments = existing.argumentsPreview
+    // 收到工具调用：自动折叠所有思考 part
+    collapseAllThinking(parts)
+    if (status === 'RUNNING') {
+      // 开始事件：追加新 tool_call part
+      parts.push({ type: 'tool_call', name: name || '工具调用', status: 'RUNNING' })
+    } else {
+      // 结束事件（SUCCESS/ERROR）：更新最后一个同名 RUNNING part 的状态
+      for (let i = parts.length - 1; i >= 0; i--) {
+        const part = parts[i]
+        if (part.type === 'tool_call' && part.status === 'RUNNING' && (!name || part.name === name)) {
+          part.status = status || 'SUCCESS'
+          break
+        }
+      }
     }
-    toolCalls[toolCallId] = normalizeToolCall(merged)
-
-    // 通过 toolCallId 找到已有 part；没有则追加新 part（start 事件一定会新增）
-    let partIndex = parts.findIndex(part => part.type === 'tool_call' && part.toolCallId === toolCallId)
-    if (partIndex < 0) {
-      partIndex = Number.isInteger(data.partIndex) ? data.partIndex : parts.length
-      ensurePartSlot(parts, partIndex)
-    }
-    parts[partIndex] = { type: 'tool_call', toolCallId }
-
     patchChatMessage(assistantMessageId, {
       parts,
-      toolCalls,
       hasBackendContent: true,
       loading: false,
       waitingForBackend: false
@@ -540,7 +526,8 @@ export const useAIPluginCreate = () => {
 
   /**
    * done 事件处理：用后端返回的完整 assistant 消息更新当前流式消息。
-   * 不再整体替换 chatMessages，只更新本轮消息的 parts/toolCalls/publishInfo。
+   * 不再整体替换 chatMessages，只更新本轮消息的 parts/publishInfo。
+   * 工具调用信息已嵌入 messageParts 的 tool_call part，无需单独维护 toolCalls 字段。
    * 代码文件不再随消息体返回，改为点击"查看代码文件"时按 messageId 查询。
    */
   const finalizeAssistantMessage = (assistantMessageId, data, userText) => {
@@ -550,19 +537,15 @@ export const useAIPluginCreate = () => {
     if (data.conversationId) conversationId.value = data.conversationId
     if (data.round) currentRound.value = data.round
 
-    // 解析 messageParts（后端返回 JSON 字符串）并更新当前消息
+    // 解析 messageParts（后端返回 JSON 字符串，已内嵌 tool_call part 的 name）
     const parts = normalizeMessageParts(data.messageParts, '')
     const textContent = parts.filter(p => p.type === 'text').map(p => p.content || '').join('')
-
-    // 解析工具调用记录
-    const toolCalls = normalizeToolCallMap(data.toolCalls)
 
     // 更新当前流式消息的最终状态，并将 ID 更新为后端消息 ID（用于后续按 messageId 查询代码）
     patchChatMessage(assistantMessageId, {
       id: data.id || assistantMessageId,
       parts,
       content: textContent || '代码生成完毕',
-      toolCalls,
       loading: false,
       waitingForBackend: false,
       hasBackendContent: true,
@@ -602,7 +585,6 @@ export const useAIPluginCreate = () => {
       if (message.messageParts != null && message.messageParts !== '') {
         const parts = normalizeMessageParts(message.messageParts, '')
         const textContent = parts.filter(p => p.type === 'text').map(p => p.content || '').join('')
-        const toolCalls = normalizeToolCallMap(message.toolCalls)
 
         restoredMessages.push({
           id: message.id,
@@ -610,7 +592,6 @@ export const useAIPluginCreate = () => {
           round,
           content: textContent || '代码生成完毕',
           parts,
-          toolCalls,
           createTime: message.createTime || '',
           pluginName: message.pluginName || '',
           pluginDescription: message.pluginDescription || '',
@@ -892,7 +873,6 @@ function createGeneratingMessage(round) {
     dependencies: [],
     progress: '...',
     parts: [],
-    toolCalls: {},
     reviewResult: null,
     error: false,
     hasBackendContent: false,
@@ -963,60 +943,25 @@ function normalizeMessageParts(rawParts, fallbackText = '') {
   if (Array.isArray(parsed) && parsed.length) {
     return parsed.map(part => {
       if (part?.type === 'tool_call') {
-        return { type: 'tool_call', toolCallId: part.toolCallId }
+        return {
+          type: 'tool_call',
+          name: part?.name || '工具调用',
+          status: part?.status || 'RUNNING'
+        }
       }
       if (part?.type === 'thinking') {
-        return { type: 'thinking', content: part?.content || '', expanded: false, streaming: false, fullExpanded: false }
+        return {
+          type: 'thinking',
+          content: part?.content || '',
+          expanded: part?.expanded ?? false,
+          streaming: part?.streaming ?? false,
+          fullExpanded: part?.fullExpanded ?? false
+        }
       }
       return { type: 'text', content: part?.content || '' }
     })
   }
   return fallbackText ? [{ type: 'text', content: fallbackText }] : []
-}
-
-function ensurePartSlot(parts, partIndex) {
-  while (parts.length <= partIndex) {
-    parts.push({ type: 'text', content: '' })
-  }
-}
-
-function findAppendableTextPartIndex(parts) {
-  const lastIndex = parts.length - 1
-  if (lastIndex >= 0 && parts[lastIndex]?.type === 'text') return lastIndex
-  return parts.length
-}
-
-function normalizeToolCallMap(rawToolCalls) {
-  const map = {}
-  const list = parseJsonMaybe(rawToolCalls, rawToolCalls || [])
-  if (!Array.isArray(list)) return map
-  list.forEach(item => {
-    const normalized = normalizeToolCall(item)
-    if (normalized.toolCallId) map[normalized.toolCallId] = normalized
-  })
-  return map
-}
-
-function normalizeToolCall(raw = {}) {
-  const tool = raw.tool || {}
-  const toolCallId = raw.toolCallId || raw.id
-  return {
-    ...raw,
-    id: raw.id || toolCallId,
-    toolCallId,
-    status: raw.status || 'RUNNING',
-    method: raw.method || tool.name || '',
-    displayName: raw.displayName || tool.displayName || '工具调用',
-    description: raw.description || tool.description || '',
-    category: raw.category || tool.category || 'tool',
-    // 实时推送：data.arguments；历史数据：argumentsPreviewJson
-    argumentsPreview: parseJsonMaybe(raw.arguments,
-                       parseJsonMaybe(raw.argumentsPreview,
-                       parseJsonMaybe(raw.argumentsPreviewJson, []))) || [],
-    // 实时推送：data.result {success, summary, detail}；历史数据：resultPreviewJson
-    resultPreview: raw.result || parseJsonMaybe(raw.resultPreviewJson, raw.resultPreview || null),
-    errorMessage: raw.errorMessage || ''
-  }
 }
 
 function normalizeGeneratedFile(file) {

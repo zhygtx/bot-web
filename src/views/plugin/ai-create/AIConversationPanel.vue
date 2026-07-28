@@ -131,10 +131,6 @@ const messageParts = message => {
   return message.content ? [{ type: 'text', content: message.content }] : []
 }
 
-const toolCallForPart = (message, part) => {
-  return message.toolCalls?.[part.toolCallId] || null
-}
-
 const toggleThinking = (message, partIndex) => {
   const part = message.parts?.[partIndex]
   if (part?.type === 'thinking') {
@@ -279,7 +275,7 @@ const canSend = computed(() => {
                   </div>
                   <AIToolCallBlock
                     v-else-if="part.type === 'tool_call'"
-                    :tool-call="toolCallForPart(message, part)"
+                    :part="part"
                   />
                 </template>
 

@@ -1,39 +1,27 @@
 <script setup>
 import { computed } from 'vue'
-import { CircleCheck, Loading, WarningFilled } from '@element-plus/icons-vue'
+import { Loading, Tools, CircleCheck, Warning } from '@element-plus/icons-vue'
 
 const props = defineProps({
-  toolCall: { type: Object, default: null }
+  part: { type: Object, default: null }
 })
 
-const status = computed(() => props.toolCall?.status || 'RUNNING')
-const isRunning = computed(() => status.value === 'RUNNING')
-const isError = computed(() => status.value === 'ERROR')
-const title = computed(() => props.toolCall?.displayName || '工具调用')
+const title = computed(() => props.part?.name || '工具调用')
+const status = computed(() => props.part?.status || 'RUNNING')
+const icon = computed(() => {
+  switch (status.value) {
+    case 'SUCCESS': return CircleCheck
+    case 'ERROR': return Warning
+    default: return Loading
+  }
+})
 </script>
 
 <template>
-  <div class="tool-call-bar" :class="{ running: isRunning, error: isError }">
-    <span class="tool-bar-icon" :class="{ 'is-loading': isRunning }">
-      <el-icon v-if="isRunning"><Loading /></el-icon>
-      <el-icon v-else-if="isError"><WarningFilled /></el-icon>
-      <el-icon v-else><CircleCheck /></el-icon>
+  <div class="tool-call-bar" :class="status.toLowerCase()">
+    <span class="tool-bar-icon">
+      <el-icon><component :is="icon" /></el-icon>
     </span>
     <span class="tool-bar-label">{{ title }}</span>
-    <span class="tool-bar-state">
-      {{ isRunning ? '执行中' : isError ? '失败' : '完成' }}
-      <template v-if="toolCall?.durationMs"> · {{ toolCall.durationMs }}ms</template>
-    </span>
   </div>
 </template>
-
-<style scoped>
-.tool-bar-icon.is-loading .el-icon {
-  animation: rotating 2s linear infinite;
-}
-
-@keyframes rotating {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-</style>

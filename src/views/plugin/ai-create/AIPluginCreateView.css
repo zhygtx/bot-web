@@ -411,6 +411,11 @@
   color: var(--app-primary);
 }
 
+.tool-call-bar.success {
+  background: rgba(103, 194, 58, 0.08);
+  color: #67c23a;
+}
+
 .tool-call-bar.error {
   background: rgba(245, 108, 108, 0.08);
   color: #f56c6c;
