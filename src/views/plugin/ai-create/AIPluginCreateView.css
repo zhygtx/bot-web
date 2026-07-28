@@ -60,6 +60,96 @@
   justify-content: flex-end;
 }
 
+/* 编译按钮内进度文本的滚动切换动画：key 变化时 Vue 重新挂载元素，自动触发入场动画 */
+.compile-button-text {
+  display: inline-block;
+  animation: compile-text-slide-in 0.35s ease;
+}
+@keyframes compile-text-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+/* 编译按钮 Loading 图标的旋转动画 */
+.compile-button.loading .el-icon {
+  animation: compile-icon-rotate 1s linear infinite;
+}
+@keyframes compile-icon-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* 审核不通过弹窗内容 */
+.review-issues-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.review-issues-summary {
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+}
+.review-issues-list {
+  max-height: 56vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-right: 4px;
+}
+.review-issue-card {
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+  padding: 12px 14px;
+  background: var(--el-fill-color-blank);
+}
+.review-issue-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.review-issue-location {
+  font-family: 'JetBrains Mono', Consolas, Menlo, monospace;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+.review-issue-message {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--el-text-color-primary);
+  word-break: break-word;
+}
+.review-issue-suggestion {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--el-border-color-lighter);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--el-text-color-regular);
+  word-break: break-word;
+}
+.review-issue-suggestion-label {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 6px;
+  font-size: 11px;
+  line-height: 18px;
+  color: var(--el-color-success);
+  background: var(--el-color-success-light-9);
+  border-radius: 3px;
+  vertical-align: 1px;
+}
+.review-issue-suggestion-text {
+  white-space: pre-wrap;
+}
+
 .ai-workbench-main {
   flex: 1;
   min-height: 0;
@@ -658,7 +748,7 @@ html.dark .thinking-markdown pre {
 .composer-input {
   width: 100%;
   min-height: 70px;
-  max-height: 190px;
+  max-height: 105px;
   display: block;
   border: 0;
   outline: none;
@@ -669,6 +759,11 @@ html.dark .thinking-markdown pre {
   background: transparent;
   color: var(--app-text);
   font: inherit;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.composer-input::-webkit-scrollbar {
+  display: none;
 }
 
 .composer-input::placeholder {

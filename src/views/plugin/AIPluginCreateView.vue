@@ -1,11 +1,14 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import {
   ArrowLeft,
+  CopyDocument,
   Finished,
   FolderOpened,
+  Loading,
   Setting
 } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import { useAIPluginCreate } from '../../composables/plugin/useAIPluginCreate'
 import AIConversationPanel from './ai-create/AIConversationPanel.vue'
 import AICodeFilesDialog from './ai-create/AICodeFilesDialog.vue'
@@ -16,6 +19,12 @@ const vm = useAIPluginCreate()
 const codeDialogVisible = ref(false)
 const publishDialogVisible = ref(false)
 const conversationPanelRef = ref(null)
+const compileReviewFailedVisible = ref(false)
+
+// review 未通过时自动弹窗
+watch(() => vm.compileReviewFailed.value, value => {
+  compileReviewFailedVisible.value = value != null
+})
 
 // 将子组件的 chatScrollRef 同步到 composable
 const syncScrollRef = () => {
@@ -40,6 +49,50 @@ const handlePublishConfirm = async () => {
 const handlePublishCancel = () => {
   publishDialogVisible.value = false
 }
+
+// 审核问题列表（统一转成数组）
+const reviewIssues = computed(() => {
+  const data = vm.compileReviewFailed.value
+  if (Array.isArray(data)) return data
+  if (typeof data === 'string') {
+    try {
+      const parsed = JSON.parse(data)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }
+  return []
+})
+
+// severity → tag type 映射
+const severityTagType = severity => {
+  const s = String(severity || '').toLowerCase()
+  if (s === 'high') return 'danger'
+  if (s === 'medium') return 'warning'
+  if (s === 'low') return 'info'
+  return 'info'
+}
+
+// 复制审核内容（格式化文本）
+const copyReviewContent = async () => {
+  const text = reviewIssues.value
+    .map((issue, index) => {
+      const severity = (issue.severity || 'unknown').toUpperCase()
+      const file = issue.file || ''
+      const line = issue.line != null ? `:${issue.line}` : ''
+      const message = issue.message || ''
+      const suggestion = issue.suggestion || ''
+      return `[${index + 1}] [${severity}] ${file}${line}\n问题: ${message}\n建议: ${suggestion}`
+    })
+    .join('\n\n')
+  try {
+    await navigator.clipboard.writeText(text)
+    ElMessage.success('已复制审核内容')
+  } catch {
+    ElMessage.error('复制失败')
+  }
+}
 </script>
 
 <template>
@@ -54,17 +107,19 @@ const handlePublishCancel = () => {
       </div>
 
       <div class="topbar-actions">
-        <el-button :icon="Setting" @click="publishDialogVisible = true">发布设置</el-button>
-        <el-button :icon="FolderOpened" :disabled="!vm.canViewCode.value" :loading="vm.codeLoading.value" @click="handleViewCode">
+        <el-button :icon="Setting" :disabled="vm.compileLoading.value" @click="publishDialogVisible = true">发布设置</el-button>
+        <el-button :icon="FolderOpened" :disabled="!vm.canViewCode.value || vm.compileLoading.value" :loading="vm.codeLoading.value" @click="handleViewCode">
           查看代码文件
         </el-button>
         <el-button
           type="primary"
-          :icon="Finished"
-          :disabled="vm.generationLoading.value"
+          class="compile-button"
+          :class="{ loading: vm.compileLoading.value }"
+          :icon="vm.compileLoading.value ? Loading : Finished"
+          :disabled="vm.generationLoading.value || vm.compileLoading.value"
           @click="vm.confirmCompile"
         >
-          编译并发布 TODO
+          <span :key="vm.compileTextTick.value" class="compile-button-text">{{ vm.compileButtonText.value }}</span>
         </el-button>
       </div>
     </header>
@@ -76,6 +131,7 @@ const handlePublishCancel = () => {
         :chat-input="vm.chatInput.value"
         :conversation-id="vm.conversationId.value"
         :generation-loading="vm.generationLoading.value"
+        :compile-loading="vm.compileLoading.value"
         :current-round="vm.currentRound.value"
         @vue:mounted="syncScrollRef"
         @update:chat-input="vm.chatInput.value = $event"
@@ -106,5 +162,35 @@ const handlePublishCancel = () => {
       @confirm="handlePublishConfirm"
       @cancel="handlePublishCancel"
     />
+
+    <el-dialog
+      v-model="compileReviewFailedVisible"
+      title="代码审核未通过"
+      width="720px"
+      align-center
+    >
+      <div class="review-issues-header">
+        <span class="review-issues-summary">共 {{ reviewIssues.length }} 项问题</span>
+        <el-button :icon="CopyDocument" size="small" @click="copyReviewContent">复制</el-button>
+      </div>
+      <div class="review-issues-list">
+        <div v-for="(issue, index) in reviewIssues" :key="index" class="review-issue-card">
+          <div class="review-issue-head">
+            <el-tag :type="severityTagType(issue.severity)" size="small" effect="dark">
+              {{ (issue.severity || 'unknown').toUpperCase() }}
+            </el-tag>
+            <span class="review-issue-location">{{ issue.file }}{{ issue.line != null ? ':' + issue.line : '' }}</span>
+          </div>
+          <div class="review-issue-message">{{ issue.message }}</div>
+          <div v-if="issue.suggestion" class="review-issue-suggestion">
+            <span class="review-issue-suggestion-label">建议</span>
+            <span class="review-issue-suggestion-text">{{ issue.suggestion }}</span>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button type="primary" @click="compileReviewFailedVisible = false">知道了</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>

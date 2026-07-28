@@ -6,6 +6,7 @@ import request from '../../utils/request'
 const DEFAULT_ENTITY_PACKAGE = 'com.example.entity'
 const DEFAULT_METHOD_PACKAGE = 'com.example.service'
 const LEGACY_DRAFT_KEY = 'ai-plugin-create-draft'
+const COMPILE_TEXT_SCROLL_INTERVAL = 1200
 
 const createDemandFormFromRoute = (query = {}) => ({
   entityPackage: query.entityPackage || DEFAULT_ENTITY_PACKAGE,
@@ -34,6 +35,14 @@ export const useAIPluginCreate = () => {
   const chatInput = ref('')
   const reviewEnabled = ref(false)
   const webSocketRef = ref(null)
+
+  // 编译相关状态
+  // compileLoading：编译进行中，用于禁用聊天输入与发布设置入口
+  // compileStatusText：按钮上展示的进度文本（收到新 compile 事件时滚动切换）
+  // compileReviewFailed：review 未通过时的 issues 内容（弹窗展示）
+  const compileLoading = ref(false)
+  const compileStatusText = ref('')
+  const compileReviewFailed = ref(null)
 
   const demandForm = ref(createDemandFormFromRoute(route.query))
 
@@ -71,7 +80,6 @@ export const useAIPluginCreate = () => {
   const codeLineCount = computed(() => activeFile.value?.content?.split('\n').length || 0)
   const reviewIssues = computed(() => Array.isArray(reviewResult.value?.issues) ? reviewResult.value.issues : [])
   const reviewPassed = computed(() => reviewResult.value == null || reviewResult.value.passed === true)
-  const canCompile = computed(() => false)
   const shortConversationId = computed(() => {
     if (!conversationId.value) return '未开始'
     return conversationId.value.length > 12 ? `${conversationId.value.slice(0, 8)}...` : conversationId.value
@@ -81,8 +89,13 @@ export const useAIPluginCreate = () => {
     return path.split('/').pop() || '未选择文件'
   })
   const totalCodeLines = computed(() => visibleFiles.value.reduce((sum, file) => sum + (file.content?.split('\n').length || 0), 0))
-  const compileButtonText = computed(() => '编译并上传 TODO')
+  const compileButtonText = computed(() => compileLoading.value ? (compileStatusText.value || '准备中...') : '编译并发布')
   const compileButtonTextKey = computed(() => compileButtonText.value)
+  // 用于强制触发文本滚动动画：每次文本变化时递增，作为 :key 让 Vue 重新挂载 span
+  const compileTextTick = ref(0)
+  watch(compileButtonText, () => {
+    compileTextTick.value++
+  })
   const reviewBadge = computed(() => {
     if (!reviewVisible.value || !reviewResult.value) return null
     return reviewResult.value.passed === false ? { type: 'danger', text: '审查未通过' } : null
@@ -180,6 +193,9 @@ export const useAIPluginCreate = () => {
     reviewResult.value = null
     chatInput.value = ''
     webSocketRef.value = null
+    compileLoading.value = false
+    compileStatusText.value = ''
+    compileReviewFailed.value = null
     demandForm.value = createDemandFormFromRoute(query)
     publishForm.value = {
       name: '',
@@ -635,9 +651,106 @@ export const useAIPluginCreate = () => {
     }
   }
 
-  const confirmCompile = () => {
-    // TODO: 编译并上传流程后续重新设计后再接入。
-    ElMessage.info('编译并上传功能待后续实现')
+  // 点击"编译并发布"：发起 SSE 编译流程
+  const confirmCompile = async () => {
+    const messageId = lastAssistantMessageId.value
+    if (!messageId) {
+      ElMessage.warning('暂无可编译的消息，请先生成代码')
+      return
+    }
+    compileLoading.value = true
+    compileStatusText.value = '准备中...'
+    compileReviewFailed.value = null
+    try {
+      await sendCompileStream(messageId)
+    } catch (error) {
+      ElMessage.error(error?.message || '编译失败')
+    } finally {
+      compileLoading.value = false
+    }
+  }
+
+  // 编译 SSE：解析 compile / review_failed / done / error 四类事件
+  const sendCompileStream = (messageId) => {
+    const token = localStorage.getItem('token')
+    if (!token) return Promise.reject(new Error('登录状态已失效，请重新登录'))
+
+    const baseUrl = import.meta.env.DEV ? 'http://localhost:8080' : '/api'
+    const params = new URLSearchParams({ messageId })
+
+    return new Promise((resolve, reject) => {
+      let settled = false
+      const finish = cb => {
+        if (settled) return
+        settled = true
+        cb()
+      }
+
+      fetch(`${baseUrl}/ai-plugin/compile?${params}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      }).then(response => {
+        if (!response.ok) {
+          finish(() => reject(new Error(`请求失败 (${response.status})`)))
+          return
+        }
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ''
+        let eventName = ''
+        let eventDataLines = []
+
+        const processChunk = async () => {
+          try {
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) {
+                if (!settled) finish(() => reject(new Error('SSE 连接已关闭，编译中断')))
+                return
+              }
+              buffer += decoder.decode(value, { stream: true })
+              const lines = buffer.split('\n')
+              buffer = lines.pop() || ''
+              for (const line of lines) {
+                if (line.startsWith('event:')) {
+                  eventName = line.slice(6).trim()
+                } else if (line.startsWith('data:')) {
+                  eventDataLines.push(line.slice(5))
+                } else if (line === '' && eventDataLines.length) {
+                  const dataStr = eventDataLines.join('\n').trim()
+                  const event = parseSSEEvent(eventName, dataStr)
+                  eventName = ''
+                  eventDataLines = []
+                  if (!event) continue
+
+                  if (event.type === 'compile') {
+                    // 收到新的进度文本：直接赋值，由 transition(out-in) 处理滚动切换
+                    const text = typeof event.data === 'string' ? event.data : String(event.data || '')
+                    compileStatusText.value = text
+                  } else if (event.type === 'review_failed') {
+                    compileReviewFailed.value = event.data
+                    finish(() => resolve())
+                    return
+                  } else if (event.type === 'done') {
+                    finish(() => resolve())
+                    return
+                  } else if (event.type === 'error') {
+                    const msg = (event.data && event.data.message) || '编译失败'
+                    finish(() => reject(new Error(msg)))
+                    return
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            if (!settled) finish(() => reject(new Error(`SSE 读取异常: ${error.message}`)))
+          }
+        }
+        processChunk()
+      }).catch(error => {
+        if (!settled) finish(() => reject(new Error(`编译请求异常: ${error.message}`)))
+      })
+    })
   }
 
   const updateFileContent = (filePath, content) => {
@@ -836,12 +949,15 @@ export const useAIPluginCreate = () => {
     codeLineCount,
     reviewIssues,
     reviewPassed,
-    canCompile,
     shortConversationId,
     selectedFileName,
     totalCodeLines,
     compileButtonText,
     compileButtonTextKey,
+    compileTextTick,
+    compileLoading,
+    compileStatusText,
+    compileReviewFailed,
     reviewBadge,
     fileTree,
     diffFileTree,

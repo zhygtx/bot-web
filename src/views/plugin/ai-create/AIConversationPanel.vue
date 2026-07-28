@@ -13,6 +13,7 @@ const props = defineProps({
   chatInput: { type: String, default: '' },
   conversationId: { type: String, default: '' },
   generationLoading: { type: Boolean, default: false },
+  compileLoading: { type: Boolean, default: false },
   currentRound: { type: Number, default: 0 }
 })
 
@@ -25,7 +26,30 @@ const emit = defineEmits([
 
 // 内部管理 ref，通过 defineExpose 暴露给父组件
 const chatScrollRef = ref(null)
+const composerInputRef = ref(null)
 defineExpose({ chatScrollRef })
+
+// textarea 自适应高度：根据内容行数动态调整，最高为基础高度的 1.5 倍（由 CSS max-height 控制）
+const autoResize = () => {
+  const el = composerInputRef.value
+  if (!el) return
+  el.style.height = 'auto'
+  el.style.height = `${el.scrollHeight}px`
+}
+
+const handleInput = event => {
+  emit('update:chatInput', event.target.value)
+  nextTick(autoResize)
+}
+
+// 外部值变化（如清空）时同步高度
+watch(() => props.chatInput, () => {
+  nextTick(autoResize)
+})
+
+onMounted(() => {
+  nextTick(autoResize)
+})
 
 /* —— 会话导航圆点 —— */
 const activeUserIndex = ref(-1)
@@ -161,10 +185,10 @@ const handleInputKeydown = event => {
   if (canSend.value) emit('send')
 }
 
-// 是否可发送：输入框有内容且未在生成中
+// 是否可发送：输入框有内容且未在生成中、未在编译中
 const canSend = computed(() => {
   const text = (props.chatInput || '').trim()
-  return text.length > 0 && !props.generationLoading
+  return text.length > 0 && !props.generationLoading && !props.compileLoading
 })
 </script>
 
@@ -309,12 +333,13 @@ const canSend = computed(() => {
 
     <div class="composer">
       <textarea
+        ref="composerInputRef"
         class="composer-input"
         :value="chatInput"
         maxlength="2000"
-        :disabled="generationLoading"
-        placeholder="请详细描述需要生成的插件需要的功能"
-        @input="emit('update:chatInput', $event.target.value)"
+        :disabled="generationLoading || compileLoading"
+        :placeholder="compileLoading ? '编译中，请稍候...' : '请详细描述需要生成的插件需要的功能'"
+        @input="handleInput"
         @keydown="handleInputKeydown"
       ></textarea>
       <el-button
