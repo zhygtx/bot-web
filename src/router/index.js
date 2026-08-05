@@ -33,12 +33,6 @@ const router = createRouter({
       meta: { title: '基础信息配置' }
     },
     {
-      path: '/bot/docker',
-      name: 'bot-docker',
-      component: () => import('../views/bot/DockerView.vue'),
-      meta: { title: 'Docker管理' }
-    },
-    {
       path: '/plugin/list',
       name: 'plugin-list',
       component: () => import('../views/plugin/PluginListView.vue'),

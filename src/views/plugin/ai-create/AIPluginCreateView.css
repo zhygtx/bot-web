@@ -416,7 +416,7 @@
 .markdown-body th,
 .markdown-body td {
   padding: 6px 10px;
-  border: 1px solid var(--app-border-soft, #e5e7eb);
+  border: 1px solid var(--app-border, #e6e6e6);
   text-align: left;
 }
 
@@ -578,8 +578,10 @@
   overflow: hidden;
 }
 
+/* 亮色模式下思考内容背景略深，与正文形成层次 */
 .thinking-content-scroll {
   padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.03);
 }
 
 .thinking-content-scroll.is-clamped {
@@ -624,7 +626,7 @@ html.dark .thinking-expand-all:hover {
 
 /* 思考内容用 markdown 渲染，但视觉权重比正文弱 */
 .thinking-markdown {
-  color: var(--app-text-muted);
+  color: var(--app-text-soft);
   font-size: 13px;
   line-height: 1.6;
 }
@@ -646,7 +648,7 @@ html.dark .thinking-expand-all:hover {
 .thinking-markdown h5 {
   margin: 8px 0 4px;
   font-size: 13px;
-  color: var(--app-text-soft);
+  color: var(--app-text);
 }
 
 .thinking-markdown ul {
@@ -664,7 +666,7 @@ html.dark .thinking-expand-all:hover {
   background: rgba(0, 0, 0, 0.06);
   font-family: Consolas, Monaco, monospace;
   font-size: 0.9em;
-  color: var(--app-text-soft);
+  color: var(--app-text);
 }
 
 html.dark .thinking-markdown code {
@@ -686,10 +688,11 @@ html.dark .thinking-markdown pre {
 .thinking-markdown pre code {
   padding: 0;
   background: transparent;
+  color: var(--app-text);
 }
 
 .thinking-markdown strong {
-  color: var(--app-text-soft);
+  color: var(--app-text);
   font-weight: 600;
 }
 

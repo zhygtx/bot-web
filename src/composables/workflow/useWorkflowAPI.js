@@ -125,13 +125,16 @@ export function useWorkflowAPI() {
 
   // 保存工作流
   const saveWorkflow = async (workflowInfo, nodes, validateWorkflowNodes, router, workflowId, clearWorkflowCache, generateConnections, loadWorkflowInfo, connections, botEvents, botActions, processNodeInfo, canvasX, canvasY, zoom) => {
-    if (!workflowInfo || !workflowInfo.name) {
+    // 兼容 ref 与普通对象
+    const wfInfo = workflowInfo?.value !== undefined ? workflowInfo.value : workflowInfo
+    const nodeList = nodes?.value !== undefined ? nodes.value : nodes
+    if (!wfInfo || !wfInfo.name) {
       ElMessage.error('请输入工作流名称')
       return
     }
     
     // 验证所有节点的参数是否都有数据映射或默认值
-    const validationResult = validateWorkflowNodes(nodes)
+    const validationResult = validateWorkflowNodes(nodeList)
     if (!validationResult.valid) {
       ElMessage.error(validationResult.message)
       return null
@@ -144,28 +147,28 @@ export function useWorkflowAPI() {
     // 构建完整的工作流信息
     const workflowData = {
       // 确保工作流自身信息完整填充
-      id: workflowInfo.id || '',
-      userId: workflowInfo.userId || userId || '',
-      authorName: workflowInfo.authorName || name || '',
-      name: workflowInfo.name || '',
-      description: workflowInfo.description || '',
-      enabled: workflowInfo.enabled !== undefined ? workflowInfo.enabled : true,
-      createTime: workflowInfo.createTime || null,
-      updateTime: workflowInfo.updateTime || null,
+      id: wfInfo.id || '',
+      userId: wfInfo.userId || userId || '',
+      authorName: wfInfo.authorName || name || '',
+      name: wfInfo.name || '',
+      description: wfInfo.description || '',
+      enabled: wfInfo.enabled !== undefined ? wfInfo.enabled : true,
+      createTime: wfInfo.createTime || null,
+      updateTime: wfInfo.updateTime || null,
       workflowCanvasView: {
-        workflowId: workflowInfo.id || '',
-        userId: workflowInfo.userId || userId || '',
+        workflowId: wfInfo.id || '',
+        userId: wfInfo.userId || userId || '',
         offsetX: canvasX?.value ?? canvasX ?? 0,
         offsetY: canvasY?.value ?? canvasY ?? 0,
         scale: zoom?.value ?? zoom ?? 1
       },
-      nodes: (nodes || []).map(node => {
+      nodes: nodeList.map(node => {
         // 构建节点数据
         return {
           id: node.id ? node.id.toString() : '',
           x: node.x || 0,
           y: node.y || 0,
-          workflowId: workflowInfo.id || workflowId || '',
+          workflowId: wfInfo.id || workflowId || '',
           pluginId: node.pluginId,
           pluginVersionId: node.pluginVersionId,
           methodClassId: node.methodClassId,
@@ -189,11 +192,12 @@ export function useWorkflowAPI() {
     try {
       const response = await request({
         url: '/workflow',
-        method: workflowInfo.id ? 'put' : 'post',
+        method: wfInfo.id ? 'put' : 'post',
         data: workflowData
       })
       
       if (response.code === 200) {
+        const currentWorkflowId = wfInfo.id || (response.data && response.data.id)
         // 更新浏览器URL，添加工作流ID
         if (response.data && response.data.id) {
           router.replace(`/workflow/edit/${response.data.id}`)
@@ -210,7 +214,7 @@ export function useWorkflowAPI() {
         }
         // 刷新画布，重新加载工作流信息
         if (loadWorkflowInfo) {
-          loadWorkflowInfo(workflowInfo.id || response.data.id, workflowInfo, nodes, connections, botEvents, botActions, processNodeInfo, generateConnections, canvasX, canvasY, zoom)
+          await loadWorkflowInfo(currentWorkflowId, workflowInfo, nodes, connections, botEvents, botActions, processNodeInfo, generateConnections, canvasX, canvasY, zoom)
         }
         // 返回保存后的工作流信息
         return response.data

@@ -157,6 +157,15 @@ html.dark .el-textarea__inner::placeholder {
   color: var(--app-text-muted);
 }
 
+/* 暗色模式下 plain 按钮文本过淡，统一提升到 text-soft 保证可读性 */
+html.dark .el-button.is-plain {
+  color: var(--app-text-soft);
+}
+
+html.dark .el-button.is-plain:hover {
+  color: var(--app-primary);
+}
+
 html.dark .el-button:not(.el-button--primary):not(.el-button--success):not(.el-button--danger):not(.el-button--warning):not(.is-link) {
   background: rgba(20, 32, 48, 0.8);
   border-color: var(--app-border);

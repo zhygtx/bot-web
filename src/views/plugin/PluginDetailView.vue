@@ -2,10 +2,11 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElTabs, ElTabPane, ElCard, ElDescriptions, ElDescriptionsItem, ElButton, ElTag, ElDivider } from 'element-plus'
-import { ArrowLeft, Edit, MagicStick } from '@element-plus/icons-vue'
+import { ArrowLeft, Edit } from '@element-plus/icons-vue'
 import request from '../../utils/request'
 import { PluginInfo } from '../../models'
 import PluginCreateView from './PluginCreateView.vue'
+import AIMessageMarkdown from './ai-create/AIMessageMarkdown.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -175,19 +176,6 @@ const goToUpdateVersion = () => {
   updateVersionDialogVisible.value = true
 }
 
-const goToAIUpdate = () => {
-  const latestVersion = pluginInfo.value?.pluginVersionList?.[0]
-  router.push({
-    path: '/plugin/ai-create',
-    query: {
-      pluginId: pluginId.value,
-      entityPackage: latestVersion?.entityPackage || '',
-      methodPackage: latestVersion?.methodPackage || '',
-      mode: 'update'
-    }
-  })
-}
-
 // 更新版本弹窗关闭时刷新数据
 const handleUpdateVersionClose = () => {
   updateVersionDialogVisible.value = false
@@ -255,10 +243,6 @@ onMounted(async () => {
         返回
       </el-button>
       <div class="header-actions" v-if="!isEditMode && !isReadOnly">
-        <el-button type="primary" @click="goToAIUpdate" plain>
-          <el-icon><MagicStick /></el-icon>
-          AI 更新
-        </el-button>
         <el-button type="success" @click="goToEdit" plain>
           <el-icon><Edit /></el-icon>
           编辑插件
@@ -371,7 +355,8 @@ onMounted(async () => {
           
           <div class="version-changelog">
             <h4>版本变更说明</h4>
-            <p v-if="!isEditMode">{{ pluginInfo.pluginVersionList?.[0]?.changelog || '无' }}</p>
+            <AIMessageMarkdown v-if="!isEditMode && pluginInfo.pluginVersionList?.[0]?.changelog" :content="pluginInfo.pluginVersionList[0].changelog" />
+            <p v-else-if="!isEditMode">无</p>
             <el-input v-else type="textarea" v-model="editedVersion.changelog" placeholder="请输入版本变更说明" class="edit-changelog" />
           </div>
           
@@ -587,13 +572,97 @@ onMounted(async () => {
   margin: 0 0 10px 0;
   font-size: 16px;
   font-weight: bold;
-  color: #303133;
+  color: var(--app-text);
 }
 
 .version-changelog p {
   margin: 0;
-  color: #606266;
+  color: var(--app-text-soft);
   line-height: 1.5;
+}
+
+/* 版本变更说明 markdown 渲染样式（v-html 内容需用 :deep 穿透） */
+.version-changelog :deep(.markdown-body) {
+  color: var(--app-text-soft);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.version-changelog :deep(.markdown-body h3),
+.version-changelog :deep(.markdown-body h4),
+.version-changelog :deep(.markdown-body h5) {
+  margin: 8px 0 4px;
+  font-size: 15px;
+  color: var(--app-text);
+}
+
+.version-changelog :deep(.markdown-body p) {
+  margin: 4px 0;
+}
+
+.version-changelog :deep(.markdown-body ul),
+.version-changelog :deep(.markdown-body ol) {
+  margin: 4px 0;
+  padding-left: 20px;
+}
+
+.version-changelog :deep(.markdown-body li) {
+  margin: 2px 0;
+}
+
+.version-changelog :deep(.markdown-body code) {
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.05);
+  font-family: Consolas, Monaco, monospace;
+  font-size: 0.9em;
+  color: var(--app-text);
+}
+
+.version-changelog :deep(.markdown-body pre) {
+  margin: 6px 0;
+  padding: 10px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.04);
+  overflow-x: auto;
+}
+
+.version-changelog :deep(.markdown-body pre code) {
+  padding: 0;
+  background: transparent;
+}
+
+.version-changelog :deep(.markdown-body strong) {
+  color: var(--app-text);
+  font-weight: 600;
+}
+
+.version-changelog :deep(.markdown-body table) {
+  border-collapse: collapse;
+  margin: 6px 0;
+}
+
+.version-changelog :deep(.markdown-body th),
+.version-changelog :deep(.markdown-body td) {
+  padding: 6px 10px;
+  border: 1px solid var(--app-border);
+  text-align: left;
+}
+
+.version-changelog :deep(.markdown-body blockquote) {
+  margin: 6px 0;
+  padding: 4px 12px;
+  border-left: 3px solid var(--app-border);
+  color: var(--app-text-soft);
+}
+
+/* 暗色模式下代码块背景反向叠加（浅色背景太暗看不清） */
+html.dark .version-changelog :deep(.markdown-body code) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+html.dark .version-changelog :deep(.markdown-body pre) {
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .version-entity-info,

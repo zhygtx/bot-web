@@ -395,7 +395,8 @@ export const useAIPluginCreate = () => {
       const data = JSON.parse(dataStr)
       return { type: eventName, data }
     } catch (error) {
-      return null
+      // 非 JSON 数据（如 compile 事件的纯文本进度），直接作为字符串返回
+      return { type: eventName, data: dataStr }
     }
   }
 
@@ -908,7 +909,16 @@ export const useAIPluginCreate = () => {
     if (routeConversationId) await loadConversation(routeConversationId)
   }
 
+  // AI 生成或编译进行中时，阻止关闭/刷新页面，由浏览器弹出原生确认框
+  const handleBeforeUnload = (event) => {
+    if (generationLoading.value || compileLoading.value) {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+  }
+
   onMounted(async () => {
+    window.addEventListener('beforeunload', handleBeforeUnload)
     loadAIPluginConfig()
     await initializePageFromRoute()
   })
@@ -916,6 +926,7 @@ export const useAIPluginCreate = () => {
   watch(() => route.fullPath, initializePageFromRoute)
 
   onBeforeUnmount(() => {
+    window.removeEventListener('beforeunload', handleBeforeUnload)
     clearThinkingIdleTimer()
     try {
       webSocketRef.value?.abort?.()

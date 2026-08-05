@@ -1,7 +1,8 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ChatLineRound, Clock, MagicStick, Plus, Refresh } from '@element-plus/icons-vue'
+import { ElMessageBox } from 'element-plus'
+import { ChatLineRound, Clock, Delete, MagicStick, Plus, Refresh } from '@element-plus/icons-vue'
 import request from '../../utils/request'
 
 const router = useRouter()
@@ -31,6 +32,27 @@ const loadConversations = async () => {
     conversations.value = Array.isArray(response.data) ? response.data : []
   } finally {
     loading.value = false
+  }
+}
+
+const deleteConversation = async (conversationId) => {
+  try {
+    await ElMessageBox.confirm('确定要删除这个会话吗？删除后无法恢复。', '删除确认', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+
+    await request({
+      url: '/ai-plugin',
+      method: 'delete',
+      params: { conversationId }
+    })
+
+    loadConversations()
+  } catch (error) {
+    // 用户取消（ElMessageBox 抛出 'cancel'），静默处理
+    // 其他错误已由 request.js 响应拦截器统一提示
   }
 }
 
@@ -108,6 +130,11 @@ onMounted(loadConversations)
           :xl="6"
         >
           <el-card class="conversation-card" @click="openConversation(conversation)">
+            <div class="delete-icon-container">
+              <el-icon class="delete-icon" @click.stop="deleteConversation(conversation.conversationId)">
+                <Delete />
+              </el-icon>
+            </div>
             <div class="card-header">
               <div class="card-title">
                 <el-icon><ChatLineRound /></el-icon>
@@ -200,6 +227,7 @@ onMounted(loadConversations)
 }
 
 .conversation-card {
+  position: relative;
   height: 220px;
   margin-bottom: 16px;
   border-radius: 8px;
@@ -210,6 +238,36 @@ onMounted(loadConversations)
 .conversation-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+}
+
+.delete-icon-container {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+}
+
+.delete-icon {
+  font-size: 28px;
+  color: #f56c6c;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  opacity: 0;
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  padding: 6px;
+  box-shadow: 0 0px 0px rgba(0, 0, 0, 0.15);
+}
+
+.conversation-card:hover .delete-icon {
+  opacity: 1;
+}
+
+.delete-icon:hover {
+  color: #f56c6c;
+  transform: scale(1.15);
+  background-color: rgba(245, 108, 108, 0.15);
+  box-shadow: 0 4px 12px rgba(245, 108, 108, 0.2);
 }
 
 .card-header {

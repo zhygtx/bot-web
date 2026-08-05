@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { ElMessageBox } from 'element-plus'
-import { Cpu, Monitor, User, SwitchButton } from '@element-plus/icons-vue'
+import { Cpu, User, SwitchButton } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../../stores/user'
 import request from '../../utils/request'
@@ -26,7 +26,6 @@ const userInfo = ref({
 
 const menuItems = [
   { path: '/bot/info', label: '机器人管理', icon: Cpu },
-  { path: '/bot/docker', label: 'Docker管理', icon: Monitor },
   { path: '/user/profile', label: '我的信息', icon: User, active: true }
 ]
 

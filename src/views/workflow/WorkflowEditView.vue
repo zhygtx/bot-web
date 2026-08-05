@@ -722,7 +722,7 @@ const handleSaveWorkflow = async () => {
   
   try {
     // 保存工作流
-    await saveWorkflow(workflowInfo.value, nodes.value, validateWorkflowNodes, router, workflowId, clearWorkflowCache, generateConnections, loadWorkflowInfo, connections, botEvents, botActions, processNodeInfo, canvasX, canvasY, zoom)
+    await saveWorkflow(workflowInfo, nodes, validateWorkflowNodes, router, workflowId, clearWorkflowCache, generateConnections, loadWorkflowInfo, connections, botEvents, botActions, processNodeInfo, canvasX, canvasY, zoom)
   } catch (error) {
     console.error('保存工作流失败:', error)
   }
