@@ -241,27 +241,3 @@ onUnmounted(() => {
 })
 </script>
 
-<style scoped>
-.connections {
-  position: absolute;
-  top: 0;
-  left: 0;
-  pointer-events: none;
-  z-index: 30;
-}
-
-.connection-path {
-  fill: none;
-  transition: none;
-}
-
-.temp-connection-path {
-  fill: none;
-  transition: none;
-}
-
-.connection-hitbox-path {
-  cursor: pointer;
-  pointer-events: stroke;
-}
-</style>

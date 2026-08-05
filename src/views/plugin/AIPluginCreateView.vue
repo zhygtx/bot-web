@@ -13,8 +13,6 @@ import { useAIPluginCreate } from '../../composables/plugin/useAIPluginCreate'
 import AIConversationPanel from './ai-create/AIConversationPanel.vue'
 import AICodeFilesDialog from './ai-create/AICodeFilesDialog.vue'
 import AIPublishSettingsDialog from './ai-create/AIPublishSettingsDialog.vue'
-import './ai-create/AIPluginCreateView.css'
-
 const vm = useAIPluginCreate()
 const codeDialogVisible = ref(false)
 const publishDialogVisible = ref(false)

@@ -1,0 +1,1316 @@
+:root.dark {
+  color-scheme: dark;
+
+  --app-bg: radial-gradient(circle at 20% 0%, rgba(37, 99, 235, 0.16), transparent 28%), linear-gradient(180deg, #121c2a 0%, #08111d 100%);
+  --app-bg-soft: #0d1724;
+  --app-bg-muted: #111d2c;
+  --app-header-bg: rgba(9, 17, 29, 0.92);
+  --app-card-bg: linear-gradient(180deg, rgba(20, 32, 48, 0.96) 0%, rgba(13, 23, 36, 0.98) 100%);
+  --app-card-bg-hover: linear-gradient(180deg, rgba(25, 40, 60, 0.98) 0%, rgba(14, 26, 42, 0.98) 100%);
+  --app-panel-bg: rgba(13, 23, 36, 0.95);
+  --app-panel-muted: rgba(20, 32, 48, 0.88);
+
+  --app-text: #e5eef9;
+  --app-text-soft: #a9b9cc;
+  --app-text-muted: #76879c;
+  --app-text-disabled: #64748b;
+
+  --app-border: rgba(100, 139, 184, 0.24);
+  --app-border-soft: rgba(100, 139, 184, 0.16);
+
+  --app-primary: #60a5fa;
+  --app-primary-strong: #3b82f6;
+  --app-primary-hover: #60a5fa;
+  --app-primary-soft: rgba(96, 165, 250, 0.1);
+  --app-primary-soft-strong: rgba(37, 99, 235, 0.16);
+  --app-primary-soft-weak: rgba(96, 165, 250, 0.08);
+  --app-primary-border: rgba(96, 165, 250, 0.4);
+  --app-primary-border-strong: rgba(96, 165, 250, 0.58);
+
+  --app-success: #67c23a;
+  --app-success-soft: rgba(103, 194, 58, 0.12);
+  --app-success-border: rgba(103, 194, 58, 0.3);
+
+  --app-danger: #f56c6c;
+  --app-danger-soft: rgba(245, 108, 108, 0.12);
+  --app-danger-soft-strong: rgba(245, 108, 108, 0.2);
+  --app-danger-border: rgba(245, 108, 108, 0.4);
+
+  --app-warning: #e6a23c;
+  --app-on-primary: #fff;
+  --app-code-bg: #1f2933;
+  --app-code-text: #eef8fb;
+
+  --app-canvas-bg: #08111d;
+  --app-canvas-dot: #3a5068;
+
+  --app-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+  --app-shadow-hover: 0 18px 44px rgba(0, 0, 0, 0.36), 0 0 24px rgba(59, 130, 246, 0.12);
+  --app-header-shadow: 0 12px 30px rgba(0, 0, 0, 0.24);
+}
+/* ===== src/style.css ===== */
+html.dark .el-card,
+html.dark .el-dialog,
+html.dark .el-message-box,
+html.dark .el-popper,
+html.dark .el-picker-panel {
+  background: var(--app-panel-bg);
+  border-color: var(--app-border);
+  color: var(--app-text);
+}
+html.dark .el-card {
+  box-shadow: var(--app-shadow);
+}
+html.dark .el-card__header,
+html.dark .el-dialog__header,
+html.dark .el-message-box__header {
+  border-color: var(--app-border);
+}
+html.dark .el-input__wrapper,
+html.dark .el-select__wrapper,
+html.dark .el-textarea__inner,
+html.dark .el-date-editor.el-input__wrapper {
+  background: rgba(9, 17, 29, 0.76);
+  border-color: transparent;
+  box-shadow: 0 0 0 1px var(--app-border) inset;
+}
+html.dark .el-input__wrapper:hover,
+html.dark .el-select__wrapper:hover,
+html.dark .el-textarea__inner:hover {
+  box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.46) inset;
+}
+html.dark .el-input__inner,
+html.dark .el-select__placeholder,
+html.dark .el-range-input,
+html.dark .el-textarea__inner {
+  color: var(--app-text);
+}
+html.dark .el-input__inner::placeholder,
+html.dark .el-textarea__inner::placeholder {
+  color: var(--app-text-muted);
+}
+html.dark .el-button.is-plain {
+  color: var(--app-text-soft);
+}
+html.dark .el-button.is-plain:hover {
+  color: var(--app-primary);
+}
+html.dark .el-button:not(.el-button--primary):not(.el-button--success):not(.el-button--danger):not(.el-button--warning):not(.is-link) {
+  background: rgba(20, 32, 48, 0.8);
+  border-color: var(--app-border);
+  color: var(--app-text-soft);
+}
+html.dark .el-button:not(.el-button--primary):not(.el-button--success):not(.el-button--danger):not(.el-button--warning):not(.is-link):hover {
+  border-color: rgba(96, 165, 250, 0.58);
+  color: var(--app-primary);
+  background: rgba(37, 99, 235, 0.14);
+}
+html.dark .el-button--primary {
+  --el-button-bg-color: var(--app-primary-strong);
+  --el-button-border-color: var(--app-primary-strong);
+  --el-button-hover-bg-color: var(--app-primary);
+  --el-button-hover-border-color: var(--app-primary);
+  --el-button-active-bg-color: #2563eb;
+  --el-button-active-border-color: #2563eb;
+}
+html.dark .el-input-group__append button.el-button--primary,
+html.dark .el-input-group__append button.el-button--primary:hover {
+  background-color: var(--app-primary-strong);
+  border-color: var(--app-primary-strong);
+  color: #fff;
+}
+html.dark .el-input-group__append button.el-button--primary:hover {
+  background-color: var(--app-primary);
+  border-color: var(--app-primary);
+}
+html.dark .el-input-group__append button.el-button--primary.is-disabled,
+html.dark .el-input-group__append button.el-button--primary.is-disabled:hover {
+  background-color: rgba(59, 130, 246, 0.3);
+  border-color: transparent;
+  color: rgba(255, 255, 255, 0.5);
+}
+html.dark .el-pagination {
+  --el-pagination-bg-color: transparent;
+  --el-pagination-button-bg-color: rgba(20, 32, 48, 0.78);
+  --el-pagination-hover-color: var(--app-primary);
+}
+html.dark .el-empty__description,
+html.dark .el-form-item__label,
+html.dark .el-descriptions__label,
+html.dark .el-descriptions__content {
+  color: var(--app-text-soft);
+}
+html.dark .filter-section,
+html.dark .content-header,
+html.dark .plugin-list-float,
+html.dark .plugin-list-header,
+html.dark .history-log-float,
+html.dark .history-log-header,
+html.dark .summary-context,
+html.dark .node-timeline,
+html.dark .node-details,
+html.dark .settings-card,
+html.dark .plugin-item-card,
+html.dark .workflow-item-card,
+html.dark .log-item,
+html.dark .log-detail {
+  background: var(--app-card-bg);
+  border-color: var(--app-border);
+  color: var(--app-text);
+  box-shadow: var(--app-shadow);
+}
+html.dark .plugin-item-card:hover,
+html.dark .workflow-item-card:hover,
+html.dark .workflow-item-wrapper:hover .workflow-item-card,
+html.dark .settings-card:hover,
+html.dark .log-item:hover {
+  background: var(--app-card-bg-hover);
+  box-shadow: var(--app-shadow-hover);
+}
+html.dark .plugin-name,
+html.dark .workflow-name,
+html.dark .card-title,
+html.dark .info-value,
+html.dark .detail-section h4,
+html.dark .node-name,
+html.dark .method-class-name,
+html.dark .plugin-list-header h3,
+html.dark .history-log-header h3 {
+  color: var(--app-text);
+}
+html.dark .method-signature {
+  color: var(--app-text-soft);
+}
+html.dark .plugin-card-description,
+html.dark .plugin-card-version,
+html.dark .plugin-card-footer,
+html.dark .info-label,
+html.dark .log-time,
+html.dark .stat-label,
+html.dark .node-description,
+html.dark .method-class-description,
+html.dark .method-item,
+html.dark .method-item-description {
+  color: var(--app-text-soft);
+}
+html.dark .workflow-stats .stat-item,
+html.dark .plugin-card-methods,
+html.dark .test-result-content,
+html.dark .scheduled-event-config,
+html.dark .mapping-row,
+html.dark .condition-row {
+  background: var(--app-panel-muted);
+  border-color: var(--app-border);
+}
+html.dark .stat-item:hover {
+  background: rgba(37, 99, 235, 0.14);
+}
+html.dark .pagination {
+  background: transparent;
+}
+html.dark .delete-icon {
+  background-color: rgba(15, 23, 42, 0.92);
+}
+html.dark .visit-link {
+  background-color: rgba(64, 158, 255, 0.14);
+  border-color: rgba(64, 158, 255, 0.28);
+}
+html.dark .visit-link:hover {
+  background-color: var(--app-primary-strong);
+  color: #fff;
+}
+html.dark .workflow-edit-view,
+html.dark .workflow-main-content {
+  background: #08111d;
+}
+html.dark .workflow-header {
+  background: rgba(9, 17, 29, 0.9);
+  border: 1px solid var(--app-border);
+  box-shadow: var(--app-header-shadow);
+  backdrop-filter: blur(14px);
+}
+html.dark .workflow-name:hover {
+  color: var(--app-primary);
+}
+html.dark .canvas-container {
+  background: #07111f;
+}
+html.dark .canvas {
+  background-color: #08111d;
+  background-image: radial-gradient(rgba(96, 165, 250, 0.24) 1px, transparent 1px);
+  border-color: rgba(96, 165, 250, 0.18);
+}
+html.dark .canvas-placeholder {
+  color: var(--app-text-muted);
+}
+html.dark .workflow-node:hover:not(:active) {
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.36), 0 0 18px rgba(59, 130, 246, 0.1);
+}
+html.dark .node-body,
+html.dark .node-execution-card,
+html.dark .context-menu {
+  background: rgba(13, 23, 36, 0.96);
+  border-color: var(--app-border);
+  color: var(--app-text);
+  box-shadow: var(--app-shadow);
+}
+html.dark .node-header,
+html.dark .node-footer,
+html.dark .execution-header {
+  background: rgba(20, 32, 48, 0.9);
+  border-color: var(--app-border);
+}
+html.dark .node-title,
+html.dark .node-method-name,
+html.dark .node-param-name,
+html.dark .context-menu-item {
+  color: var(--app-text);
+}
+html.dark .node-description,
+html.dark .node-param-type,
+html.dark .node-return-type {
+  color: var(--app-text-soft);
+}
+html.dark .context-menu-item:hover {
+  background: rgba(37, 99, 235, 0.16);
+  color: var(--app-primary);
+}
+html.dark .config-panel,
+html.dark .config-panel-header,
+html.dark .config-panel-footer,
+html.dark .config-section,
+html.dark .mapping-list,
+html.dark .condition-list {
+  background: var(--app-panel-bg);
+  border-color: var(--app-border);
+  color: var(--app-text);
+}
+html.dark .plugin-list-float.plugin-list-collapsed .plugin-list-header {
+  background: rgba(13, 23, 36, 0.96);
+}
+html.dark .plugin-filter,
+html.dark .plugin-section {
+  background: var(--app-panel-muted);
+  border-color: var(--app-border);
+}
+html.dark .bot-section {
+  background: var(--app-panel-muted);
+  border-color: var(--app-border);
+}
+html.dark .bot-section-header {
+  border-color: var(--app-border);
+}
+html.dark .bot-section-title {
+  color: var(--app-text);
+}
+html.dark .bot-section-subtitle {
+  color: var(--app-text-muted);
+}
+html.dark .category-name {
+  color: var(--app-text-soft);
+}
+html.dark .category-count {
+  color: var(--app-text-muted);
+}
+html.dark .category-toggle-icon {
+  color: var(--app-text-muted);
+}
+html.dark .category-header:hover {
+  background: rgba(96, 165, 250, 0.1);
+}
+html.dark .method-class-group {
+  border-left-color: rgba(96, 165, 250, 0.4);
+}
+html.dark .category-items .method-item:hover {
+  background: rgba(96, 165, 250, 0.08);
+}
+html.dark .plugin-card-toggle {
+  color: var(--app-text-muted);
+}
+html.dark .plugin-card-toggle:hover {
+  color: var(--app-primary);
+}
+html.dark .no-methods,
+html.dark .no-more {
+  color: var(--app-text-muted);
+}
+html.dark .loading-state,
+html.dark .loading-more {
+  color: var(--app-text-soft);
+}
+html.dark .modal-json-viewer,
+html.dark .json-viewer {
+  background-color: #08111d;
+  border: 1px solid var(--app-border);
+}
+html.dark .plugin-detail,
+html.dark .detail-card,
+html.dark .entity-card-item,
+html.dark .method-card-item {
+  color: var(--app-text);
+}
+html.dark .plugin-description h3,
+html.dark .version-changelog h4,
+html.dark .version-entity-info h4,
+html.dark .version-method-info h4,
+html.dark .entity-card-title,
+html.dark .method-class-title,
+html.dark .method-name,
+html.dark .property-name,
+html.dark .parameter-name,
+html.dark .version-number {
+  color: var(--app-text);
+}
+html.dark .plugin-description p,
+html.dark .version-changelog p,
+html.dark .entity-card-description,
+html.dark .method-class-description,
+html.dark .method-description,
+html.dark .property-description,
+html.dark .parameter-description,
+html.dark .method-return-description {
+  color: var(--app-text-soft);
+}
+html.dark .properties-collapse,
+html.dark .parameters-collapse,
+html.dark .properties-collapse-item,
+html.dark .parameters-collapse-item {
+  background: var(--app-panel-bg);
+  border-color: var(--app-border);
+}
+html.dark .properties-list,
+html.dark .parameters-list {
+  background: rgba(9, 17, 29, 0.72);
+  border-color: var(--app-border);
+}
+html.dark .property-item,
+html.dark .parameter-item {
+  color: var(--app-text);
+}
+html.dark .property-type,
+html.dark .parameter-type,
+html.dark .method-return-type,
+html.dark .method-return-description,
+html.dark .compatible-tag {
+  background: rgba(20, 32, 48, 0.92);
+  border-color: var(--app-border);
+  color: var(--app-text-soft);
+}
+html.dark .method-card-header {
+  border-color: var(--app-border);
+}
+html.dark .plugin-list-float {
+  background: rgba(13, 23, 36, 0.96);
+  border: 1px solid var(--app-border);
+}
+html.dark .collapse-bar,
+html.dark .side-nav,
+html.dark .search-box {
+  background: rgba(9, 17, 29, 0.86);
+  border-color: var(--app-border);
+}
+html.dark .nav-item {
+  color: var(--app-text-muted);
+}
+html.dark .nav-item:hover {
+  background: rgba(64, 158, 255, 0.14);
+  color: var(--app-primary);
+}
+html.dark .nav-item.active {
+  background: #409eff;
+  color: #fff;
+}
+html.dark .plugin-card-toggle,
+html.dark .loading-state,
+html.dark .loading-more,
+html.dark .no-more,
+html.dark .no-methods {
+  color: var(--app-text-muted);
+}
+html.dark .node-param {
+  background: rgba(20, 32, 48, 0.92);
+  border-color: var(--app-border);
+  color: var(--app-text-soft);
+}
+html.dark .node-return,
+html.dark .return-label,
+html.dark .return-type {
+  color: var(--app-text-soft);
+}
+html.dark .node-dot {
+  background-color: #08111d;
+}
+html.dark .config-panel-float {
+  background: var(--app-panel-bg);
+  border: 1px solid var(--app-border);
+  color: var(--app-text);
+  box-shadow: var(--app-shadow-hover);
+}
+html.dark .panel-header,
+html.dark .panel-footer {
+  background: rgba(9, 17, 29, 0.9);
+  border-color: var(--app-border);
+}
+html.dark .panel-title,
+html.dark .section-title,
+html.dark .param-name,
+html.dark .scheduled-event-config h4 {
+  color: var(--app-text);
+}
+html.dark .panel-body {
+  background: rgba(13, 23, 36, 0.96);
+}
+html.dark .param-row,
+html.dark .scheduled-event-config {
+  background: rgba(20, 32, 48, 0.88);
+  border-color: var(--app-border);
+}
+html.dark .param-type,
+html.dark .param-desc,
+html.dark .hint-text,
+html.dark .no-params-hint,
+html.dark .scheduled-time-selector label,
+html.dark .scheduled-time-hint p {
+  color: var(--app-text-soft);
+}
+html.dark .cascader-trigger {
+  background: rgba(9, 17, 29, 0.76);
+  border-color: var(--app-border);
+}
+html.dark .trigger-node,
+html.dark .trigger-content {
+  color: var(--app-text);
+}
+html.dark .scheduled-time-hint {
+  background: rgba(64, 158, 255, 0.12);
+  border-left-color: var(--app-primary);
+}
+html.dark .custom-cascader-popper,
+html.dark .cascader-panel-custom {
+  background: var(--app-panel-bg);
+  border-color: var(--app-border);
+  color: var(--app-text);
+}
+html.dark .cascader-level,
+html.dark .level-label {
+  background: rgba(13, 23, 36, 0.96);
+  border-color: var(--app-border);
+}
+html.dark .level-label,
+html.dark .level-empty,
+html.dark .level-hint,
+html.dark .option-desc {
+  color: var(--app-text-muted);
+}
+html.dark .cascader-option:hover,
+html.dark .cascader-option.active {
+  background: rgba(64, 158, 255, 0.14);
+  color: var(--app-primary);
+}
+html.dark .node-execution-details {
+  background: rgba(13, 23, 36, 0.96);
+  color: var(--app-text);
+  box-shadow: var(--app-shadow-hover);
+}
+html.dark .execution-summary,
+html.dark .execution-detail,
+html.dark .detail-section {
+  background: rgba(13, 23, 36, 0.96);
+  border-color: var(--app-border);
+}
+html.dark .execution-summary:hover,
+html.dark .section-header:hover {
+  background: rgba(37, 99, 235, 0.14);
+}
+html.dark .section-title {
+  color: var(--app-text);
+}
+html.dark .execution-time,
+html.dark .expand-arrow,
+html.dark .section-arrow {
+  color: var(--app-text-muted);
+}
+
+/* ===== src/views/LoginView.vue [1] ===== */
+html.dark .login-container {
+  background: var(--app-bg);
+}
+html.dark .login-box {
+  background: var(--app-card-bg);
+  box-shadow: var(--app-shadow);
+}
+html.dark .login-header h2 {
+  color: var(--app-text);
+}
+html.dark .login-header p,
+html.dark .login-footer {
+  color: var(--app-text-soft);
+}
+html.dark .login-footer span:hover {
+  color: var(--app-primary);
+}
+
+/* ===== src/views/RegisterView.vue [1] ===== */
+html.dark .register-container {
+  background: var(--app-bg);
+}
+html.dark .register-box {
+  background: var(--app-card-bg);
+  box-shadow: var(--app-shadow);
+}
+html.dark .register-header h2 {
+  color: var(--app-text);
+}
+html.dark .register-header p,
+html.dark .register-footer {
+  color: var(--app-text-soft);
+}
+html.dark .register-footer .login-link {
+  color: var(--app-primary);
+}
+
+/* ===== src/views/ForgotPasswordView.vue [1] ===== */
+html.dark .forgot-password-container {
+  background: var(--app-bg);
+}
+html.dark .forgot-password-box {
+  background: var(--app-card-bg);
+  box-shadow: var(--app-shadow);
+}
+html.dark .forgot-password-header h2 {
+  color: var(--app-text);
+}
+html.dark .forgot-password-header p,
+html.dark .forgot-password-footer {
+  color: var(--app-text-soft);
+}
+html.dark .forgot-password-footer .login-link {
+  color: var(--app-primary);
+}
+
+/* ===== src/views/bot/SettingsView.vue [0] ===== */
+html.dark.header-status.online.settings-view,
+html.dark.settings-view .header-status.online {
+  color: #4ade80;
+}
+html.dark.header-status.offline.settings-view,
+html.dark.settings-view .header-status.offline {
+  color: #64748b;
+  background: rgba(100, 116, 139, 0.15);
+}
+html.dark.status-dot.offline.settings-view,
+html.dark.settings-view .status-dot.offline {
+  background: #4a5568;
+}
+
+/* ===== src/views/bot/SettingsView.vue [1] ===== */
+html.dark .credential-item {
+  background: rgba(20, 32, 48, 0.7);
+  border-color: var(--app-border);
+}
+html.dark .credential-label {
+  color: var(--app-text-muted);
+}
+html.dark .credential-value {
+  color: var(--app-text);
+}
+html.dark .copy-btn {
+  color: var(--app-text-muted);
+}
+html.dark .copy-btn:hover {
+  color: var(--app-primary);
+  background: rgba(96, 165, 250, 0.12);
+}
+
+/* ===== src/views/plugin/PluginDetailView.vue [0] ===== */
+html.dark.version-changelog.plugin-detail .markdown-body code,
+html.dark.plugin-detail .version-changelog .markdown-body code {
+  background: rgba(255, 255, 255, 0.08);
+}
+html.dark.version-changelog.plugin-detail .markdown-body pre,
+html.dark.plugin-detail .version-changelog .markdown-body pre {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* ===== src/views/plugin/ai-create/AIPluginCreateView.css ===== */
+html.dark .thinking-expand-all:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+html.dark .thinking-markdown code {
+  background: rgba(255, 255, 255, 0.08);
+}
+html.dark .thinking-markdown pre {
+  background: rgba(0, 0, 0, 0.2);
+}
+html.dark .composer {
+  border-color: rgba(100, 149, 199, 0.28);
+  background: #0d1825;
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.28);
+}
+html.dark .composer-send-button.el-button {
+  background: #3B82F6 !important;
+  color: #fff !important;
+}
+html.dark .composer-send-button.el-button:hover:not(.is-disabled):not(.loading) {
+  background: #2563eb !important;
+  color: #fff !important;
+}
+html.dark .composer-send-button.el-button.is-disabled,
+html.dark .composer-send-button.el-button.is-disabled:hover {
+  background: rgba(59, 130, 246, 0.35) !important;
+  color: rgba(255, 255, 255, 0.7) !important;
+  opacity: 0.8;
+}
+html.dark .composer-send-button.el-button.loading,
+html.dark .composer-send-button.el-button.loading:hover {
+  background: #3B82F6 !important;
+  color: #fff !important;
+}
+html.dark .code-file-tree {
+  --el-tree-bg-color: transparent;
+  --el-tree-text-color: var(--app-text-soft);
+  --el-tree-node-hover-bg-color: rgba(64, 158, 255, 0.1);
+}
+
+/* ===== src/styles/workflow.css ===== */
+html.dark .canvas-container {
+  background-color: #0d1724;
+}
+html.dark .canvas {
+  background-color: #0d1724;
+  background-image: radial-gradient(#3a5068 1.5px, transparent 1.5px);
+}
+
+/* ===== generated dark overrides ===== */
+/* ===== src/style.css ===== */
+html.dark .el-card,
+html.dark .el-dialog,
+html.dark .el-message-box,
+html.dark .el-popper,
+html.dark .el-picker-panel {
+  background: var(--app-panel-bg);
+  border-color: var(--app-border);
+  color: var(--app-text);
+}
+html.dark .el-card {
+  box-shadow: var(--app-shadow);
+}
+html.dark .el-card__header,
+html.dark .el-dialog__header,
+html.dark .el-message-box__header {
+  border-color: var(--app-border);
+}
+html.dark .el-input__wrapper,
+html.dark .el-select__wrapper,
+html.dark .el-textarea__inner,
+html.dark .el-date-editor.el-input__wrapper {
+  background: rgba(9, 17, 29, 0.76);
+  border-color: transparent;
+  box-shadow: 0 0 0 1px var(--app-border) inset;
+}
+html.dark .el-input__wrapper:hover,
+html.dark .el-select__wrapper:hover,
+html.dark .el-textarea__inner:hover {
+  box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.46) inset;
+}
+html.dark .el-input__inner,
+html.dark .el-select__placeholder,
+html.dark .el-range-input,
+html.dark .el-textarea__inner {
+  color: var(--app-text);
+}
+html.dark .el-input__inner::placeholder,
+html.dark .el-textarea__inner::placeholder {
+  color: var(--app-text-muted);
+}
+html.dark .el-button.is-plain {
+  color: var(--app-text-soft);
+}
+html.dark .el-button.is-plain:hover {
+  color: var(--app-primary);
+}
+html.dark .el-button:not(.el-button--primary):not(.el-button--success):not(.el-button--danger):not(.el-button--warning):not(.is-link) {
+  background: rgba(20, 32, 48, 0.8);
+  border-color: var(--app-border);
+  color: var(--app-text-soft);
+}
+html.dark .el-button:not(.el-button--primary):not(.el-button--success):not(.el-button--danger):not(.el-button--warning):not(.is-link):hover {
+  border-color: rgba(96, 165, 250, 0.58);
+  color: var(--app-primary);
+  background: rgba(37, 99, 235, 0.14);
+}
+html.dark .el-button--primary {
+  --el-button-bg-color: var(--app-primary-strong);
+  --el-button-border-color: var(--app-primary-strong);
+  --el-button-hover-bg-color: var(--app-primary);
+  --el-button-hover-border-color: var(--app-primary);
+  --el-button-active-bg-color: #2563eb;
+  --el-button-active-border-color: #2563eb;
+}
+html.dark .el-input-group__append button.el-button--primary,
+html.dark .el-input-group__append button.el-button--primary:hover {
+  background-color: var(--app-primary-strong);
+  border-color: var(--app-primary-strong);
+  color: #fff;
+}
+html.dark .el-input-group__append button.el-button--primary:hover {
+  background-color: var(--app-primary);
+  border-color: var(--app-primary);
+}
+html.dark .el-input-group__append button.el-button--primary.is-disabled,
+html.dark .el-input-group__append button.el-button--primary.is-disabled:hover {
+  background-color: rgba(59, 130, 246, 0.3);
+  border-color: transparent;
+  color: rgba(255, 255, 255, 0.5);
+}
+html.dark .el-pagination {
+  --el-pagination-bg-color: transparent;
+  --el-pagination-button-bg-color: rgba(20, 32, 48, 0.78);
+  --el-pagination-hover-color: var(--app-primary);
+}
+html.dark .el-empty__description,
+html.dark .el-form-item__label,
+html.dark .el-descriptions__label,
+html.dark .el-descriptions__content {
+  color: var(--app-text-soft);
+}
+html.dark .filter-section,
+html.dark .content-header,
+html.dark .plugin-list-float,
+html.dark .plugin-list-header,
+html.dark .history-log-float,
+html.dark .history-log-header,
+html.dark .summary-context,
+html.dark .node-timeline,
+html.dark .node-details,
+html.dark .settings-card,
+html.dark .plugin-item-card,
+html.dark .workflow-item-card,
+html.dark .log-item,
+html.dark .log-detail {
+  background: var(--app-card-bg);
+  border-color: var(--app-border);
+  color: var(--app-text);
+  box-shadow: var(--app-shadow);
+}
+html.dark .plugin-item-card:hover,
+html.dark .workflow-item-card:hover,
+html.dark .workflow-item-wrapper:hover .workflow-item-card,
+html.dark .settings-card:hover,
+html.dark .log-item:hover {
+  background: var(--app-card-bg-hover);
+  box-shadow: var(--app-shadow-hover);
+}
+html.dark .plugin-name,
+html.dark .workflow-name,
+html.dark .card-title,
+html.dark .info-value,
+html.dark .detail-section h4,
+html.dark .node-name,
+html.dark .method-class-name,
+html.dark .plugin-list-header h3,
+html.dark .history-log-header h3 {
+  color: var(--app-text);
+}
+html.dark .method-signature {
+  color: var(--app-text-soft);
+}
+html.dark .plugin-card-description,
+html.dark .plugin-card-version,
+html.dark .plugin-card-footer,
+html.dark .info-label,
+html.dark .log-time,
+html.dark .stat-label,
+html.dark .node-description,
+html.dark .method-class-description,
+html.dark .method-item,
+html.dark .method-item-description {
+  color: var(--app-text-soft);
+}
+html.dark .workflow-stats .stat-item,
+html.dark .plugin-card-methods,
+html.dark .test-result-content,
+html.dark .scheduled-event-config,
+html.dark .mapping-row,
+html.dark .condition-row {
+  background: var(--app-panel-muted);
+  border-color: var(--app-border);
+}
+html.dark .stat-item:hover {
+  background: rgba(37, 99, 235, 0.14);
+}
+html.dark .pagination {
+  background: transparent;
+}
+html.dark .delete-icon {
+  background-color: rgba(15, 23, 42, 0.92);
+}
+html.dark .visit-link {
+  background-color: rgba(64, 158, 255, 0.14);
+  border-color: rgba(64, 158, 255, 0.28);
+}
+html.dark .visit-link:hover {
+  background-color: var(--app-primary-strong);
+  color: #fff;
+}
+html.dark .workflow-edit-view,
+html.dark .workflow-main-content {
+  background: #08111d;
+}
+html.dark .workflow-header {
+  background: rgba(9, 17, 29, 0.9);
+  border: 1px solid var(--app-border);
+  box-shadow: var(--app-header-shadow);
+  backdrop-filter: blur(14px);
+}
+html.dark .workflow-name:hover {
+  color: var(--app-primary);
+}
+html.dark .canvas-container {
+  background: #07111f;
+}
+html.dark .canvas {
+  background-color: #08111d;
+  background-image: radial-gradient(rgba(96, 165, 250, 0.24) 1px, transparent 1px);
+  border-color: rgba(96, 165, 250, 0.18);
+}
+html.dark .canvas-placeholder {
+  color: var(--app-text-muted);
+}
+html.dark .workflow-node:hover:not(:active) {
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.36), 0 0 18px rgba(59, 130, 246, 0.1);
+}
+html.dark .node-body,
+html.dark .node-execution-card,
+html.dark .context-menu {
+  background: rgba(13, 23, 36, 0.96);
+  border-color: var(--app-border);
+  color: var(--app-text);
+  box-shadow: var(--app-shadow);
+}
+html.dark .node-header,
+html.dark .node-footer,
+html.dark .execution-header {
+  background: rgba(20, 32, 48, 0.9);
+  border-color: var(--app-border);
+}
+html.dark .node-title,
+html.dark .node-method-name,
+html.dark .node-param-name,
+html.dark .context-menu-item {
+  color: var(--app-text);
+}
+html.dark .node-description,
+html.dark .node-param-type,
+html.dark .node-return-type {
+  color: var(--app-text-soft);
+}
+html.dark .context-menu-item:hover {
+  background: rgba(37, 99, 235, 0.16);
+  color: var(--app-primary);
+}
+html.dark .config-panel,
+html.dark .config-panel-header,
+html.dark .config-panel-footer,
+html.dark .config-section,
+html.dark .mapping-list,
+html.dark .condition-list {
+  background: var(--app-panel-bg);
+  border-color: var(--app-border);
+  color: var(--app-text);
+}
+html.dark .plugin-list-float.plugin-list-collapsed .plugin-list-header {
+  background: rgba(13, 23, 36, 0.96);
+}
+html.dark .plugin-filter,
+html.dark .plugin-section {
+  background: var(--app-panel-muted);
+  border-color: var(--app-border);
+}
+html.dark .bot-section {
+  background: var(--app-panel-muted);
+  border-color: var(--app-border);
+}
+html.dark .bot-section-header {
+  border-color: var(--app-border);
+}
+html.dark .bot-section-title {
+  color: var(--app-text);
+}
+html.dark .bot-section-subtitle {
+  color: var(--app-text-muted);
+}
+html.dark .category-name {
+  color: var(--app-text-soft);
+}
+html.dark .category-count {
+  color: var(--app-text-muted);
+}
+html.dark .category-toggle-icon {
+  color: var(--app-text-muted);
+}
+html.dark .category-header:hover {
+  background: rgba(96, 165, 250, 0.1);
+}
+html.dark .method-class-group {
+  border-left-color: rgba(96, 165, 250, 0.4);
+}
+html.dark .category-items .method-item:hover {
+  background: rgba(96, 165, 250, 0.08);
+}
+html.dark .plugin-card-toggle {
+  color: var(--app-text-muted);
+}
+html.dark .plugin-card-toggle:hover {
+  color: var(--app-primary);
+}
+html.dark .no-methods,
+html.dark .no-more {
+  color: var(--app-text-muted);
+}
+html.dark .loading-state,
+html.dark .loading-more {
+  color: var(--app-text-soft);
+}
+html.dark .modal-json-viewer,
+html.dark .json-viewer {
+  background-color: #08111d;
+  border: 1px solid var(--app-border);
+}
+html.dark .plugin-detail,
+html.dark .detail-card,
+html.dark .entity-card-item,
+html.dark .method-card-item {
+  color: var(--app-text);
+}
+html.dark .plugin-description h3,
+html.dark .version-changelog h4,
+html.dark .version-entity-info h4,
+html.dark .version-method-info h4,
+html.dark .entity-card-title,
+html.dark .method-class-title,
+html.dark .method-name,
+html.dark .property-name,
+html.dark .parameter-name,
+html.dark .version-number {
+  color: var(--app-text);
+}
+html.dark .plugin-description p,
+html.dark .version-changelog p,
+html.dark .entity-card-description,
+html.dark .method-class-description,
+html.dark .method-description,
+html.dark .property-description,
+html.dark .parameter-description,
+html.dark .method-return-description {
+  color: var(--app-text-soft);
+}
+html.dark .properties-collapse,
+html.dark .parameters-collapse,
+html.dark .properties-collapse-item,
+html.dark .parameters-collapse-item {
+  background: var(--app-panel-bg);
+  border-color: var(--app-border);
+}
+html.dark .properties-list,
+html.dark .parameters-list {
+  background: rgba(9, 17, 29, 0.72);
+  border-color: var(--app-border);
+}
+html.dark .property-item,
+html.dark .parameter-item {
+  color: var(--app-text);
+}
+html.dark .property-type,
+html.dark .parameter-type,
+html.dark .method-return-type,
+html.dark .method-return-description,
+html.dark .compatible-tag {
+  background: rgba(20, 32, 48, 0.92);
+  border-color: var(--app-border);
+  color: var(--app-text-soft);
+}
+html.dark .method-card-header {
+  border-color: var(--app-border);
+}
+html.dark .plugin-list-float {
+  background: rgba(13, 23, 36, 0.96);
+  border: 1px solid var(--app-border);
+}
+html.dark .collapse-bar,
+html.dark .side-nav,
+html.dark .search-box {
+  background: rgba(9, 17, 29, 0.86);
+  border-color: var(--app-border);
+}
+html.dark .nav-item {
+  color: var(--app-text-muted);
+}
+html.dark .nav-item:hover {
+  background: rgba(64, 158, 255, 0.14);
+  color: var(--app-primary);
+}
+html.dark .nav-item.active {
+  background: #409eff;
+  color: #fff;
+}
+html.dark .plugin-card-toggle,
+html.dark .loading-state,
+html.dark .loading-more,
+html.dark .no-more,
+html.dark .no-methods {
+  color: var(--app-text-muted);
+}
+html.dark .node-param {
+  background: rgba(20, 32, 48, 0.92);
+  border-color: var(--app-border);
+  color: var(--app-text-soft);
+}
+html.dark .node-return,
+html.dark .return-label,
+html.dark .return-type {
+  color: var(--app-text-soft);
+}
+html.dark .node-dot {
+  background-color: #08111d;
+}
+html.dark .config-panel-float {
+  background: var(--app-panel-bg);
+  border: 1px solid var(--app-border);
+  color: var(--app-text);
+  box-shadow: var(--app-shadow-hover);
+}
+html.dark .panel-header,
+html.dark .panel-footer {
+  background: rgba(9, 17, 29, 0.9);
+  border-color: var(--app-border);
+}
+html.dark .panel-title,
+html.dark .section-title,
+html.dark .param-name,
+html.dark .scheduled-event-config h4 {
+  color: var(--app-text);
+}
+html.dark .panel-body {
+  background: rgba(13, 23, 36, 0.96);
+}
+html.dark .param-row,
+html.dark .scheduled-event-config {
+  background: rgba(20, 32, 48, 0.88);
+  border-color: var(--app-border);
+}
+html.dark .param-type,
+html.dark .param-desc,
+html.dark .hint-text,
+html.dark .no-params-hint,
+html.dark .scheduled-time-selector label,
+html.dark .scheduled-time-hint p {
+  color: var(--app-text-soft);
+}
+html.dark .cascader-trigger {
+  background: rgba(9, 17, 29, 0.76);
+  border-color: var(--app-border);
+}
+html.dark .trigger-node,
+html.dark .trigger-content {
+  color: var(--app-text);
+}
+html.dark .scheduled-time-hint {
+  background: rgba(64, 158, 255, 0.12);
+  border-left-color: var(--app-primary);
+}
+html.dark .custom-cascader-popper,
+html.dark .cascader-panel-custom {
+  background: var(--app-panel-bg);
+  border-color: var(--app-border);
+  color: var(--app-text);
+}
+html.dark .cascader-level,
+html.dark .level-label {
+  background: rgba(13, 23, 36, 0.96);
+  border-color: var(--app-border);
+}
+html.dark .level-label,
+html.dark .level-empty,
+html.dark .level-hint,
+html.dark .option-desc {
+  color: var(--app-text-muted);
+}
+html.dark .cascader-option:hover,
+html.dark .cascader-option.active {
+  background: rgba(64, 158, 255, 0.14);
+  color: var(--app-primary);
+}
+html.dark .node-execution-details {
+  background: rgba(13, 23, 36, 0.96);
+  color: var(--app-text);
+  box-shadow: var(--app-shadow-hover);
+}
+html.dark .execution-summary,
+html.dark .execution-detail,
+html.dark .detail-section {
+  background: rgba(13, 23, 36, 0.96);
+  border-color: var(--app-border);
+}
+html.dark .execution-summary:hover,
+html.dark .section-header:hover {
+  background: rgba(37, 99, 235, 0.14);
+}
+html.dark .section-title {
+  color: var(--app-text);
+}
+html.dark .execution-time,
+html.dark .expand-arrow,
+html.dark .section-arrow {
+  color: var(--app-text-muted);
+}
+
+/* ===== src/views/LoginView.vue [1] ===== */
+html.dark .login-container {
+  background: var(--app-bg);
+}
+html.dark .login-box {
+  background: var(--app-card-bg);
+  box-shadow: var(--app-shadow);
+}
+html.dark .login-header h2 {
+  color: var(--app-text);
+}
+html.dark .login-header p,
+html.dark .login-footer {
+  color: var(--app-text-soft);
+}
+html.dark .login-footer span:hover {
+  color: var(--app-primary);
+}
+
+/* ===== src/views/RegisterView.vue [1] ===== */
+html.dark .register-container {
+  background: var(--app-bg);
+}
+html.dark .register-box {
+  background: var(--app-card-bg);
+  box-shadow: var(--app-shadow);
+}
+html.dark .register-header h2 {
+  color: var(--app-text);
+}
+html.dark .register-header p,
+html.dark .register-footer {
+  color: var(--app-text-soft);
+}
+html.dark .register-footer .login-link {
+  color: var(--app-primary);
+}
+
+/* ===== src/views/ForgotPasswordView.vue [1] ===== */
+html.dark .forgot-password-container {
+  background: var(--app-bg);
+}
+html.dark .forgot-password-box {
+  background: var(--app-card-bg);
+  box-shadow: var(--app-shadow);
+}
+html.dark .forgot-password-header h2 {
+  color: var(--app-text);
+}
+html.dark .forgot-password-header p,
+html.dark .forgot-password-footer {
+  color: var(--app-text-soft);
+}
+html.dark .forgot-password-footer .login-link {
+  color: var(--app-primary);
+}
+
+/* ===== src/views/bot/SettingsView.vue [0] ===== */
+html.dark .header-status.online.settings-view,
+html.dark .settings-view .header-status.online {
+  color: #4ade80;
+}
+html.dark .header-status.offline.settings-view,
+html.dark .settings-view .header-status.offline {
+  color: #64748b;
+  background: rgba(100, 116, 139, 0.15);
+}
+html.dark .status-dot.offline.settings-view,
+html.dark .settings-view .status-dot.offline {
+  background: #4a5568;
+}
+
+/* ===== src/views/bot/SettingsView.vue [1] ===== */
+html.dark .credential-item {
+  background: rgba(20, 32, 48, 0.7);
+  border-color: var(--app-border);
+}
+html.dark .credential-label {
+  color: var(--app-text-muted);
+}
+html.dark .credential-value {
+  color: var(--app-text);
+}
+html.dark .copy-btn {
+  color: var(--app-text-muted);
+}
+html.dark .copy-btn:hover {
+  color: var(--app-primary);
+  background: rgba(96, 165, 250, 0.12);
+}
+
+/* ===== src/views/plugin/PluginDetailView.vue [0] ===== */
+html.dark .version-changelog.plugin-detail .markdown-body code,
+html.dark .plugin-detail .version-changelog .markdown-body code {
+  background: rgba(255, 255, 255, 0.08);
+}
+html.dark .version-changelog.plugin-detail .markdown-body pre,
+html.dark .plugin-detail .version-changelog .markdown-body pre {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* ===== src/views/plugin/ai-create/AIPluginCreateView.css ===== */
+html.dark .thinking-expand-all:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+html.dark .thinking-markdown code {
+  background: rgba(255, 255, 255, 0.08);
+}
+html.dark .thinking-markdown pre {
+  background: rgba(0, 0, 0, 0.2);
+}
+html.dark .composer {
+  border-color: rgba(100, 149, 199, 0.28);
+  background: #0d1825;
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.28);
+}
+html.dark .composer-send-button.el-button {
+  background: #3B82F6 !important;
+  color: #fff !important;
+}
+html.dark .composer-send-button.el-button:hover:not(.is-disabled):not(.loading) {
+  background: #2563eb !important;
+  color: #fff !important;
+}
+html.dark .composer-send-button.el-button.is-disabled,
+html.dark .composer-send-button.el-button.is-disabled:hover {
+  background: rgba(59, 130, 246, 0.35) !important;
+  color: rgba(255, 255, 255, 0.7) !important;
+  opacity: 0.8;
+}
+html.dark .composer-send-button.el-button.loading,
+html.dark .composer-send-button.el-button.loading:hover {
+  background: #3B82F6 !important;
+  color: #fff !important;
+}
+html.dark .code-file-tree {
+  --el-tree-bg-color: transparent;
+  --el-tree-text-color: var(--app-text-soft);
+  --el-tree-node-hover-bg-color: rgba(64, 158, 255, 0.1);
+}
+
+/* ===== src/styles/workflow.css ===== */
+html.dark .canvas-container {
+  background-color: #0d1724;
+}
+html.dark .canvas {
+  background-color: #0d1724;
+  background-image: radial-gradient(#3a5068 1.5px, transparent 1.5px);
+}

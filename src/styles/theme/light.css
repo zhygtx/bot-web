@@ -1,0 +1,50 @@
+:root {
+  color-scheme: light;
+
+  --app-bg: #f5f7fa;
+  --app-bg-soft: #ffffff;
+  --app-bg-muted: #f9fafc;
+  --app-header-bg: rgba(255, 255, 255, 0.96);
+  --app-card-bg: #ffffff;
+  --app-card-bg-hover: #ffffff;
+  --app-panel-bg: #ffffff;
+  --app-panel-muted: #f5f7fa;
+
+  --app-text: #303133;
+  --app-text-soft: #606266;
+  --app-text-muted: #909399;
+  --app-text-disabled: #c0c4cc;
+
+  --app-border: #e6e6e6;
+  --app-border-soft: #eef2f7;
+
+  --app-primary: #409eff;
+  --app-primary-strong: #2563eb;
+  --app-primary-hover: #66b1ff;
+  --app-primary-soft: rgba(64, 158, 255, 0.1);
+  --app-primary-soft-strong: rgba(64, 158, 255, 0.14);
+  --app-primary-soft-weak: rgba(64, 158, 255, 0.08);
+  --app-primary-border: rgba(64, 158, 255, 0.28);
+  --app-primary-border-strong: rgba(64, 158, 255, 0.3);
+
+  --app-success: #67c23a;
+  --app-success-soft: rgba(103, 194, 58, 0.1);
+  --app-success-border: rgba(103, 194, 58, 0.3);
+
+  --app-danger: #f56c6c;
+  --app-danger-soft: rgba(245, 108, 108, 0.08);
+  --app-danger-soft-strong: rgba(245, 108, 108, 0.15);
+  --app-danger-border: rgba(245, 108, 108, 0.3);
+
+  --app-warning: #e6a23c;
+  --app-on-primary: #fff;
+  --app-code-bg: #1f2933;
+  --app-code-text: #eef8fb;
+
+  --app-canvas-bg: #ffffff;
+  --app-canvas-dot: #c8c8c8;
+
+  --app-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --app-shadow-hover: 0 8px 22px rgba(15, 23, 42, 0.14);
+  --app-header-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}

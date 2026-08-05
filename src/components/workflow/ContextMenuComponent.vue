@@ -81,38 +81,3 @@ const handleDeleteSelectedConnection = () => {
 }
 </script>
 
-<style scoped>
-.context-menu {
-  position: fixed;
-  background-color: white;
-  border: 1px solid #e6e6e6;
-  border-radius: 4px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
-  min-width: 120px;
-  overflow: hidden;
-}
-
-.context-menu-items {
-  display: flex;
-  flex-direction: column;
-}
-
-.context-menu-item {
-  padding: 8px 16px;
-  cursor: pointer;
-  font-size: 14px;
-  color: #303133;
-  transition: all 0.3s ease;
-  white-space: nowrap;
-}
-
-.context-menu-item:hover {
-  background-color: #f5f7fa;
-  color: #409eff;
-}
-
-.context-menu-item:active {
-  background-color: #ecf5ff;
-}
-</style>
