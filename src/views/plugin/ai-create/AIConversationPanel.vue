@@ -14,14 +14,17 @@ const props = defineProps({
   conversationId: { type: String, default: '' },
   generationLoading: { type: Boolean, default: false },
   compileLoading: { type: Boolean, default: false },
-  currentRound: { type: Number, default: 0 }
+  currentRound: { type: Number, default: 0 },
+  hasOlderMessages: { type: Boolean, default: false },
+  olderMessagesLoading: { type: Boolean, default: false }
 })
 
 const emit = defineEmits([
   'update:chatInput',
   'send',
   'undo',
-  'cancel'
+  'cancel',
+  'load-older'
 ])
 
 // 内部管理 ref，通过 defineExpose 暴露给父组件
@@ -127,7 +130,13 @@ const setupScrollListener = () => {
   if (scrollHandler) {
     container.removeEventListener('scroll', scrollHandler)
   }
-  scrollHandler = () => updateActiveUserIndex()
+  scrollHandler = () => {
+    updateActiveUserIndex()
+    const el = chatScrollRef.value
+    if (el && props.hasOlderMessages && !props.olderMessagesLoading && el.scrollTop <= 60) {
+      emit('load-older')
+    }
+  }
   container.addEventListener('scroll', scrollHandler, { passive: true })
   updateActiveUserIndex()
 }
@@ -220,6 +229,12 @@ const canSend = computed(() => {
 
     <div ref="chatScrollRef" class="chat-history">
       <div class="conversation-feed">
+        <div v-if="olderMessagesLoading" class="history-loading-tip">
+          <span class="history-loading-dot"></span>
+          <span class="history-loading-dot"></span>
+          <span class="history-loading-dot"></span>
+          <span>正在加载更早的消息...</span>
+        </div>
         <div
           v-for="message in chatMessages"
           :key="message.id"

@@ -131,11 +131,14 @@ const copyReviewContent = async () => {
         :generation-loading="vm.generationLoading.value"
         :compile-loading="vm.compileLoading.value"
         :current-round="vm.currentRound.value"
+        :has-older-messages="vm.hasOlderMessages.value"
+        :older-messages-loading="vm.olderMessagesLoading.value"
         @vue:mounted="syncScrollRef"
         @update:chat-input="vm.chatInput.value = $event"
         @send="vm.sendPrompt"
         @cancel="vm.cancelGeneration"
         @undo="vm.undoToBeforeRound"
+        @load-older="vm.loadOlderMessages"
       />
     </main>
 

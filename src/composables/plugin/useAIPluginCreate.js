@@ -20,6 +20,8 @@ export const useAIPluginCreate = () => {
 
   const generationLoading = ref(false)
   const historyLoading = ref(false)
+  const olderMessagesLoading = ref(false)
+  const hasOlderMessages = ref(false)
   const reviewVisible = ref(false)
   const activeTab = ref('code')
   const activeFilePath = ref('')
@@ -205,6 +207,8 @@ export const useAIPluginCreate = () => {
       isPublic: true
     }
     chatMessages.value = []
+    hasOlderMessages.value = false
+    olderMessagesLoading.value = false
   }
 
   const cancelGeneration = () => {
@@ -574,49 +578,10 @@ export const useAIPluginCreate = () => {
   }
 
   const restoreConversationFromMessages = messages => {
-    if (!Array.isArray(messages) || !messages.length) return
-
-    // 按 round 排序
-    const sortedMessages = [...messages].sort((a, b) => (Number(a.round) || 0) - (Number(b.round) || 0))
-
-    // 一条 AIChatMessage 记录同时包含 userMessage（用户输入）和 messageParts（AI 回复），
-    // 需要拆成两条前端消息：user + assistant
-    // 代码文件不再随消息体返回，点击"查看代码文件"时按 messageId 查询
-    const restoredMessages = []
-    sortedMessages.forEach(message => {
-      const round = Number(message.round) || 0
-
-      // 用户消息
-      if (message.userMessage != null && message.userMessage !== '') {
-        restoredMessages.push({
-          id: `${message.id}-user`,
-          role: 'user',
-          round,
-          content: message.userMessage,
-          parts: [{ type: 'text', content: message.userMessage }],
-          createTime: message.createTime || ''
-        })
-      }
-
-      // AI 消息
-      if (message.messageParts != null && message.messageParts !== '') {
-        const parts = normalizeMessageParts(message.messageParts, '')
-        const textContent = parts.filter(p => p.type === 'text').map(p => p.content || '').join('')
-
-        restoredMessages.push({
-          id: message.id,
-          role: 'assistant',
-          round,
-          content: textContent || '代码生成完毕',
-          parts,
-          createTime: message.createTime || '',
-          pluginName: message.pluginName || '',
-          pluginDescription: message.pluginDescription || '',
-          reviewResult: null
-        })
-      }
-    })
-
+    const restoredMessages = mapMessagesToFrontend(messages)
+    if (!restoredMessages.length) return
+    const sortedMessages = [...(Array.isArray(messages) ? messages : [])]
+      .sort((a, b) => (Number(a.round) || 0) - (Number(b.round) || 0))
     const maxRound = sortedMessages.reduce((max, m) => Math.max(max, Number(m.round) || 0), 0)
     const firstMessage = sortedMessages[0]
     const latestRoundMessage = sortedMessages[sortedMessages.length - 1]
@@ -628,6 +593,48 @@ export const useAIPluginCreate = () => {
     dependencies.value = []
     reviewResult.value = null
     if (latestRoundMessage) syncPublishInfo(latestRoundMessage)
+  }
+
+  // 向上滚动加载更早的消息，并保持当前滚动位置不跳动
+  const loadOlderMessages = async () => {
+    if (!conversationId.value || olderMessagesLoading.value || !hasOlderMessages.value) {
+      return
+    }
+    const earliestRound = chatMessages.value
+      .filter(message => message.role === 'user')
+      .reduce((min, message) => {
+        const round = Number(message.round) || 0
+        return round > 0 && (min === 0 || round < min) ? round : min
+      }, 0)
+    if (!earliestRound) {
+      hasOlderMessages.value = false
+      return
+    }
+
+    olderMessagesLoading.value = true
+    const scrollEl = chatScrollRef.value
+    const previousScrollHeight = scrollEl?.scrollHeight || 0
+    const previousScrollTop = scrollEl?.scrollTop || 0
+    try {
+      const response = await request({
+        url: `/ai-plugin/${conversationId.value}`,
+        method: 'get',
+        params: { pageSize: 30, beforeRound: earliestRound },
+        timeout: 60000
+      })
+      const data = response.data || {}
+      const older = mapMessagesToFrontend(data.messages || [])
+      if (older.length) {
+        chatMessages.value = [...older, ...chatMessages.value]
+      }
+      hasOlderMessages.value = data.hasMore === true
+      await nextTick()
+      if (scrollEl) {
+        scrollEl.scrollTop = previousScrollTop + (scrollEl.scrollHeight - previousScrollHeight)
+      }
+    } finally {
+      olderMessagesLoading.value = false
+    }
   }
 
   const undoToBeforeRound = async round => {
@@ -773,9 +780,12 @@ export const useAIPluginCreate = () => {
       const response = await request({
         url: `/ai-plugin/${id}`,
         method: 'get',
+        params: { pageSize: 30 },
         timeout: 60000
       })
-      restoreConversationFromMessages(Array.isArray(response.data) ? response.data : [])
+      const data = response.data || {}
+      restoreConversationFromMessages(Array.isArray(data) ? data : (data.messages || []))
+      hasOlderMessages.value = Array.isArray(data) ? false : data.hasMore === true
     } finally {
       if (showLoading) historyLoading.value = false
       scrollChatToBottom()
@@ -938,6 +948,8 @@ export const useAIPluginCreate = () => {
   return {
     generationLoading,
     historyLoading,
+    olderMessagesLoading,
+    hasOlderMessages,
     reviewVisible,
     activeTab,
     activeFilePath,
@@ -977,6 +989,7 @@ export const useAIPluginCreate = () => {
     sendPrompt,
     cancelGeneration,
     undoToBeforeRound,
+    loadOlderMessages,
     confirmCompile,
     updateFileContent,
     selectTreeNode,
@@ -1007,6 +1020,44 @@ function createGeneratingMessage(round) {
     waitingForBackend: true,
     preparing: false
   }
+}
+
+// 一条 AIChatMessage 记录拆成 user + assistant 两条前端消息
+function mapMessagesToFrontend(messages) {
+  if (!Array.isArray(messages)) return []
+  const sortedMessages = [...messages].sort((a, b) => (Number(a.round) || 0) - (Number(b.round) || 0))
+  const restoredMessages = []
+  sortedMessages.forEach(message => {
+    const round = Number(message.round) || 0
+
+    if (message.userMessage != null && message.userMessage !== '') {
+      restoredMessages.push({
+        id: `${message.id}-user`,
+        role: 'user',
+        round,
+        content: message.userMessage,
+        parts: [{ type: 'text', content: message.userMessage }],
+        createTime: message.createTime || ''
+      })
+    }
+
+    if (message.messageParts != null && message.messageParts !== '') {
+      const parts = normalizeMessageParts(message.messageParts, '')
+      const textContent = parts.filter(p => p.type === 'text').map(p => p.content || '').join('')
+      restoredMessages.push({
+        id: message.id,
+        role: 'assistant',
+        round,
+        content: textContent || '代码生成完毕',
+        parts,
+        createTime: message.createTime || '',
+        pluginName: message.pluginName || '',
+        pluginDescription: message.pluginDescription || '',
+        reviewResult: null
+      })
+    }
+  })
+  return restoredMessages
 }
 
 function normalizeConversationMessages(messages) {
