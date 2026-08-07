@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue'
-import { ElMessage, ElLoading, ElPagination, ElSelect, ElOption, ElDatePicker, ElButton, ElIcon } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { Clock, VideoPlay, CircleCheck, CircleClose, ArrowRight, ArrowUp, Refresh, Filter } from '@element-plus/icons-vue'
 import request from '../../utils/request'
 
@@ -9,8 +9,6 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['logToggle'])
-
-const BIG_TEXT_PREFIX = 'BIG_TEXT:'
 
 const logs = ref([])
 const loading = ref(false)
@@ -31,8 +29,6 @@ const sortOrder = ref('desc')
 const expandedLogId = ref(null)
 const loadingNodeLogIds = ref(new Set())
 
-const bigTextDisplayCache = ref({})
-
 const paginationLayout = computed(() => {
   return isMobile.value ? 'prev, pager, next' : 'prev, pager, next, ->, total, jumper'
 })
@@ -44,6 +40,10 @@ const updateIsMobile = () => {
 const normalizeLog = (log) => ({
   ...log,
   id: Number(log.id) || log.id,
+  startTime: Number(log.startTime) || log.startTime,
+  durationMs: Number(log.durationMs) || 0,
+  executionTime: Number(log.durationMs) || 0,
+  isError: log.status === 'FAILED',
   nodeLogs: log.nodeLogs || [],
   nodeLogsLoaded: false
 })
@@ -55,14 +55,9 @@ const filteredLogs = computed(() => {
       log.startTime >= filters.value.dateRange[0].getTime() &&
       log.startTime <= filters.value.dateRange[1].getTime()
     )
-
     return matchName && matchDate
   })
 })
-
-const isBigText = (data) => {
-  return data && typeof data === 'string' && data.startsWith(BIG_TEXT_PREFIX)
-}
 
 const formatTime = (timestamp) => {
   if (!timestamp) return '未知'
@@ -79,6 +74,13 @@ const formatTime = (timestamp) => {
 
 const formatJsonData = (data) => {
   if (!data) return data
+  if (typeof data !== 'string') {
+    try {
+      return JSON.stringify(data, null, 2)
+    } catch (e) {
+      return String(data)
+    }
+  }
   try {
     const parsed = JSON.parse(data)
     return JSON.stringify(parsed, null, 2)
@@ -88,7 +90,7 @@ const formatJsonData = (data) => {
 }
 
 const isJsonData = (data) => {
-  if (!data) return false
+  if (!data || typeof data !== 'string') return false
   try {
     JSON.parse(data)
     return true
@@ -108,9 +110,7 @@ const highlightJson = (jsonStr) => {
   if (!jsonStr) return ''
   try {
     JSON.parse(jsonStr)
-    
     const escapedStr = escapeHtml(jsonStr)
-    
     return escapedStr
       .replace(/(".*?")(:)/g, '<span class="json-key">$1</span>$2')
       .replace(/: ("(?:\\.|[^"\\])*")/g, ': <span class="json-string">$1</span>')
@@ -143,7 +143,6 @@ const copyModalContent = async () => {
     if (navigator.clipboard) {
       await navigator.clipboard.writeText(modalContent.value)
     } else {
-      // 降级方案：HTTP 环境下使用 execCommand
       const textarea = document.createElement('textarea')
       textarea.value = modalContent.value
       textarea.style.position = 'fixed'
@@ -160,27 +159,6 @@ const copyModalContent = async () => {
   }
 }
 
-const fetchBigText = async (key, callback) => {
-  if (bigTextDisplayCache.value[key]) {
-    callback(bigTextDisplayCache.value[key])
-    return
-  }
-  
-  try {
-    const response = await request({
-      url: '/workflowLog/findBigText',
-      method: 'get',
-      params: { key }
-    })
-    if (response.code === 200) {
-      bigTextDisplayCache.value[key] = response.data
-      callback(response.data)
-    }
-  } catch (error) {
-    console.error('Error:', error)
-  }
-}
-
 const loadLogs = async () => {
   loading.value = true
   try {
@@ -190,19 +168,19 @@ const loadLogs = async () => {
       userId: localStorage.getItem('userId') || '',
       workflowId: props.workflowId || undefined,
       workflowName: filters.value.workflowName,
-      startTime: filters.value.dateRange.length === 2 ? filters.value.dateRange[0].getTime() : null,
-      endTime: filters.value.dateRange.length === 2 ? filters.value.dateRange[1].getTime() : null,
+      startTime: filters.value.dateRange?.length === 2 ? filters.value.dateRange[0].getTime() : null,
+      endTime: filters.value.dateRange?.length === 2 ? filters.value.dateRange[1].getTime() : null,
       sortField: sortField.value,
       sortOrder: sortOrder.value,
       status: filters.value.status
     }
-    
+
     const response = await request({
       url: '/workflowLog/findWorkflowLogs',
       method: 'get',
       params
     })
-    
+
     if (response.code === 200) {
       if (response.data && response.data.list) {
         logs.value = response.data.list.map(normalizeLog)
@@ -221,24 +199,23 @@ const loadLogs = async () => {
 
 const loadNodeLogs = async (log) => {
   if (!log?.id || log.nodeLogsLoaded) return
-
   loadingNodeLogIds.value.add(log.id)
   try {
     const response = await request({
-      url: '/workflowLog/findNodeLogs',
-      method: 'get',
-      params: {
-        workflowLogId: log.id
-      }
+      url: `/workflowLog/${log.id}`,
+      method: 'get'
     })
-
-    if (response.code === 200) {
-      log.nodeLogs = (Array.isArray(response.data) ? response.data : []).map(nodeLog => ({
-        ...nodeLog,
-        id: Number(nodeLog.id) || nodeLog.id,
-        workflowLogId: Number(nodeLog.workflowLogId) || nodeLog.workflowLogId,
-        order: Number(nodeLog.order) || nodeLog.order,
-        executionTime: Number(nodeLog.executionTime) || nodeLog.executionTime
+    if (response.code === 200 && response.data?.trace?.nodes) {
+      log.nodeLogs = response.data.trace.nodes.map((node, index) => ({
+        id: index + 1,
+        nodeId: node.nodeId,
+        order: index + 1,
+        methodName: node.name || node.callable || '未知方法',
+        methodDescription: node.callable || '',
+        isError: node.status === 'FAILED',
+        executionTime: Math.max(0, (Number(node.endTime) || 0) - (Number(node.startTime) || 0)),
+        input: node.input,
+        output: node.status === 'FAILED' ? node.error : node.output
       }))
       log.nodeLogsLoaded = true
     }
@@ -259,7 +236,6 @@ const toggleLogDetail = async (log) => {
     expandedLogId.value = null
     emit('logToggle', null)
   } else {
-    bigTextDisplayCache.value = {}
     expandedLogId.value = log.id
     await loadNodeLogs(log)
     emit('logToggle', log)
@@ -268,7 +244,6 @@ const toggleLogDetail = async (log) => {
 
 const refreshLogs = () => {
   expandedLogId.value = null
-  bigTextDisplayCache.value = {}
   pageNum.value = 1
   loadLogs()
 }
@@ -311,8 +286,8 @@ onUnmounted(() => {
   <div class="workflow-log-view">
     <div class="filter-section">
       <div class="filter-item search-item">
-        <el-input 
-          v-model="filters.workflowName" 
+        <el-input
+          v-model="filters.workflowName"
           placeholder="工作流名称"
           class="filter-input"
           @keyup.enter="loadLogs"
@@ -323,49 +298,43 @@ onUnmounted(() => {
         </el-input>
       </div>
       <div class="filter-item date-item">
-          <el-date-picker
-            v-model="filters.dateRange"
-            type="daterange"
-            range-separator="至"
-            start-placeholder="开始日期"
-            end-placeholder="结束日期"
-            class="filter-date"
-            popper-class="workflow-log-date-popper"
-          />
+        <el-date-picker
+          v-model="filters.dateRange"
+          type="daterange"
+          range-separator="至"
+          start-placeholder="开始日期"
+          end-placeholder="结束日期"
+          class="filter-date"
+          popper-class="workflow-log-date-popper"
+        />
+      </div>
+      <div class="filter-item status-item">
+        <el-select v-model="filters.status" placeholder="执行状态" class="filter-select" @change="loadLogs">
+          <el-option label="全部" value="" />
+          <el-option label="成功" value="SUCCESS" />
+          <el-option label="失败" value="FAILED" />
+        </el-select>
+        <div class="mobile-status-buttons">
+          <span
+            class="status-btn"
+            :class="{ active: filters.status === '' }"
+            @click="filters.status = ''; loadLogs()"
+          >全部</span>
+          <span
+            class="status-btn success"
+            :class="{ active: filters.status === 'SUCCESS' }"
+            @click="filters.status = 'SUCCESS'; loadLogs()"
+          >成功</span>
+          <span
+            class="status-btn failed"
+            :class="{ active: filters.status === 'FAILED' }"
+            @click="filters.status = 'FAILED'; loadLogs()"
+          >失败</span>
         </div>
-        <div class="filter-item status-item">
-          <el-select v-model="filters.status" placeholder="执行状态" class="filter-select" @change="loadLogs">
-            <el-option label="全部" value="" />
-            <el-option label="成功" value="success" />
-            <el-option label="失败" value="failed" />
-          </el-select>
-          <div class="mobile-status-buttons">
-            <span 
-              class="status-btn" 
-              :class="{ active: filters.status === '' }"
-              @click="filters.status = ''; loadLogs()"
-            >
-              全部
-            </span>
-            <span 
-              class="status-btn success" 
-              :class="{ active: filters.status === 'success' }"
-              @click="filters.status = 'success'; loadLogs()"
-            >
-              成功
-            </span>
-            <span 
-              class="status-btn failed" 
-              :class="{ active: filters.status === 'failed' }"
-              @click="filters.status = 'failed'; loadLogs()"
-            >
-              失败
-            </span>
-          </div>
-        </div>
+      </div>
       <div class="filter-item button-item">
         <el-button @click="resetFilters" type="default">重置</el-button>
-        <el-button type="primary" icon="Refresh" @click="refreshLogs">刷新</el-button>
+        <el-button type="primary" :icon="Refresh" @click="refreshLogs">刷新</el-button>
         <el-button @click="loadLogs" type="primary">查询</el-button>
       </div>
       <div class="filter-item sort-item">
@@ -381,56 +350,52 @@ onUnmounted(() => {
           </el-select>
         </div>
         <div class="sort-buttons mobile-sort-buttons">
-          <span 
-            class="sort-text" 
+          <span
+            class="sort-text"
             :class="{ active: sortField === 'actualNodeCount' }"
             @click="toggleSort('actualNodeCount')"
           >
             执行节点数
-            <el-icon v-if="sortField === 'actualNodeCount'" :class="{ 'desc': sortOrder === 'desc' }">
+            <el-icon v-if="sortField === 'actualNodeCount'" :class="{ desc: sortOrder === 'desc' }">
               <ArrowUp />
             </el-icon>
           </span>
           <span class="sort-divider">|</span>
-          <span 
-            class="sort-text" 
+          <span
+            class="sort-text"
             :class="{ active: sortField === 'executionTime' }"
             @click="toggleSort('executionTime')"
           >
             执行耗时
-            <el-icon v-if="sortField === 'executionTime'" :class="{ 'desc': sortOrder === 'desc' }">
+            <el-icon v-if="sortField === 'executionTime'" :class="{ desc: sortOrder === 'desc' }">
               <ArrowUp />
             </el-icon>
           </span>
         </div>
       </div>
     </div>
-    
+
     <div class="log-content">
       <div v-loading="loading" element-loading-text="加载中..." class="log-list">
-        <div 
-          v-for="log in filteredLogs" 
-          :key="log.id" 
-          class="log-item"
-        >
-          <div 
+        <div v-for="log in filteredLogs" :key="log.id" class="log-item">
+          <div
             class="log-header"
             :class="{ 'log-header-failed': log.isError }"
             @click="toggleLogDetail(log)"
           >
             <div class="log-header-left">
-                <div class="status-icon" :class="{ failed: log.isError }">
-                  <CircleClose v-if="log.isError" />
-                  <CircleCheck v-else />
-                </div>
-                <div class="log-info">
-                  <div class="workflow-name">{{ log.workflowName || '未知工作流' }}</div>
-                  <div class="log-time">
-                    <el-icon class="time-icon"><Clock /></el-icon>
-                    {{ formatTime(log.startTime) }}
-                  </div>
+              <div class="status-icon" :class="{ failed: log.isError }">
+                <CircleClose v-if="log.isError" />
+                <CircleCheck v-else />
+              </div>
+              <div class="log-info">
+                <div class="workflow-name">{{ log.workflowName || '未知工作流' }}</div>
+                <div class="log-time">
+                  <el-icon class="time-icon"><Clock /></el-icon>
+                  {{ formatTime(log.startTime) }}
                 </div>
               </div>
+            </div>
             <div class="log-header-right">
               <div class="log-stats">
                 <span class="stat-item">
@@ -447,122 +412,66 @@ onUnmounted(() => {
               </el-icon>
             </div>
           </div>
-          
+
           <div v-show="expandedLogId === log.id" class="log-detail">
             <div class="detail-section">
               <h4>执行摘要</h4>
               <div class="summary-context">
-                <div class="summary-label">初始上下文</div>
-                <div 
-                  class="json-viewer" 
-                  @click="isBigText(log.initialContext) ? fetchBigText(log.initialContext, (data) => openModal('初始上下文', data)) : openModal('初始上下文', formatJsonData(log.initialContext) || '无')"
-                >
-                  <div class="json-viewer-scroll">
-                    <template v-if="isBigText(log.initialContext)">
-                      <template v-if="bigTextDisplayCache[log.initialContext]">
-                        <pre v-html="highlightJson(formatJsonData(bigTextDisplayCache[log.initialContext]))"></pre>
-                      </template>
-                      <template v-else>
-                        <pre class="big-text-placeholder">数据过大，请点击查看</pre>
-                      </template>
-                    </template>
-                    <template v-else>
-                      <pre v-html="highlightJson(formatJsonData(log.initialContext)) || '无'"></pre>
-                    </template>
-                  </div>
-                  <div class="viewer-hint">点击查看完整数据</div>
-                </div>
+                <div class="summary-label">触发键</div>
+                <div class="summary-value">{{ log.triggerKey || '无' }}</div>
               </div>
-              <div class="summary-context error-log" v-if="log.errorLog">
+              <div class="summary-context error-log" v-if="log.errorMessage">
                 <div class="summary-label error-label">错误日志</div>
-                <div 
-                  class="json-viewer" 
-                  @click="isBigText(log.errorLog) ? fetchBigText(log.errorLog, (data) => openModal('错误日志', data)) : openModal('错误日志', log.errorLog || '无')"
-                >
+                <div class="json-viewer" @click="openModal('错误日志', log.errorMessage)">
                   <div class="json-viewer-scroll">
-                    <template v-if="isBigText(log.errorLog)">
-                      <template v-if="bigTextDisplayCache[log.errorLog]">
-                        <pre class="error-text" v-html="highlightJson(formatJsonData(bigTextDisplayCache[log.errorLog])) || bigTextDisplayCache[log.errorLog]"></pre>
-                      </template>
-                      <template v-else>
-                        <pre class="big-text-placeholder">数据过大，请点击查看</pre>
-                      </template>
-                    </template>
-                    <template v-else>
-                      <pre class="error-text">{{ log.errorLog }}</pre>
-                    </template>
+                    <pre class="error-text">{{ log.errorMessage }}</pre>
                   </div>
                   <div class="viewer-hint">点击查看完整数据</div>
                 </div>
               </div>
             </div>
-            
+
             <div class="detail-section" v-if="log.nodeLogs && log.nodeLogs.length > 0">
               <h4>节点执行日志</h4>
               <div class="node-timeline">
-                <div 
-                  v-for="(nodeLog, index) in log.nodeLogs" 
-                  :key="nodeLog.id"
-                  class="node-log-item"
-                >
+                <div v-for="(nodeLog, index) in log.nodeLogs" :key="nodeLog.id" class="node-log-item">
                   <div class="timeline-line">
-                    <div class="timeline-dot" :class="{ 
-                      success: !nodeLog.isError, 
-                      failed: nodeLog.isError 
-                    }"></div>
+                    <div class="timeline-dot" :class="{ success: !nodeLog.isError, failed: nodeLog.isError }"></div>
                     <div v-if="index < log.nodeLogs.length - 1" class="timeline-connector"></div>
                   </div>
                   <div class="timeline-content">
                     <div class="node-header">
-                      <span class="node-order">{{ index + 1 }}</span>
-                      <span class="node-name">{{ nodeLog.methodName || '未知方法' }}</span>
+                      <span class="node-order">{{ nodeLog.order }}</span>
+                      <span class="node-name">{{ nodeLog.methodName }}</span>
                       <span class="node-time">{{ nodeLog.executionTime }}ms</span>
                     </div>
                     <div class="node-description" v-if="nodeLog.methodDescription">
                       {{ nodeLog.methodDescription }}
                     </div>
                     <div class="node-details">
-                      <div class="detail-row" v-if="nodeLog.input">
+                      <div class="detail-row" v-if="nodeLog.input !== null && nodeLog.input !== undefined">
                         <span class="detail-label">输入:</span>
-                        <div 
-                          class="json-viewer"
-                          @click="isBigText(nodeLog.input) ? fetchBigText(nodeLog.input, (data) => openModal('输入 - ' + (nodeLog.methodName || '未知方法'), data)) : openModal('输入 - ' + (nodeLog.methodName || '未知方法'), formatJsonData(nodeLog.input))"
-                        >
+                        <div class="json-viewer" @click="openModal('输入 - ' + (nodeLog.methodName || '未知方法'), nodeLog.input)">
                           <div class="json-viewer-scroll">
-                            <template v-if="isBigText(nodeLog.input)">
-                              <template v-if="bigTextDisplayCache[nodeLog.input]">
-                                <pre v-html="highlightJson(formatJsonData(bigTextDisplayCache[nodeLog.input]))"></pre>
-                              </template>
-                              <template v-else>
-                                <pre class="big-text-placeholder">数据过大，请点击查看</pre>
-                              </template>
-                            </template>
-                            <template v-else>
-                              <pre v-html="highlightJson(formatJsonData(nodeLog.input))"></pre>
-                            </template>
+                            <pre v-html="highlightJson(formatJsonData(nodeLog.input))"></pre>
                           </div>
                           <div class="viewer-hint">点击查看完整数据</div>
                         </div>
                       </div>
-                      <div class="detail-row" :class="{ 'detail-row-error': nodeLog.isError }" v-if="nodeLog.output">
-                        <span class="detail-label" :class="{ 'label-error': nodeLog.isError }">输出:</span>
-                        <div 
+                      <div class="detail-row" :class="{ 'detail-row-error': nodeLog.isError }">
+                        <span class="detail-label" :class="{ 'label-error': nodeLog.isError }">
+                          {{ nodeLog.isError ? '错误:' : '输出:' }}
+                        </span>
+                        <div
                           class="json-viewer"
                           :class="{ 'json-viewer-error': nodeLog.isError }"
-                          @click="isBigText(nodeLog.output) ? fetchBigText(nodeLog.output, (data) => openModal('输出 - ' + (nodeLog.methodName || '未知方法'), data)) : openModal('输出 - ' + (nodeLog.methodName || '未知方法'), formatJsonData(nodeLog.output))"
+                          @click="openModal((nodeLog.isError ? '错误 - ' : '输出 - ') + (nodeLog.methodName || '未知方法'), nodeLog.output)"
                         >
                           <div class="json-viewer-scroll">
-                            <template v-if="isBigText(nodeLog.output)">
-                              <template v-if="bigTextDisplayCache[nodeLog.output]">
-                                <pre v-html="highlightJson(formatJsonData(bigTextDisplayCache[nodeLog.output]))"></pre>
-                              </template>
-                              <template v-else>
-                                <pre class="big-text-placeholder">数据过大，请点击查看</pre>
-                              </template>
-                            </template>
-                            <template v-else>
-                              <pre v-html="highlightJson(formatJsonData(nodeLog.output))"></pre>
-                            </template>
+                            <pre
+                              :class="{ 'error-text': nodeLog.isError }"
+                              v-html="highlightJson(formatJsonData(nodeLog.output))"
+                            ></pre>
                           </div>
                           <div class="viewer-hint">点击查看完整数据</div>
                         </div>
@@ -581,7 +490,7 @@ onUnmounted(() => {
             </div>
           </div>
         </div>
-        
+
         <el-empty v-if="filteredLogs.length === 0 && !loading" description="暂无日志记录" />
       </div>
     </div>
@@ -597,24 +506,17 @@ onUnmounted(() => {
         @current-change="handlePageChange"
       />
     </div>
-    
-    <el-dialog 
-      v-model="showModal" 
-      width="80%" 
+
+    <el-dialog
+      v-model="showModal"
+      width="80%"
       :close-on-click-modal="true"
       @close="closeModal"
     >
       <template #header>
         <div class="modal-header">
           <span>{{ modalTitle }}</span>
-          <el-button 
-            type="text" 
-            icon="CopyDocument" 
-            @click="copyModalContent"
-            class="copy-btn"
-          >
-            复制
-          </el-button>
+          <el-button link :icon="VideoPlay" @click="copyModalContent" class="copy-btn">复制</el-button>
         </div>
       </template>
       <div class="modal-json-viewer">
@@ -623,4 +525,3 @@ onUnmounted(() => {
     </el-dialog>
   </div>
 </template>
-

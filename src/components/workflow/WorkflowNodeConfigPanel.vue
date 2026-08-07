@@ -1,736 +1,656 @@
-<script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { ElMessage, ElPopover, ElInput, ElSelect, ElOption, ElButton, ElForm, ElFormItem } from 'element-plus'
-import { Close } from '@element-plus/icons-vue'
-
-const props = defineProps({
-  visible: { type: Boolean, default: false },
-  node: { type: Object, default: () => ({}) },
-  preNodes: { type: Array, default: () => [] },
-  allNodes: { type: Array, default: () => [] },
-  plugins: { type: Array, default: () => [] }
-})
-
-const emit = defineEmits(['update:visible', 'saveMapping', 'saveCondition'])
-
-// ===== 通用类型工具 =====
-const basicTypes = [
-  'String', 'Integer', 'Long', 'Double', 'Float', 'Boolean', 'Byte', 'Short', 'Character',
-  'int', 'long', 'double', 'float', 'boolean', 'byte', 'short', 'char',
-  'BigInteger', 'BigDecimal', 'Date', 'LocalDate', 'LocalDateTime', 'Timestamp',
-  'Object', 'String[]', 'Integer[]', 'Long[]', 'Double[]', 'Boolean[]'
-]
-const collectionTypes = ['List', 'Set', 'Collection', 'Map', 'ArrayList', 'HashSet', 'HashMap', 'LinkedList']
-const getBaseType = (type) => { if (!type) return ''; const m = type.match(/^(\w+)</); return m ? m[1] : type }
-
-// 将参数类型归一化为后端 NodeDefaults.DefaultValueType 枚举值
-// 后端枚举只支持: String, Integer, Double, Boolean, Long
-const normalizeDefaultValueType = (type) => {
-  if (!type) return 'String'
-  const t = type.toLowerCase()
-  switch (t) {
-    case 'string': case 'character': case 'char': return 'String'
-    case 'int': case 'integer': case 'byte': case 'short': case 'bigint': case 'biginteger': return 'Integer'
-    case 'long': return 'Long'
-    case 'float': case 'double': case 'bigdecimal': return 'Double'
-    case 'boolean': case 'bool': return 'Boolean'
-    // 日期时间类默认当做 String
-    case 'date': case 'localdate': case 'localdatetime': case 'timestamp': return 'String'
-    default: return 'String'
-  }
-}
-
-const isBasicType = (type) => {
-  if (!type) return false
-  const bts = ['String', 'Integer', 'Long', 'Double', 'Float', 'Boolean', 'Byte', 'Short', 'Character', 'int', 'long', 'double', 'float', 'boolean', 'byte', 'short', 'char', 'BigInteger', 'BigDecimal', 'Date', 'LocalDate', 'LocalDateTime', 'Timestamp']
-  return bts.includes(getBaseType(type))
-}
-
-// ===== 定时事件 =====
-const scheduledTimeOptions = [
-  { label: '1分钟', value: 60 }, { label: '2分钟', value: 120 }, { label: '5分钟', value: 300 },
-  { label: '10分钟', value: 600 }, { label: '30分钟', value: 1800 }, { label: '1小时', value: 3600 },
-  { label: '2小时', value: 7200 }, { label: '6小时', value: 21600 }, { label: '12小时', value: 43200 }, { label: '24小时', value: 86400 }
-]
-const selectedScheduledTime = ref(null)
-const isScheduledEventNode = computed(() => props.node?.nodeType === 'botEvent' && props.node?.eventType === 'scheduledEvent')
-
-// ===== 条件配置 =====
-const canSetCondition = computed(() => {
-  if (!props.node?.method) return false
-  return ['boolean', 'Boolean'].includes(props.node.method.returnType)
-})
-const condition = ref({ id: '', nodeId: '', trueAction: 'CONTINUE', falseAction: 'CONTINUE' })
-
-// ===== 参数行配置 =====
-// 每个参数的配置行
-const paramConfigs = ref([])
-// paramConfigs[i] = { paramName, paramIndex, paramType, refType: 'input'|'reference', inputValue, referencePath: [] }
-
-const isSaving = ref(false)
-
-// ===== 自定义级联选择器状态 =====
-const cascaderOpenIdx = ref(-1)           // 当前打开的是哪个参数的级联选择器
-const cascaderActiveNode = ref(null)       // 当前打开的级联选择器中选中的节点
-
-const toggleCascader = (idx) => {
-  if (cascaderOpenIdx.value === idx) {
-    closeCascader()
-  } else {
-    openCascader(idx)
-  }
-}
-
-const openCascader = (idx) => {
-  // 先关闭其他已打开的面板
-  cascaderOpenIdx.value = idx
-  const config = paramConfigs.value[idx]
-  if (config?.referencePath?.length === 2) {
-    const nodeOption = ancestorCascaderOptions.value.find(o => o.value === config.referencePath[0])
-    cascaderActiveNode.value = nodeOption || null
-  } else {
-    cascaderActiveNode.value = null
-  }
-}
-
-const closeCascader = () => {
-  cascaderOpenIdx.value = -1
-  cascaderActiveNode.value = null
-}
-
-const selectCascaderNode = (idx, option) => {
-  cascaderActiveNode.value = option === cascaderActiveNode.value ? null : option
-}
-
-const selectCascaderValue = (idx, child) => {
-  const config = paramConfigs.value[idx]
-  if (!config || !cascaderActiveNode.value) return
-  config.referencePath = [cascaderActiveNode.value.value, child.value]
-  closeCascader()
-}
-
-// 点击外部时关闭级联面板（使用 trigger="manual" 时需要手动处理）
-const handleDocumentClick = (e) => {
-  if (cascaderOpenIdx.value === -1) return
-  // 检查点击目标是否在面板内或触发器内
-  const target = e.target
-  const isInPopover = target.closest('.custom-cascader-popper')
-  const isInTrigger = target.closest('.cascader-trigger')
-  if (!isInPopover && !isInTrigger) {
-    closeCascader()
-  }
-}
-
-// 当前打开的级联选择器中的节点子选项
-const cascaderActiveNodeChildren = computed(() => {
-  if (!cascaderActiveNode.value) return []
-  return cascaderActiveNode.value.children || []
-})
-
-// ===== 递归获取所有祖先节点 =====
-const getAllAncestors = (nodeId, allNodes, visited = new Set()) => {
-  if (!nodeId || visited.has(nodeId)) return []
-  visited.add(nodeId)
-  const node = allNodes.find(n => n.id === nodeId)
-  if (!node || !node.preNodeId || node.preNodeId.length === 0) return []
-  const ancestors = []
-  for (const preId of node.preNodeId) {
-    const preNode = allNodes.find(n => n.id === preId)
-    if (preNode && !visited.has(preId)) {
-      ancestors.push(preNode)
-      ancestors.push(...getAllAncestors(preId, allNodes, visited))
-    }
-  }
-  return ancestors
-}
-
-// ===== 构建级联选择器选项 =====
-// 第一层：节点名(节点描述)
-// 第二层：返回值参数(参数描述或返回值描述)
-const ancestorCascaderOptions = computed(() => {
-  if (!props.allNodes || props.allNodes.length === 0) return []
-  if (!props.node?.preNodeId || props.node.preNodeId.length === 0) return []
-
-  const visited = new Set([props.node.id])
-  const options = []
-
-  // 构建单个节点选项的辅助函数
-  const buildNodeOption = (node) => {
-    if (!node.method?.returnType || node.method.returnType === 'void') return null
-
-    let returnType = node.method.returnType
-    if (node.entityInfo?.entityName) returnType = node.entityInfo.entityName
-
-    const nodeDescription = node.method.description || node.method.returnDescription || ''
-    const nodeLabel = nodeDescription
-      ? `${node.method.name}(${nodeDescription})`
-      : node.method.name
-
-    const option = {
-      value: `node_${node.id}`,
-      label: nodeLabel,
-      nodeName: node.method.name,
-      nodeDescription: nodeDescription,
-      children: []
-    }
-
-    // 实体类：列出所有属性
-    if (node.entityInfo?.fields) {
-      option.children = node.entityInfo.fields.map(field => ({
-        value: `attr_${node.id}_${field.fieldName}`,
-        label: field.description ? `${field.fieldName}(${field.description})` : field.fieldName,
-        returnName: field.fieldName,
-        returnDescription: field.description || '',
-        nodeId: node.id,
-        nodeName: node.method.name,
-        nodeDescription: nodeDescription,
-        attrName: field.fieldName,
-        typeName: field.fieldType,
-        description: field.description || '',
-        path: `value.${field.fieldName}`
-      }))
-    } else if (node.method?.returnFields && node.method.returnFields.length > 0) {
-      // BotAction 返回值字段：从 returnInfo.fields 展开
-      option.children = node.method.returnFields.map(field => ({
-        value: `attr_${node.id}_${field.name}`,
-        label: field.description ? `${field.name}(${field.description})` : field.name,
-        returnName: field.name,
-        returnDescription: field.description || '',
-        nodeId: node.id,
-        nodeName: node.method.name,
-        nodeDescription: nodeDescription,
-        attrName: field.name,
-        typeName: field.type,
-        description: field.description || '',
-        path: field.fieldPath || `value.${field.name}`
-      }))
-    } else if (node.pluginInfo?.pluginVersionList) {
-      let foundEntity = false
-      for (const version of node.pluginInfo.pluginVersionList) {
-        if (version.entityInfoList) {
-          const entityInfo = version.entityInfoList.find(e => e.name === getBaseType(returnType) || e.entityName === returnType)
-          if (entityInfo?.attributes && Array.isArray(entityInfo.attributes)) {
-            option.children = entityInfo.attributes.map(attr => ({
-              value: `attr_${node.id}_${attr.name}`,
-              label: attr.description ? `${attr.name}(${attr.description})` : attr.name,
-              returnName: attr.name,
-              returnDescription: attr.description || '',
-              nodeId: node.id,
-              nodeName: node.method.name,
-              nodeDescription: nodeDescription,
-              attrName: attr.name,
-              typeName: attr.type,
-              description: attr.description || '',
-              path: `value.${attr.name}`
-            }))
-            foundEntity = true
-            break
-          }
-        }
-      }
-      if (!foundEntity) {
-        const returnDescription = node.method.returnDescription || node.method.description || ''
-        option.children.push({
-          value: `value_${node.id}`,
-          label: returnDescription ? `${returnType}(${returnDescription})` : returnType,
-          returnName: returnType,
-          returnDescription: returnDescription,
-          nodeId: node.id,
-          nodeName: node.method.name,
-          nodeDescription: nodeDescription,
-          path: 'value',
-          typeName: node.method.returnType,
-          description: returnDescription
-        })
-      }
-    } else {
-      const returnDescription = node.method.returnDescription || node.method.description || ''
-      option.children.push({
-        value: `value_${node.id}`,
-        label: returnDescription ? `${returnType}(${returnDescription})` : returnType,
-        returnName: returnType,
-        returnDescription: returnDescription,
-        nodeId: node.id,
-        nodeName: node.method.name,
-        nodeDescription: nodeDescription,
-        path: 'value',
-        typeName: node.method.returnType,
-        description: returnDescription
-      })
-    }
-
-    if (option.children.length > 0) {
-      return option
-    }
-    return null
-  }
-
-  // 先添加直接前置节点
-  for (const preId of props.node.preNodeId) {
-    const preNode = props.allNodes.find(n => n.id === preId)
-    if (!preNode || visited.has(preId)) continue
-    visited.add(preId)
-    const option = buildNodeOption(preNode)
-    if (option) options.push(option)
-  }
-
-  // 递归添加祖先节点
-  for (const preId of props.node.preNodeId) {
-    const ancestors = getAllAncestors(preId, props.allNodes, new Set([props.node.id]))
-    for (const ancestor of ancestors) {
-      if (visited.has(ancestor.id)) continue
-      visited.add(ancestor.id)
-      const option = buildNodeOption(ancestor)
-      if (option) options.push(option)
-    }
-  }
-
-  return options
-})
-
-// ===== 获取级联选择器显示文本 =====
-const getCascaderTriggerNode = (referencePath) => {
-  if (!referencePath || referencePath.length < 2) return ''
-  for (const option of ancestorCascaderOptions.value) {
-    if (option.value === referencePath[0]) {
-      for (const child of option.children) {
-        if (child.value === referencePath[1]) {
-          return child.nodeName || ''
-        }
-      }
-    }
-  }
-  return ''
-}
-
-const getCascaderTriggerReturn = (referencePath) => {
-  if (!referencePath || referencePath.length < 2) return ''
-  for (const option of ancestorCascaderOptions.value) {
-    if (option.value === referencePath[0]) {
-      for (const child of option.children) {
-        if (child.value === referencePath[1]) {
-          return child.returnName || ''
-        }
-      }
-    }
-  }
-  return ''
-}
-
-const getCascaderDescText = (referencePath) => {
-  if (!referencePath || referencePath.length < 2) return ''
-  for (const option of ancestorCascaderOptions.value) {
-    if (option.value === referencePath[0]) {
-      for (const child of option.children) {
-        if (child.value === referencePath[1]) {
-          return child.returnDescription || ''
-        }
-      }
-    }
-  }
-  return ''
-}
-
-// ===== 初始化参数配置 =====
-const initParamConfigs = () => {
-  const configs = []
-  if (props.node?.method?.parameters && props.node.method.parameters.length > 0) {
-    const sortedParams = [...props.node.method.parameters].sort((a, b) => (a.order || 0) - (b.order || 0))
-    sortedParams.forEach((param, index) => {
-      const config = {
-        paramName: param.name,
-        paramIndex: index,
-        paramType: param.type,
-        paramDescription: param.description || '',
-        nullable: param.nullable !== undefined ? param.nullable : false,
-        refType: 'input',  // 默认输入
-        inputValue: '',
-        referencePath: []
-      }
-      configs.push(config)
-    })
-  }
-  paramConfigs.value = configs
-}
-
-// ===== 从已有数据(已保存的dataMaps/nodeDefaults)回填参数配置 =====
-const restoreParamConfigsFromData = () => {
-  if (!props.node) return
-  const configs = []
-  if (props.node.method?.parameters && props.node.method.parameters.length > 0) {
-    const sortedParams = [...props.node.method.parameters].sort((a, b) => (a.order || 0) - (b.order || 0))
-    sortedParams.forEach((param, index) => {
-      const config = {
-        paramName: param.name,
-        paramIndex: index,
-        paramType: param.type,
-        paramDescription: param.description || '',
-        nullable: param.nullable !== undefined ? param.nullable : false,
-        refType: 'input',
-        inputValue: '',
-        referencePath: []
-      }
-
-      // 特殊处理 botQQ
-      if (param.name === 'botQQ') {
-        config.refType = 'input'
-        config.inputValue = localStorage.getItem('botQQ') || ''
-      }
-
-      // 检查是否有映射
-      const dataMaps = props.node.dataMaps || []
-      const map = dataMaps.find(m => m.targetParamName === param.name || m.targetPath === param.name)
-      if (map) {
-        config.refType = 'reference'
-        if (map.sourcePath && map.sourcePath !== 'value') {
-          // attr_ mapping
-          const attrName = map.sourcePath.replace('value.', '')
-          config.referencePath = [`node_${map.sourceNodeId}`, `attr_${map.sourceNodeId}_${attrName}`]
-        } else {
-          config.referencePath = [`node_${map.sourceNodeId}`, `value_${map.sourceNodeId}`]
-        }
-      } else {
-        // 检查默认值
-        const nodeDefaults = props.node.nodeDefaults || []
-        const def = nodeDefaults.find(d => d.paramName === param.name || d.fieldPath === param.name)
-        if (def) {
-          config.refType = 'input'
-          config.inputValue = def.defaultValue ?? ''
-        } else {
-          config.refType = 'input'
-          config.inputValue = ''
-        }
-      }
-
-      configs.push(config)
-    })
-  }
-  paramConfigs.value = configs
-}
-
-// ===== 获取级联选择器选中项的详细信息 =====
-const getReferenceInfo = (referencePath) => {
-  if (!referencePath || referencePath.length < 2) return { nodeId: null, path: '', typeName: '', description: '' }
-  for (const option of ancestorCascaderOptions.value) {
-    if (option.value === referencePath[0]) {
-      for (const child of option.children) {
-        if (child.value === referencePath[1]) {
-          return {
-            nodeId: child.nodeId,
-            path: child.path,
-            typeName: child.typeName,
-            description: child.description
-          }
-        }
-      }
-    }
-  }
-  return { nodeId: null, path: '', typeName: '', description: '' }
-}
-
-// ===== 检查所有参数是否已填充 =====
-const areAllParamsFilled = computed(() => {
-  if (!paramConfigs.value.length) return true
-  return paramConfigs.value.every(config => {
-    if (config.paramName === 'botQQ') return true
-    // 可空参数允许不填
-    if (config.nullable) return true
-    if (config.refType === 'input') {
-      return config.inputValue !== undefined && config.inputValue !== ''
-    }
-    if (config.refType === 'reference') {
-      return config.referencePath.length === 2
-    }
-    return false
-  })
-})
-
-// ===== 验证默认值 =====
-const validateDefaultValue = (value, type) => {
-  if (!value || value.trim() === '') return true
-  const bt = getBaseType(type)
-  try {
-    switch (bt) {
-      case 'String': return true
-      case 'Integer': case 'int': return Number.isInteger(Number(value))
-      case 'Long': case 'long': case 'Double': case 'double': case 'Float': case 'float': case 'BigInteger': case 'BigDecimal': return !isNaN(Number(value))
-      case 'Boolean': case 'boolean': return ['true', 'false', '1', '0'].includes(value.toLowerCase())
-      case 'Byte': case 'byte': const bv = Number(value); return !isNaN(bv) && bv >= -128 && bv <= 127
-      case 'Short': case 'short': const sv = Number(value); return !isNaN(sv) && sv >= -32768 && sv <= 32767
-      case 'Character': case 'char': return value.length === 1
-      case 'Date': case 'LocalDate': case 'LocalDateTime': case 'Timestamp': return !isNaN(new Date(value).getTime())
-      default: return true
-    }
-  } catch (e) { return false }
-}
-
-// ===== 保存 =====
-const saveConfig = async () => {
-  if (isScheduledEventNode.value) {
-    if (!selectedScheduledTime.value) { ElMessage.error('请选择执行间隔'); return }
-    isSaving.value = true
-    props.node.scheduledTime = selectedScheduledTime.value
-    emit('saveMapping', { dataMaps: [], nodeDefaults: [] })
-    emit('saveCondition', condition.value)
-    closePanel()
-    setTimeout(() => { isSaving.value = false }, 100)
-    return
-  }
-
-  if (!areAllParamsFilled.value) { ElMessage.error('请为所有参数设置数据映射或默认值'); return }
-
-  const newDataMaps = []
-  const newNodeDefaults = []
-
-  for (const config of paramConfigs.value) {
-    if (config.paramName === 'botQQ') {
-      newNodeDefaults.push({
-        id: Date.now().toString(),
-        paramIndex: config.paramIndex,
-        paramName: config.paramName,
-        fieldPath: config.paramName,
-        defaultValue: config.inputValue || localStorage.getItem('botQQ') || '',
-        defaultValueType: normalizeDefaultValueType(config.paramType)
-      })
-      continue
-    }
-
-    if (config.refType === 'reference') {
-      const ref = getReferenceInfo(config.referencePath)
-      if (!ref.nodeId) continue
-      let sourceType = ref.typeName || 'String'
-      let targetType = config.paramType || 'String'
-      newDataMaps.push({
-        id: Date.now().toString(),
-        sourceNodeId: ref.nodeId.toString(),
-        sourcePath: ref.path || 'value',
-        targetParamName: config.paramName,
-        paramIndex: config.paramIndex,
-        targetPath: config.paramName,
-        sourceType,
-        targetType
-      })
-    } else if (config.refType === 'input') {
-      if (config.inputValue !== undefined && config.inputValue !== '') {
-        if (!isBasicType(config.paramType)) {
-          ElMessage.warning(`参数 ${config.paramName} 类型 ${config.paramType} 不是基本数据类型，不能设置默认值`)
-          return
-        }
-        if (!validateDefaultValue(config.inputValue, config.paramType)) {
-          ElMessage.error(`参数 ${config.paramName} 的默认值不符合 ${config.paramType} 类型要求`)
-          return
-        }
-        newNodeDefaults.push({
-          id: Date.now().toString(),
-          paramIndex: config.paramIndex,
-          paramName: config.paramName,
-          fieldPath: config.paramName,
-          defaultValue: config.inputValue,
-          defaultValueType: normalizeDefaultValueType(config.paramType)
-        })
-      }
-    }
-  }
-
-  isSaving.value = true
-  emit('saveMapping', { dataMaps: newDataMaps, nodeDefaults: newNodeDefaults })
-  emit('saveCondition', condition.value)
-  closePanel()
-  setTimeout(() => { isSaving.value = false }, 100)
-}
-
-// ===== 关闭面板 =====
-const closePanel = () => {
-  emit('update:visible', false)
-}
-
-// ===== 初始化 =====
-const initPanel = () => {
-  if (isScheduledEventNode.value) {
-    selectedScheduledTime.value = props.node?.scheduledTime || null
-    return
-  }
-
-  // 初始化条件
-  if (props.node?.condition) {
-    condition.value = { ...props.node.condition }
-  } else {
-    condition.value = { id: Date.now().toString(), nodeId: props.node?.id || '', trueAction: 'CONTINUE', falseAction: 'CONTINUE' }
-  }
-
-  // 先初始化参数配置模板，再回填已保存数据
-  initParamConfigs()
-  restoreParamConfigsFromData()
-}
-
-onMounted(() => {
-  document.addEventListener('click', handleDocumentClick, true)
-})
-
-onUnmounted(() => {
-  document.removeEventListener('click', handleDocumentClick, true)
-})
-
-watch(() => props.visible, (newVal) => {
-  if (newVal) { initPanel() }
-})
-</script>
-
 <template>
   <transition name="panel-slide">
-    <div v-if="visible" class="config-panel-float" @click.stop>
+    <div v-if="visible && node" class="config-panel-float" @click.stop>
       <div class="panel-header">
-        <h3 class="panel-title">{{ node?.method?.name || '节点配置' }}</h3>
-        <el-button @click="closePanel" :icon="Close" circle size="small" class="panel-close-btn" />
+        <h3 class="panel-title">{{ node.descriptor?.name || '节点配置' }}</h3>
+        <el-button :icon="Close" circle size="small" class="panel-close-btn" @click="closePanel" />
       </div>
       <div class="panel-body">
-        <!-- 定时事件节点配置 -->
-        <div v-if="isScheduledEventNode" class="scheduled-event-config">
-          <h4>定时任务配置</h4>
-          <div class="scheduled-time-selector">
-            <label>执行间隔：</label>
-            <el-select v-model="selectedScheduledTime" placeholder="请选择执行间隔" style="width: 200px;">
-              <el-option v-for="option in scheduledTimeOptions" :key="option.value" :label="option.label" :value="option.value" />
-            </el-select>
+        <!-- 定时触发节点 -->
+        <template v-if="node.callable === 'system:schedule'">
+          <div class="scheduled-event-config">
+            <h4>定时任务配置</h4>
+            <el-radio-group
+              v-model="scheduleConfigMode"
+              size="small"
+              class="schedule-mode-switch"
+              @change="onScheduleModeChange"
+            >
+              <el-radio-button value="preset">快捷预设</el-radio-button>
+              <el-radio-button value="builder">拼接配置</el-radio-button>
+              <el-radio-button value="custom">手动 Cron</el-radio-button>
+            </el-radio-group>
+
+            <template v-if="scheduleConfigMode === 'preset'">
+              <div class="scheduled-time-selector">
+                <label>快捷配置：</label>
+                <el-select v-model="schedulePreset" placeholder="请选择快捷配置" style="width: 220px;" @change="onSchedulePresetChange">
+                  <el-option v-for="option in scheduleOptions" :key="option.value" :label="option.label" :value="option.value" />
+                </el-select>
+              </div>
+            </template>
+
+            <template v-else-if="scheduleConfigMode === 'builder'">
+              <div class="cron-builder">
+                <div v-for="segment in builderSegments" :key="segment.key" class="cron-builder-row">
+                  <span class="cron-field-label">{{ segment.label }}</span>
+                  <el-select v-model="segment.mode" size="small" style="width: 120px;" @change="onBuilderChange">
+                    <el-option v-for="mode in segment.modes" :key="mode.value" :label="mode.label" :value="mode.value" />
+                  </el-select>
+                  <el-input-number
+                    v-if="segment.mode === 'step'"
+                    v-model="segment.step"
+                    :min="segment.minStep"
+                    :max="segment.maxStep"
+                    :controls="false"
+                    size="small"
+                    style="width: 90px;"
+                    @change="onBuilderChange"
+                  />
+                  <span v-if="segment.mode === 'step'" class="cron-unit">{{ segment.unit }}</span>
+                  <el-select
+                    v-else-if="segment.mode === 'specify'"
+                    v-model="segment.values"
+                    multiple
+                    collapse-tags
+                    size="small"
+                    style="width: 200px;"
+                    placeholder="请选择"
+                    @change="onBuilderChange"
+                  >
+                    <el-option v-for="option in segment.options" :key="option.value" :label="option.label" :value="option.value" />
+                  </el-select>
+                </div>
+              </div>
+            </template>
+
+            <template v-else>
+              <div class="scheduled-time-selector">
+                <label>Cron 表达式：</label>
+                <el-input v-model="cronExpression" placeholder="例如 0 */5 * * * ?" style="width: 280px;" />
+              </div>
+            </template>
+
+            <div class="cron-preview">
+              <span class="cron-preview-label">最终 Cron：</span>
+              <code>{{ cronExpression }}</code>
+            </div>
+            <p class="schedule-hint">最短执行间隔为 5 分钟，保存时后端会校验 Cron 表达式。</p>
           </div>
-          <div class="scheduled-time-hint">
-            <p>提示：定时任务将按照设定的间隔自动触发工作流执行，最小间隔为1分钟</p>
-          </div>
+        </template>
+
+        <!-- BOT 事件触发节点 -->
+        <div v-else-if="node.callable.startsWith('system:botEvent:')" class="trigger-info">
+          <h4>BOT 事件触发</h4>
+          <p>该节点使用当前注册 BOT 的 QQ：{{ botQQText }}</p>
         </div>
 
-        <!-- 普通节点：数据映射配置 -->
+        <!-- 普通任务节点 -->
         <template v-else>
           <div class="mapping-section">
             <h4 class="section-title">数据映射与默认值</h4>
-            <!-- 每个参数一行 -->
-            <div class="param-rows">
-              <div v-for="(config, idx) in paramConfigs" :key="idx" class="param-row">
-                <div class="param-name-col">
-                  <div class="param-name-row">
-                    <span class="param-name">
-                      <span v-if="!config.nullable" class="param-required">*</span>
-                      {{ config.paramName }}
-                    </span>
-                    <span class="param-type">{{ config.paramType }}</span>
+            <div v-for="(config, idx) in paramConfigs" :key="idx" class="param-row">
+              <div class="param-name-col">
+                <span class="param-name">
+                  <span v-if="!config.nullable" class="param-required">*</span>
+                  {{ config.paramName }}
+                </span>
+                <span class="param-type">{{ config.paramType }}</span>
+                <span v-if="config.paramDescription" class="param-desc">{{ config.paramDescription }}</span>
+              </div>
+              <div class="param-ref-col">
+                <el-select v-model="config.mode" size="small" style="width: 100px;" :disabled="config.locked" @change="onModeChange(config)">
+                  <el-option label="引用" value="source" />
+                  <el-option label="默认值" value="default" />
+                </el-select>
+              </div>
+              <div class="param-value-col">
+                <!-- 来源模式：选择节点 + 返回字段，并做类型校验 -->
+                <template v-if="config.mode === 'source'">
+                  <div class="source-picker-row">
+                    <el-select
+                      v-model="config.sourceNodeId"
+                      placeholder="来源节点"
+                      size="small"
+                      class="source-node-select"
+                      @change="onSourceNodeChange(config)"
+                    >
+                      <el-option
+                        v-for="sourceNode in ancestorNodes"
+                        :key="sourceNode.id"
+                        :label="getNodeName(sourceNode)"
+                        :value="sourceNode.id"
+                      />
+                    </el-select>
+                    <el-select
+                      v-model="config.sourceFieldPath"
+                      placeholder="返回字段"
+                      size="small"
+                      class="source-field-select"
+                      @change="onSourceFieldChange(config)"
+                    >
+                      <el-option
+                        v-for="field in config.sourceFields"
+                        :key="field.selectValue"
+                        :label="fieldLabel(field)"
+                        :value="field.selectValue"
+                      />
+                    </el-select>
                   </div>
-                  <span v-if="config.paramDescription" class="param-desc">{{ config.paramDescription }}</span>
-                </div>
-                <div class="param-ref-col">
-                  <el-select v-model="config.refType" placeholder="选择方式" size="small" style="width: 100px;" :disabled="config.paramName === 'botQQ'">
-                    <el-option label="引用" value="reference" />
-                    <el-option label="输入" value="input" />
-                  </el-select>
-                </div>
-                <div class="param-value-col">
-                  <!-- 输入模式 -->
-                  <el-input
-                    v-if="config.refType === 'input'"
-                    v-model="config.inputValue"
-                    placeholder="请输入值"
+                </template>
+
+                <!-- 默认值模式：按参数类型展示输入控件 -->
+                <template v-else>
+                  <el-select
+                    v-if="isBooleanType(config.paramType)"
+                    v-model="config.defaultValue"
                     size="small"
                     style="width: 100%;"
-                    :disabled="config.paramName === 'botQQ' || !isBasicType(config.paramType)"
-                  />
-                  <span v-if="config.paramName === 'botQQ' && config.refType === 'input'" class="hint-text">已预填充</span>
-                  <!-- 引用模式 -->
-                  <el-popover
-                    v-else-if="config.refType === 'reference'"
-                    trigger="manual"
-                    :visible="cascaderOpenIdx === idx"
-                    placement="bottom-start"
-                    :width="440"
-                    :offset="4"
-                    popper-class="custom-cascader-popper"
+                    :disabled="config.locked"
+                    @change="onDefaultChange(config)"
                   >
-                    <template #reference>
-                      <div class="cascader-trigger" @click.stop="toggleCascader(idx)">
-                        <span v-if="config.referencePath.length === 2" class="trigger-content">
-                          <span class="trigger-node">{{ getCascaderTriggerNode(config.referencePath) }}</span>
-                          <span class="trigger-sep">/</span>
-                          <span class="trigger-return">{{ getCascaderTriggerReturn(config.referencePath) }}</span>
-                          <span v-if="getCascaderDescText(config.referencePath)" class="trigger-desc">({{ getCascaderDescText(config.referencePath) }})</span>
-                        </span>
-                        <span v-else class="trigger-placeholder">选择前置节点</span>
-                        <span class="trigger-arrow">▼</span>
-                      </div>
-                    </template>
-                    <div class="cascader-panel-custom">
-                      <!-- 第一层：祖先节点 -->
-                      <div class="cascader-level">
-                        <div class="level-label">选择节点</div>
-                        <div class="level-list">
-                          <div
-                            v-for="option in ancestorCascaderOptions"
-                            :key="option.value"
-                            class="cascader-option"
-                            :class="{ active: cascaderActiveNode?.value === option.value }"
-                            @mouseenter="selectCascaderNode(idx, option)"
-                          >
-                            <span class="option-main">{{ option.nodeName }}</span>
-                            <span v-if="option.nodeDescription" class="option-desc">({{ option.nodeDescription }})</span>
-                          </div>
-                          <div v-if="ancestorCascaderOptions.length === 0" class="level-empty">无前置节点</div>
-                        </div>
-                      </div>
-                      <!-- 第二层：返回值 -->
-                      <div class="cascader-level cascader-level-right">
-                        <div class="level-label">选择返回值</div>
-                        <div class="level-list">
-                          <template v-if="cascaderActiveNode">
-                            <div
-                              v-for="child in cascaderActiveNodeChildren"
-                              :key="child.value"
-                              class="cascader-option"
-                              :class="{ active: config.referencePath[1] === child.value }"
-                              @click="selectCascaderValue(idx, child)"
-                            >
-                              <span class="option-main">{{ child.returnName || child.label }}</span>
-                              <span v-if="child.returnDescription" class="option-desc">({{ child.returnDescription }})</span>
-                            </div>
-                          </template>
-                          <div v-else class="level-hint">
-                            ← 请先选择左侧节点
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </el-popover>
-                </div>
+                    <el-option :value="true" label="true" />
+                    <el-option :value="false" label="false" />
+                  </el-select>
+                  <el-input-number
+                    v-else-if="isNumericType(config.paramType)"
+                    v-model="config.defaultValue"
+                    :controls="false"
+                    :precision="isFloatType(config.paramType) ? 6 : 0"
+                    size="small"
+                    style="width: 100%;"
+                    :disabled="config.locked"
+                    @change="onDefaultChange(config)"
+                  />
+                  <el-input
+                    v-else
+                    v-model="config.defaultValue"
+                    :placeholder="defaultPlaceholder(config.paramType)"
+                    size="small"
+                    style="width: 100%;"
+                    :disabled="config.locked"
+                    @input="onDefaultChange(config)"
+                  />
+                </template>
+
+                <div v-if="config.locked" class="locked-hint">已自动填充当前 QQ，不可修改</div>
+                <div v-if="config.error" class="type-error">{{ config.error }}</div>
               </div>
             </div>
-            <!-- 无参数提示 -->
-            <div v-if="paramConfigs.length === 0" class="no-params-hint">
-              该节点无需配置参数
-            </div>
+            <div v-if="paramConfigs.length === 0" class="no-params-hint">该节点无需配置参数</div>
           </div>
 
-          <!-- 条件配置（仅布尔返回类型） -->
-          <div v-if="canSetCondition" class="condition-section">
-            <h4 class="section-title">条件配置</h4>
-            <el-form label-width="170px">
-              <el-form-item label="返回值为 true 时执行">
-                <el-select v-model="condition.trueAction" placeholder="请选择执行动作">
-                  <el-option label="继续执行" value="CONTINUE" />
-                  <el-option label="结束当前分支" value="BREAK" />
-                  <el-option label="结束整个工作流" value="END" />
-                </el-select>
-              </el-form-item>
-              <el-form-item label="返回值为 false 时执行">
-                <el-select v-model="condition.falseAction" placeholder="请选择执行动作">
-                  <el-option label="继续执行" value="CONTINUE" />
-                  <el-option label="结束当前分支" value="BREAK" />
-                  <el-option label="结束整个工作流" value="END" />
-                </el-select>
-              </el-form-item>
-            </el-form>
+          <div v-if="canBranch" class="branch-section">
+            <h4 class="section-title">分支设置</h4>
+            <el-checkbox v-model="branch">作为分支节点（成功/失败两个输出口）</el-checkbox>
+            <p class="branch-hint">分支节点根据方法返回的 Boolean 值选择 success/failure 出边。</p>
           </div>
         </template>
       </div>
       <div class="panel-footer">
         <el-button @click="closePanel">取消</el-button>
-        <el-button type="primary" @click="saveConfig" :loading="isSaving">保存</el-button>
+        <el-button type="primary" @click="saveConfig">保存</el-button>
       </div>
     </div>
   </transition>
 </template>
 
+<script setup>
+import { ref, watch, computed } from 'vue'
+import { ElButton, ElSelect, ElOption, ElInput, ElInputNumber, ElCheckbox, ElMessage } from 'element-plus'
+import { Close } from '@element-plus/icons-vue'
+import { isBooleanReturn, isTypeCompatible, sortParameters, getNodeName } from '../../utils/workflow'
+
+const props = defineProps({
+  visible: { type: Boolean, default: false },
+  node: { type: Object, default: null },
+  allNodes: { type: Array, default: () => [] },
+  allEdges: { type: Array, default: () => [] }
+})
+
+const emit = defineEmits(['update:visible', 'saveConfig'])
+
+const scheduleOptions = [
+  { label: '每 5 分钟', value: 'every5', cron: '0 */5 * * * ?' },
+  { label: '每 10 分钟', value: 'every10', cron: '0 */10 * * * ?' },
+  { label: '每 15 分钟', value: 'every15', cron: '0 */15 * * * ?' },
+  { label: '每 30 分钟', value: 'every30', cron: '0 */30 * * * ?' },
+  { label: '每小时', value: 'hourly', cron: '0 0 * * * ?' },
+  { label: '每天 0 点', value: 'daily', cron: '0 0 0 * * ?' },
+  { label: '每周一 9 点', value: 'weeklyMon', cron: '0 0 9 ? * MON' },
+  { label: '自定义', value: 'custom', cron: '' }
+]
+
+const cronExpression = ref('0 */5 * * * ?')
+const schedulePreset = ref('every5')
+const scheduleConfigMode = ref('preset')
+const paramConfigs = ref([])
+const branch = ref(false)
+const botQQText = localStorage.getItem('botQQ') || '未配置'
+
+const rangeOptions = (min, max) => {
+  const options = []
+  for (let i = min; i <= max; i++) {
+    options.push({ value: String(i), label: String(i) })
+  }
+  return options
+}
+
+const weekOptions = [
+  { value: 'MON', label: '周一' },
+  { value: 'TUE', label: '周二' },
+  { value: 'WED', label: '周三' },
+  { value: 'THU', label: '周四' },
+  { value: 'FRI', label: '周五' },
+  { value: 'SAT', label: '周六' },
+  { value: 'SUN', label: '周日' }
+]
+
+const builderSegments = ref([
+  {
+    key: 'second', label: '秒', mode: 'specify', step: 5, values: ['0'],
+    minStep: 1, maxStep: 59, unit: '秒',
+    modes: [{ value: 'every', label: '每秒' }, { value: 'step', label: '每 N 秒' }, { value: 'specify', label: '指定' }],
+    options: rangeOptions(0, 59)
+  },
+  {
+    key: 'minute', label: '分', mode: 'step', step: 5, values: [],
+    minStep: 1, maxStep: 59, unit: '分',
+    modes: [{ value: 'every', label: '每分' }, { value: 'step', label: '每 N 分' }, { value: 'specify', label: '指定' }],
+    options: rangeOptions(0, 59)
+  },
+  {
+    key: 'hour', label: '时', mode: 'every', step: 1, values: [],
+    minStep: 1, maxStep: 23, unit: '时',
+    modes: [{ value: 'every', label: '每小时' }, { value: 'step', label: '每 N 时' }, { value: 'specify', label: '指定' }],
+    options: rangeOptions(0, 23)
+  },
+  {
+    key: 'day', label: '日', mode: 'every', step: 1, values: [],
+    minStep: 1, maxStep: 31, unit: '日',
+    modes: [{ value: 'every', label: '每天' }, { value: 'none', label: '不指定' }, { value: 'specify', label: '指定' }],
+    options: rangeOptions(1, 31)
+  },
+  {
+    key: 'month', label: '月', mode: 'every', step: 1, values: [],
+    minStep: 1, maxStep: 12, unit: '月',
+    modes: [{ value: 'every', label: '每月' }, { value: 'specify', label: '指定' }],
+    options: rangeOptions(1, 12)
+  },
+  {
+    key: 'week', label: '周', mode: 'none', step: 1, values: [],
+    minStep: 1, maxStep: 7, unit: '周',
+    modes: [{ value: 'none', label: '不指定' }, { value: 'every', label: '每周' }, { value: 'specify', label: '指定' }],
+    options: weekOptions
+  }
+])
+
+const canBranch = computed(() => {
+  return props.node?.descriptor && isBooleanReturn(props.node.descriptor.returnType)
+})
+
+// 沿连线反向遍历，收集当前节点的全部祖先节点
+const ancestorNodes = computed(() => {
+  const result = []
+  if (!props.node?.id) return result
+  const visited = new Set([props.node.id])
+  const queue = [props.node.id]
+  while (queue.length > 0) {
+    const currentId = queue.shift()
+    for (const edge of props.allEdges || []) {
+      if (edge.toNode === currentId && !visited.has(edge.fromNode)) {
+        visited.add(edge.fromNode)
+        const sourceNode = props.allNodes.find(node => node.id === edge.fromNode)
+        if (sourceNode) {
+          result.push(sourceNode)
+          queue.push(sourceNode.id)
+        }
+      }
+    }
+  }
+  return result
+})
+
+const initPanel = () => {
+  if (!props.node) return
+  branch.value = !!props.node.branch
+  if (props.node.callable === 'system:schedule') {
+    cronExpression.value = props.node.config?.cronExpression || '0 */5 * * * ?'
+    const matched = scheduleOptions.find(option => option.value !== 'custom' && option.cron === cronExpression.value)
+    schedulePreset.value = matched ? matched.value : 'custom'
+    if (matched) {
+      scheduleConfigMode.value = 'preset'
+    } else if (parseCronToBuilder(cronExpression.value)) {
+      scheduleConfigMode.value = 'builder'
+    } else {
+      scheduleConfigMode.value = 'custom'
+    }
+    return
+  }
+  const parameters = sortParameters(props.node.descriptor?.parameters)
+  paramConfigs.value = parameters.map((param, index) => {
+    const existing = props.node.inputs?.find(input => input.paramIndex === index)
+    const hasDefault = existing?.defaultValue !== undefined && existing?.defaultValue !== null
+    const mode = existing?.source ? 'source' : (hasDefault ? 'default' : 'source')
+    let sourceNodeId = ''
+    let sourceFieldPath = ''
+    let source = ''
+    if (existing?.source) {
+      source = String(existing.source)
+      const parts = source.split('.')
+      sourceNodeId = parts[0]
+      sourceFieldPath = parts.slice(1).join('.')
+    }
+    const config = {
+      paramName: param.name,
+      paramType: param.type,
+      paramDescription: param.description || '',
+      nullable: !!param.nullable,
+      mode,
+      sourceNodeId,
+      sourceFieldPath,
+      source,
+      sourceFields: [],
+      defaultValue: existing?.defaultValue ?? '',
+      error: '',
+      locked: param.name === 'botQQ'
+    }
+    if (config.locked) {
+      config.mode = 'default'
+      config.source = ''
+      config.sourceNodeId = ''
+      config.sourceFieldPath = ''
+      config.defaultValue = botQQText
+    } else {
+      config.sourceFields = getSourceFields(config.sourceNodeId)
+      if (sourceFieldPath === '' && sourceNodeId) {
+        config.sourceFieldPath = '__whole__'
+      }
+    }
+    if (mode === 'source') {
+      validateSource(config)
+    } else {
+      validateDefault(config)
+    }
+    return config
+  })
+}
+
+const isBooleanType = (type) => {
+  return String(type || '').toLowerCase() === 'boolean'
+}
+
+const isNumericType = (type) => {
+  return ['int', 'integer', 'long', 'short', 'byte', 'double', 'float'].includes(String(type || '').toLowerCase())
+}
+
+const isFloatType = (type) => {
+  return ['double', 'float'].includes(String(type || '').toLowerCase())
+}
+
+const isObjectType = (type) => {
+  return String(type || '').toLowerCase() === 'object'
+}
+
+const defaultPlaceholder = (type) => {
+  if (isObjectType(type)) return '请输入 JSON'
+  if (isNumericType(type)) return '请输入数字'
+  return '请输入值'
+}
+
+// 获取来源节点可选的返回字段
+const getSourceFields = (nodeId) => {
+  const sourceNode = props.allNodes.find(node => node.id === nodeId)
+  if (!sourceNode) return []
+  const fields = sourceNode.descriptor?.returnFields
+  const list = fields?.length
+    ? fields
+    : [{
+    name: '返回值',
+    type: sourceNode.descriptor?.returnType || 'Object',
+    description: '整个返回值',
+    path: ''
+  }]
+  return list.map(field => ({
+    ...field,
+    selectValue: field.path === '' ? '__whole__' : field.path
+  }))
+}
+
+const fieldLabel = (field) => {
+  const label = `${field.name} (${field.type})`
+  return field.description ? `${label} - ${field.description}` : label
+}
+
+const onSchedulePresetChange = () => {
+  if (schedulePreset.value === 'custom') return
+  const option = scheduleOptions.find(item => item.value === schedulePreset.value)
+  if (option) {
+    cronExpression.value = option.cron
+    parseCronToBuilder(cronExpression.value)
+  }
+}
+
+const onScheduleModeChange = (mode) => {
+  if (mode === 'builder' && !parseCronToBuilder(cronExpression.value)) {
+    cronExpression.value = '0 */5 * * * ?'
+    parseCronToBuilder(cronExpression.value)
+  }
+}
+
+const findBuilderSegment = (key) => builderSegments.value.find(segment => segment.key === key)
+
+const fieldValue = (segment) => {
+  if (segment.mode === 'every') return '*'
+  if (segment.mode === 'none') return '?'
+  if (segment.mode === 'step') return `*/${segment.step}`
+  return (segment.values || []).join(',') || '*'
+}
+
+const buildCronFromSegments = () => {
+  let day = fieldValue(findBuilderSegment('day'))
+  let week = fieldValue(findBuilderSegment('week'))
+  if (day !== '?' && week !== '?') week = '?'
+  if (day === '?' && week === '?') day = '*'
+  return [
+    fieldValue(findBuilderSegment('second')),
+    fieldValue(findBuilderSegment('minute')),
+    fieldValue(findBuilderSegment('hour')),
+    day,
+    fieldValue(findBuilderSegment('month')),
+    week
+  ].join(' ')
+}
+
+const applyCronValue = (segment, value) => {
+  if (value === '*') {
+    segment.mode = 'every'
+    segment.values = []
+  } else if (value === '?') {
+    segment.mode = 'none'
+    segment.values = []
+  } else if (value.startsWith('*/')) {
+    segment.mode = 'step'
+    segment.step = Number(value.slice(2)) || segment.step
+  } else {
+    segment.mode = 'specify'
+    segment.values = value.split(',').filter(Boolean)
+  }
+}
+
+const parseCronToBuilder = (cron) => {
+  const parts = String(cron || '').trim().split(/\s+/)
+  if (parts.length !== 6) return false
+  applyCronValue(findBuilderSegment('second'), parts[0])
+  applyCronValue(findBuilderSegment('minute'), parts[1])
+  applyCronValue(findBuilderSegment('hour'), parts[2])
+  applyCronValue(findBuilderSegment('day'), parts[3])
+  applyCronValue(findBuilderSegment('month'), parts[4])
+  applyCronValue(findBuilderSegment('week'), parts[5])
+  return true
+}
+
+const onBuilderChange = () => {
+  cronExpression.value = buildCronFromSegments()
+  schedulePreset.value = 'custom'
+}
+
+const onModeChange = (config) => {
+  if (config.locked) return
+  config.error = ''
+  if (config.mode === 'source') validateSource(config)
+  else validateDefault(config)
+}
+
+const onSourceNodeChange = (config) => {
+  config.sourceFields = getSourceFields(config.sourceNodeId)
+  config.sourceFieldPath = ''
+  config.source = ''
+  config.error = ''
+}
+
+const onSourceFieldChange = (config) => {
+  const field = config.sourceFields.find(item => item.selectValue === config.sourceFieldPath)
+  if (!field) {
+    config.source = ''
+    config.error = '请选择返回字段'
+    return
+  }
+  config.source = field.path ? `${config.sourceNodeId}.${field.path}` : config.sourceNodeId
+  validateSource(config)
+}
+
+const validateSource = (config) => {
+  if (!config.sourceNodeId) {
+    config.error = '请选择来源节点'
+    return false
+  }
+  const field = config.sourceFields.find(item => item.selectValue === config.sourceFieldPath)
+  if (!field) {
+    config.error = '请选择返回字段'
+    return false
+  }
+  if (!isTypeCompatible(field.type, config.paramType)) {
+    config.error = `类型不兼容：${field.type} -> ${config.paramType}`
+    return false
+  }
+  config.error = ''
+  return true
+}
+
+const onDefaultChange = (config) => {
+  validateDefault(config)
+}
+
+const validateDefault = (config) => {
+  if (config.locked) {
+    config.error = ''
+    return true
+  }
+  const value = config.defaultValue
+  if (value === undefined || value === null || value === '') {
+    config.error = config.nullable ? '' : '请填写默认值'
+    return !config.nullable ? false : true
+  }
+  if (isBooleanType(config.paramType)) {
+    config.error = (value === true || value === false || value === 'true' || value === 'false') ? '' : '默认值必须是 true/false'
+  } else if (isNumericType(config.paramType)) {
+    const num = Number(value)
+    config.error = Number.isNaN(num) ? '默认值必须是数字' : ''
+  } else if (isObjectType(config.paramType)) {
+    try {
+      if (typeof value === 'string') JSON.parse(value)
+      config.error = ''
+    } catch (e) {
+      config.error = '默认值必须是合法 JSON'
+    }
+  } else {
+    config.error = ''
+  }
+  return !config.error
+}
+
+const parseDefaultValue = (value, type) => {
+  if (value === undefined || value === null || value === '') return null
+  if (isBooleanType(type)) {
+    return value === true || value === 'true'
+  }
+  if (isNumericType(type)) {
+    const num = Number(value)
+    return Number.isNaN(num) ? null : num
+  }
+  if (isObjectType(type)) {
+    return typeof value === 'string' ? JSON.parse(value) : value
+  }
+  return String(value)
+}
+
+const saveConfig = () => {
+  if (props.node.callable === 'system:schedule') {
+    emit('saveConfig', {
+      inputs: [],
+      branch: false,
+      config: { ...props.node.config, cronExpression: cronExpression.value }
+    })
+    closePanel()
+    return
+  }
+  if (props.node.callable.startsWith('system:botEvent:')) {
+    emit('saveConfig', {
+      inputs: [],
+      branch: false,
+      config: props.node.config || {}
+    })
+    closePanel()
+    return
+  }
+
+  for (const config of paramConfigs.value) {
+    if (config.locked) {
+      config.defaultValue = botQQText
+    }
+    if (config.mode === 'source') {
+      const valid = validateSource(config)
+      if (!valid) {
+        ElMessage.error(`参数 ${config.paramName}：${config.error}`)
+        return
+      }
+    } else {
+      const valid = validateDefault(config)
+      if (!valid) {
+        ElMessage.error(`参数 ${config.paramName}：${config.error}`)
+        return
+      }
+    }
+  }
+
+  const inputs = paramConfigs.value.map((config, index) => {
+    if (config.mode === 'source') {
+      return {
+        paramIndex: index,
+        source: config.source || '',
+        defaultValue: null
+      }
+    }
+    return {
+      paramIndex: index,
+      source: '',
+      defaultValue: parseDefaultValue(config.defaultValue, config.paramType)
+    }
+  })
+  emit('saveConfig', {
+    inputs,
+    branch: branch.value,
+    config: props.node.config || {}
+  })
+  closePanel()
+}
+
+const closePanel = () => {
+  emit('update:visible', false)
+}
+
+watch(() => props.visible, (visible) => {
+  if (visible) initPanel()
+})
+</script>

@@ -1,56 +1,57 @@
 <template>
-  <div 
+  <div
     class="workflow-node"
     :class="[
       { 'node-selected': isSelected },
-      executionStatus ? (executionStatus.failed ? 'node-failed' : 'node-success') : ''
+      { 'node-branch': node.branch },
+      executionStatus ? (executionStatus.status === 'FAILED' ? 'node-failed' : 'node-success') : ''
     ]"
     :data-node-id="node.id"
     :style="{ left: node.x + 'px', top: node.y + 'px' }"
     @mousedown.stop="handleNodeMouseDown"
-    @mousemove="handleNodeMouseMove"
-    @mouseup="handleNodeMouseUp"
-    @mouseleave="handleNodeMouseLeave"
     @click.stop
     @contextmenu="handleNodeContextMenu"
     @dblclick="handleNodeDblClick"
   >
     <div class="node-body">
-      <div 
-        v-if="node.method && node.method.parameters && node.method.parameters.length > 0"
+      <div
         class="node-dot node-dot-left"
-        :class="{ 'node-dot-filled': isPortConnected(node.id, 'left') }"
         @mousedown="handlePortMouseDown($event, node, 'left')"
       ></div>
       <div class="node-content-inner">
         <div class="node-header">
           <span class="node-method-name">{{ getNodeName(node) }}</span>
         </div>
-        <div v-if="node.method && node.method.description" class="node-description">
-          {{ node.method.description }}
+        <div v-if="node.descriptor?.description" class="node-description">
+          {{ node.descriptor.description }}
         </div>
-        <div class="node-params">
-          <span v-for="(param, index) in sortedParameters" :key="index" class="node-param">
+        <div v-if="sortedParameters.length > 0" class="node-params">
+          <span v-for="param in sortedParameters" :key="param.name" class="node-param">
             {{ param.type }} {{ param.name }}
           </span>
         </div>
         <div class="node-return">
           <span class="return-label">返回值:</span>
-          <span class="return-type">{{ node.method ? node.method.returnType : 'void' }}</span>
+          <span class="return-type">{{ node.descriptor?.returnType || 'void' }}</span>
         </div>
       </div>
-      <div 
-        v-if="node.method && (node.method.returnType && node.method.returnType !== 'void' || node.nodeType === 'botEvent' && node.eventType === 'scheduledEvent')"
-        class="node-dot node-dot-right"
-        :class="{ 'node-dot-filled': isPortConnected(node.id, 'right') }"
-        @mousedown="handlePortMouseDown($event, node, 'right')"
-      ></div>
+      <div class="node-outputs">
+        <div
+          v-for="port in outputPorts"
+          :key="port"
+          class="node-dot node-dot-right"
+          :class="[`node-dot-${port}`, { 'node-dot-filled': isRightPortConnected(node.id, port) }]"
+          :title="port === 'success' ? '成功输出' : '失败输出'"
+          @mousedown="handlePortMouseDown($event, node, port)"
+        ></div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { computed } from 'vue'
+import { getNodeName, getNodePorts, sortParameters } from '../../utils/workflow'
 
 const props = defineProps({
   node: {
@@ -61,6 +62,10 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
+  connections: {
+    type: Array,
+    default: () => []
+  },
   executionStatus: {
     type: Object,
     default: null
@@ -69,82 +74,36 @@ const props = defineProps({
 
 const emit = defineEmits([
   'nodeMouseDown',
-  'nodeMouseMove',
-  'nodeMouseUp',
-  'nodeMouseLeave',
   'nodeContextMenu',
   'nodeDblClick',
   'portMouseDown'
 ])
 
-// 计算属性：排序后的参数
-const sortedParameters = computed(() => {
-  if (!props.node.method || !props.node.method.parameters) return []
-  return [...props.node.method.parameters].sort((a, b) => {
-    // 首先按照 order 字段排序
-    const orderDiff = (a.order || 0) - (b.order || 0)
-    if (orderDiff !== 0) {
-      return orderDiff
-    }
-    // 如果 order 相同，按照参数名排序
-    return a.name.localeCompare(b.name)
-  })
-})
+const outputPorts = computed(() => getNodePorts(props.node))
 
-// 获取节点名称
-const getNodeName = (node) => {
-  if (node.nodeType === 'botEvent') {
-    return node.botEventName || 'BOT 事件'
-  } else if (node.nodeType === 'botAction') {
-    return node.botActionName || 'BOT 动作'
-  } else {
-    return node.method ? node.method.name : '未知方法'
-  }
+const isRightPortConnected = (nodeId, port) => {
+  return props.connections.some(connection =>
+    connection.fromNode === nodeId && (connection.port || 'success') === port)
 }
 
-// 检查链接点是否已连接
-const isPortConnected = (nodeId, port) => {
-  // 这里需要从父组件传入，暂时留空
-  return false
-}
+const sortedParameters = computed(() => sortParameters(props.node.descriptor?.parameters))
 
-// 节点鼠标按下事件
 const handleNodeMouseDown = (e) => {
-  e.stopPropagation() // 阻止事件冒泡，避免触发画布拖动
   emit('nodeMouseDown', e, props.node)
 }
 
-// 节点鼠标移动事件
-const handleNodeMouseMove = (e) => {
-  emit('nodeMouseMove', e, props.node)
-}
-
-// 节点鼠标释放事件
-const handleNodeMouseUp = (e) => {
-  emit('nodeMouseUp', e, props.node)
-}
-
-// 节点鼠标离开事件
-const handleNodeMouseLeave = (e) => {
-  emit('nodeMouseLeave', e, props.node)
-}
-
-// 节点右键菜单事件
 const handleNodeContextMenu = (e) => {
   e.preventDefault()
   e.stopPropagation()
   emit('nodeContextMenu', e, props.node)
 }
 
-// 节点双击事件
 const handleNodeDblClick = () => {
   emit('nodeDblClick', props.node)
 }
 
-// 链接点鼠标按下事件
 const handlePortMouseDown = (e, node, port) => {
   e.stopPropagation()
   emit('portMouseDown', e, node, port)
 }
 </script>
-

@@ -279,7 +279,7 @@ body {
 }
 .global-menu-wrapper .global-menu .el-menu-item:hover {
   background: rgba(74, 144, 217, 0.15);
-  color: var(--app-primary-soft);
+  color: var(--app-primary);
   border-color: rgba(74, 144, 217, 0.2);
 }
 .global-menu-wrapper .global-menu .el-menu-item.is-active {
@@ -309,7 +309,7 @@ body {
 }
 .global-menu-wrapper .global-menu .el-sub-menu__title:hover {
   background: rgba(74, 144, 217, 0.15);
-  color: var(--app-primary-soft);
+  color: var(--app-primary);
   border-color: rgba(74, 144, 217, 0.2);
 }
 .global-menu-wrapper .global-menu .el-sub-menu.is-active > .el-sub-menu__title,.global-menu-wrapper .global-menu .el-sub-menu.is-opened > .el-sub-menu__title {
@@ -3665,7 +3665,7 @@ body {
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
   font-size: 13px;
   line-height: 1.6;
-  color: var(--app-border);
+  color: var(--app-text);
   white-space: pre-wrap;
   word-break: break-all;
 }
@@ -3731,7 +3731,7 @@ body {
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
   font-size: 14px;
   line-height: 1.6;
-  color: var(--app-border);
+  color: var(--app-text);
   white-space: pre-wrap;
   word-break: break-all;
 }
@@ -4780,7 +4780,7 @@ body {
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
   font-size: 14px;
   line-height: 1.6;
-  color: var(--app-border);
+  color: var(--app-text);
   white-space: pre-wrap;
   word-break: break-all;
 }
@@ -5369,20 +5369,18 @@ to { opacity: 1; transform: translateY(0);
   max-height: 120px;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 10px 12px;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  padding: 12px;
 }
 .json-viewer-scroll::-webkit-scrollbar.workflow-edit-view::-webkit-scrollbar,
 .workflow-edit-view .json-viewer-scroll::-webkit-scrollbar {
-  display: none;
+  display: block;
 }
 .workflow-edit-view .json-viewer pre {
   margin: 0;
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--app-border);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--app-text);
   white-space: pre-wrap;
   word-break: break-all;
 }
@@ -5392,10 +5390,6 @@ to { opacity: 1; transform: translateY(0);
   right: 8px;
   font-size: 10px;
   color: rgba(255, 255, 255, 0.4);
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-.workflow-edit-view .json-viewer:hover .viewer-hint {
   opacity: 1;
 }
 .workflow-edit-view .json-viewer-error pre {
@@ -6211,4 +6205,174 @@ to { opacity: 1; transform: translateY(0);
   font-size: 13px;
   color: var(--app-text-disabled);
   text-align: center;
+}
+
+/* ===== 新工作流模型（callable + edges）补充样式 ===== */
+.workflow-edit-view .node-outputs {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  pointer-events: none;
+}
+.workflow-edit-view .node-dot {
+  pointer-events: auto;
+}
+.workflow-edit-view .node-dot-success,
+.workflow-edit-view .node-dot-failure {
+  right: -7px;
+  transform: translateY(-50%);
+}
+.workflow-edit-view .node-dot-success {
+  top: 50%;
+}
+.workflow-edit-view .node-branch .node-dot-success {
+  top: 35%;
+}
+.workflow-edit-view .node-dot-failure {
+  top: 75%;
+  border-color: var(--app-danger);
+}
+.workflow-edit-view .node-dot-failure.node-dot-filled,
+.workflow-edit-view .workflow-node:hover .node-dot-failure {
+  background-color: var(--app-danger);
+}
+.workflow-edit-view .port-label {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  line-height: 1;
+  color: var(--app-text-muted);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.workflow-edit-view .node-type-tag {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  line-height: 16px;
+  background: var(--app-primary-soft);
+  color: var(--app-primary);
+  flex-shrink: 0;
+}
+.workflow-edit-view .trigger-info p {
+  color: var(--app-text-soft);
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 8px 0 0;
+}
+.workflow-edit-view .branch-section {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--app-border);
+}
+.workflow-edit-view .branch-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--app-text-muted);
+}
+.workflow-edit-view .json-text,
+.workflow-edit-view .error-box pre,
+.workflow-edit-view .detail-row pre {
+  margin: 0;
+  padding: 10px;
+  background: var(--app-bg-muted);
+  border: 1px solid var(--app-border);
+  border-radius: 4px;
+  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--app-text);
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.workflow-edit-view .json-text-error {
+  color: var(--app-danger);
+}
+.workflow-edit-view .error-box {
+  margin-bottom: 12px;
+}
+.workflow-edit-view .error-box h4 {
+  margin: 0 0 6px;
+}
+.workflow-edit-view .detail-row {
+  margin-top: 6px;
+}
+.workflow-edit-view .detail-label {
+  font-size: 12px;
+  color: var(--app-text-muted);
+  margin-right: 6px;
+}
+.workflow-edit-view .source-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+.workflow-edit-view .source-picker-row .el-select {
+  flex: 1;
+  min-width: 0;
+}
+.workflow-edit-view .type-error {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--app-danger);
+  word-break: break-all;
+}
+.workflow-edit-view .locked-hint {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--app-text-muted);
+}
+.workflow-edit-view .schedule-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--app-text-muted);
+}
+.workflow-edit-view .schedule-mode-switch {
+  margin-bottom: 12px;
+}
+.workflow-edit-view .cron-builder {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+.workflow-edit-view .cron-builder-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.workflow-edit-view .cron-field-label {
+  width: 28px;
+  font-size: 13px;
+  color: var(--app-text-soft);
+  flex-shrink: 0;
+}
+.workflow-edit-view .cron-unit {
+  font-size: 12px;
+  color: var(--app-text-muted);
+}
+.workflow-edit-view .cron-preview {
+  margin-top: 12px;
+  padding: 8px 10px;
+  background: var(--app-bg-muted);
+  border: 1px solid var(--app-border);
+  border-radius: 4px;
+  font-size: 12px;
+}
+.workflow-edit-view .cron-preview-label {
+  color: var(--app-text-muted);
+  margin-right: 6px;
+}
+.workflow-edit-view .cron-preview code {
+  color: var(--app-primary);
+  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
 }

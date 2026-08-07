@@ -1,267 +1,194 @@
-// 工作流工具函数
+// 工作流工具函数（新模型：callable + edges）
 
-// 排序参数的函数
+export const NODE_WIDTH = 250
+
+// 判断 callable 是否为触发节点
+export const isTriggerCallable = (callable) => {
+  return callable === 'system:schedule' || (callable || '').startsWith('system:botEvent:')
+}
+
+// 判断返回值是否为 Boolean
+export const isBooleanReturn = (returnType) => {
+  return returnType === 'boolean' || returnType === 'Boolean'
+}
+
+// 根据 callable 描述创建默认参数输入
+export const createDefaultInputs = (descriptor) => {
+  const parameters = descriptor?.parameters || []
+  return parameters.map((param, index) => ({
+    paramIndex: index,
+    source: '',
+    defaultValue: null
+  }))
+}
+
+// 创建新节点
+export const createDefaultNode = (callable, descriptor, x, y) => {
+  const node = {
+    id: `node_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
+    x,
+    y,
+    callable,
+    inputs: createDefaultInputs(descriptor),
+    branch: false,
+    config: {},
+    descriptor: descriptor || { name: callable, parameters: [], returnType: 'void' }
+  }
+
+  if (callable === 'system:schedule') {
+    node.config = { cronExpression: '0 */5 * * * ?' }
+  } else if ((callable || '').startsWith('system:botEvent:')) {
+    node.config = { botQQ: localStorage.getItem('botQQ') || '' }
+  } else if ((callable || '').startsWith('system:botAction:')) {
+    const botQQ = localStorage.getItem('botQQ') || ''
+    node.inputs.forEach(input => {
+      const param = descriptor?.parameters?.[input.paramIndex]
+      if (param?.name === 'botQQ' && botQQ) {
+        input.defaultValue = botQQ
+      }
+    })
+  }
+  return node
+}
+
+// 排序参数
 export const sortParameters = (parameters) => {
   if (!parameters) return []
   return [...parameters].sort((a, b) => {
-    // 首先按照 order 字段排序
     const orderDiff = (a.order || 0) - (b.order || 0)
-    if (orderDiff !== 0) {
-      return orderDiff
-    }
-    // 如果 order 相同，按照参数名排序
-    return a.name.localeCompare(b.name)
+    return orderDiff !== 0 ? orderDiff : String(a.name || '').localeCompare(String(b.name || ''))
   })
 }
 
-// 处理节点信息
-export const processNodeInfo = (node, botEvents, botActions) => {
-  let methodInitialized = false
-  
-  // 根据节点类型和 botEventName/botActionName 补全 BOT 节点信息
-  if (node.nodeType === 'botEvent' && node.botEventName) {
-    // 从 botEvents 中匹配事件信息
-    const matchedEvent = botEvents.find(event => event.eventName === node.botEventName)
-    if (matchedEvent) {
-      node.eventType = matchedEvent.eventType
-      node.method = {
-        name: matchedEvent.eventName,
-        description: matchedEvent.description,
-        returnType: 'object',
-        parameters: []
-      }
-      node.methodInfo = {
-        name: matchedEvent.eventName,
-        description: matchedEvent.description,
-        returnType: 'object',
-        parameters: []
-      }
-      methodInitialized = true
-    }
-  } else if (node.nodeType === 'botAction' && node.botActionName) {
-    // 从 botActions 中匹配动作信息
-    const matchedAction = botActions.find(action => action.actionName === node.botActionName)
-    if (matchedAction) {
-      node.method = {
-        name: matchedAction.actionDisplayName,
-        description: matchedAction.description,
-        returnType: 'void',
-        parameters: matchedAction.parameters || []
-      }
-      node.methodInfo = {
-        name: matchedAction.actionDisplayName,
-        description: matchedAction.description,
-        returnType: 'void',
-        parameters: matchedAction.parameters || []
-      }
-      // 对方法参数按照 order 字段排序
-      if (node.method.parameters) {
-        node.method.parameters = sortParameters(node.method.parameters)
-      }
-      methodInitialized = true
+// 为节点挂载描述信息
+export const attachDescriptor = (node, descriptors) => {
+  if (descriptors && descriptors[node.callable]) {
+    node.descriptor = descriptors[node.callable]
+  }
+  if (!node.descriptor) {
+    node.descriptor = {
+      key: node.callable,
+      name: node.callable,
+      description: '',
+      parameters: [],
+      returnType: 'void'
     }
   }
-  
-  // 如果没有初始化 method，尝试从不同的字段获取方法信息
-  if (!methodInitialized && !node.method) {
-    if (node.methodInfo) {
-      node.method = node.methodInfo
-    } else if (node.methodInfoList && node.methodInfoList.length > 0) {
-      node.method = node.methodInfoList[0]
-    } else if (node.methodData) {
-      node.method = node.methodData
-    } else {
-      // 如果没有方法信息，根据节点类型创建默认的方法对象
-      if (node.nodeType === 'botEvent') {
-        node.method = {
-          name: node.botEventName || 'BOT 事件',
-          returnType: 'object',
-          parameters: []
-        }
-      } else if (node.nodeType === 'botAction') {
-        node.method = {
-          name: node.botActionName || 'BOT 动作',
-          returnType: 'void',
-          parameters: []
-        }
-      } else {
-        node.method = {
-          name: '未知方法',
-          returnType: 'void',
-          parameters: []
-        }
-      }
-    }
-  } else if (!methodInitialized && node.methodInfo) {
-    // 对于非 BOT 节点，使用 methodInfo
-    node.method = node.methodInfo
-  }
-  
-  // 对参数按照 order 字段排序，当 order 相同或不存在时按照参数名排序
-  if (node.method && node.method.parameters) {
-    node.method.parameters = sortParameters(node.method.parameters)
-  }
-  
-  // 确保 preNodeId 和 nextNodeId 是数组
-  if (!node.preNodeId) node.preNodeId = []
-  if (!node.nextNodeId) node.nextNodeId = []
-  // 确保 dataMaps 是数组
-  if (!node.dataMaps) node.dataMaps = []
-  // 确保 nodeDefaults 是数组
-  if (!node.nodeDefaults) node.nodeDefaults = []
+  return node
 }
 
-// 生成连线
-export const generateConnections = (nodes) => {
-  const connections = []
-  nodes.forEach(node => {
-    if (node.nextNodeId && node.nextNodeId.length > 0) {
-      node.nextNodeId.forEach(nextNodeId => {
-        // 检查是否已经存在这条连线
-        const existingConnection = connections.find(conn => 
-          conn.fromNode === node.id && conn.toNode === nextNodeId
-        )
-        if (!existingConnection) {
-          const newConnection = {
-            id: Date.now() + Math.random(),
-            fromNode: node.id,
-            fromPort: 'right',
-            toNode: nextNodeId,
-            toPort: 'left'
-          }
-          connections.push(newConnection)
-        }
-      })
-    }
-  })
-  return connections
-}
-
-// 获取节点名称
+// 获取节点显示名称
 export const getNodeName = (node) => {
-  if (node.nodeType === 'botEvent') {
-    return node.botEventName || 'BOT 事件'
-  } else if (node.nodeType === 'botAction') {
-    return node.botActionName || 'BOT 动作'
-  } else {
-    return node.method ? node.method.name : '未知方法'
-  }
+  return node?.descriptor?.name || node?.callable || '未知节点'
 }
 
-// 验证连线规则
-export const validateConnection = (fromNode, fromPort, toNode, toPort, connections) => {
-  // 参数检查
+// 获取节点可用输出端口
+export const getNodePorts = (node) => {
+  if (node?.branch) return ['success', 'failure']
+  return ['success']
+}
+
+// 连线校验
+export const validateConnection = (fromNode, toNode, port, connections) => {
   if (!fromNode || !toNode) {
-    return false
+    return { valid: false, message: '缺少连线节点' }
   }
-  
-  // 1. 节点不能链接自身
   if (fromNode.id === toNode.id) {
-    return false
+    return { valid: false, message: '节点不能链接自身' }
   }
-  
-  // 2. 左侧只能作为入位置，右侧只能作为出位置
-  if (fromPort !== 'right' || toPort !== 'left') {
-    return false
+  if (isTriggerCallable(toNode.callable)) {
+    return { valid: false, message: '触发节点不能作为连线目标' }
   }
-  
-  // 3. 检查是否存在环
+  if (port !== 'success' && port !== 'failure') {
+    return { valid: false, message: '未知连线端口' }
+  }
+  if (!fromNode.branch && port === 'failure') {
+    return { valid: false, message: '普通节点只有成功输出' }
+  }
   if (wouldCreateCycle(fromNode.id, toNode.id, connections)) {
-    return false
+    return { valid: false, message: '连线会创建环，无法连接' }
   }
-  
-  return true
+  return { valid: true, message: '' }
 }
 
 // 检查是否会创建环
-const wouldCreateCycle = (fromNodeId, toNodeId, connections) => {
-  // 简单的环检测：检查是否存在从 toNode 到 fromNode 的路径
+export const wouldCreateCycle = (fromNodeId, toNodeId, connections) => {
   const visited = new Set()
   const stack = [toNodeId]
-  
   while (stack.length > 0) {
     const currentNodeId = stack.pop()
-    
-    if (currentNodeId === fromNodeId) {
-      return true
-    }
-    
-    if (visited.has(currentNodeId)) {
-      continue
-    }
-    
+    if (currentNodeId === fromNodeId) return true
+    if (visited.has(currentNodeId)) continue
     visited.add(currentNodeId)
-    
-    // 查找所有从 currentNode 出发的连线
     for (const conn of connections) {
       if (conn.fromNode === currentNodeId) {
         stack.push(conn.toNode)
       }
     }
   }
-  
   return false
 }
 
-// 获取链接点位置
-export const getPortPosition = (nodeId, port, nodes) => {
+// 获取节点端口位置
+export const getPortPosition = (nodeId, port, nodes, nodeHeights) => {
   const node = nodes.find(n => n.id === nodeId)
   if (!node) return { x: 0, y: 0 }
-  
-  const nodeWidth = 250 // 节点宽度
-  let nodeHeight = 80 // 默认高度
-  
-  // 尝试获取节点的实际高度
-  try {
-    const nodeElement = document.querySelector(`.workflow-node[data-node-id="${nodeId}"]`)
-    if (nodeElement) {
-      const rect = nodeElement.getBoundingClientRect()
-      nodeHeight = rect.height
-    }
-  } catch (error) {
-    // 如果获取失败，使用默认高度
-  }
-  
-  const x = node.x + (port === 'left' ? 0 : nodeWidth)
-  const y = node.y + nodeHeight / 2
-  
-  return { x, y }
-}
-
-// 检查链接点是否已连接
-export const isPortConnected = (nodeId, port, connections) => {
+  const height = nodeHeights?.[nodeId] || 80
+  let y
   if (port === 'left') {
-    return connections.some(conn => conn.toNode === nodeId && conn.toPort === 'left')
-  } else {
-    return connections.some(conn => conn.fromNode === nodeId && conn.fromPort === 'right')
+    y = node.y + height / 2
+    return { x: node.x, y }
   }
+  if (port === 'success') {
+    y = node.y + (node.branch ? height * 0.35 : height / 2)
+  } else {
+    y = node.y + height * 0.75
+  }
+  return { x: node.x + NODE_WIDTH, y }
 }
 
-// 计算连线点击区域的样式
-export const getConnectionHitboxStyle = (connection, nodes) => {
-  const fromPos = getPortPosition(connection.fromNode, connection.fromPort, nodes)
-  const toPos = getPortPosition(connection.toNode, connection.toPort, nodes)
-  
-  // 计算连线的长度和角度
-  const dx = toPos.x - fromPos.x
-  const dy = toPos.y - fromPos.y
-  const length = Math.sqrt(dx * dx + dy * dy)
-  const angle = Math.atan2(dy, dx) * 180 / Math.PI
-  
-  // 计算点击区域的中心点
-  const centerX = (fromPos.x + toPos.x) / 2
-  const centerY = (fromPos.y + toPos.y) / 2
-  
-  // 返回样式
-  return {
-    position: 'absolute',
-    left: centerX - length / 2 + 'px',
-    top: centerY - 10 + 'px', // 上下各留 10px 的点击区域
-    width: length + 'px',
-    height: '20px', // 点击区域的高度
-    transform: `rotate(${angle}deg)`,
-    transformOrigin: 'center',
-    cursor: 'pointer',
-    zIndex: 40 // 确保点击区域在节点下方，但在画布上方
-  }
+// 生成稳定连线ID
+export const getConnectionId = (conn) => {
+  if (conn.id) return conn.id
+  return `${conn.fromNode}:${conn.toNode}:${conn.port}`
+}
+
+// 类型简名归一化：去掉包名/泛型，基本类型映射为包装类
+const WRAPPER_MAP = {
+  int: 'Integer',
+  boolean: 'Boolean',
+  char: 'Character',
+  byte: 'Byte',
+  short: 'Short',
+  long: 'Long',
+  float: 'Float',
+  double: 'Double'
+}
+
+export const normalizeTypeName = (type) => {
+  if (!type) return ''
+  let t = String(type).trim()
+  const genericIndex = t.indexOf('<')
+  if (genericIndex >= 0) t = t.substring(0, genericIndex)
+  const dot = t.lastIndexOf('.')
+  if (dot >= 0) t = t.substring(dot + 1)
+  return WRAPPER_MAP[t] || t
+}
+
+// Java 原生数值拓宽顺序（与反射调用行为一致）
+const NUMERIC_ORDER = ['Byte', 'Short', 'Integer', 'Long', 'Float', 'Double']
+
+// 判断来源类型是否能直接赋给目标参数类型（不做自定义转换）
+export const isTypeCompatible = (sourceType, targetType) => {
+  const source = normalizeTypeName(sourceType)
+  const target = normalizeTypeName(targetType)
+  if (!source || !target) return true
+  if (target === 'Object') return true
+  if (target === 'String') return true
+  if (source === target) return true
+  if (source === 'Character' && (target === 'Integer' || target === 'Long')) return true
+  const sourceIndex = NUMERIC_ORDER.indexOf(source)
+  const targetIndex = NUMERIC_ORDER.indexOf(target)
+  if (sourceIndex >= 0 && targetIndex >= 0) return sourceIndex <= targetIndex
+  return false
 }
