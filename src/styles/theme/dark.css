@@ -529,6 +529,25 @@ html.dark .expand-arrow,
 html.dark .section-arrow {
   color: var(--app-text-muted);
 }
+html.dark .node-execution-details .execution-detail,
+html.dark .node-execution-details .detail-section,
+html.dark .node-execution-details .section-header {
+  border: 0;
+  text-decoration: none;
+}
+html.dark .node-execution-details .section-title {
+  border-bottom: 1px solid var(--app-border);
+  text-decoration: none;
+}
+html.dark .bot-action-group-header:hover {
+  background: rgba(37, 99, 235, 0.14);
+}
+html.dark .bot-action-group-title {
+  color: var(--app-text);
+}
+html.dark .bot-action-count {
+  color: var(--app-text-muted);
+}
 
 /* ===== src/views/LoginView.vue [1] ===== */
 html.dark .login-container {
@@ -1160,6 +1179,25 @@ html.dark .section-title {
 html.dark .execution-time,
 html.dark .expand-arrow,
 html.dark .section-arrow {
+  color: var(--app-text-muted);
+}
+html.dark .node-execution-details .execution-detail,
+html.dark .node-execution-details .detail-section,
+html.dark .node-execution-details .section-header {
+  border: 0;
+  text-decoration: none;
+}
+html.dark .node-execution-details .section-title {
+  border-bottom: 1px solid var(--app-border);
+  text-decoration: none;
+}
+html.dark .bot-action-group-header:hover {
+  background: rgba(37, 99, 235, 0.14);
+}
+html.dark .bot-action-group-title {
+  color: var(--app-text);
+}
+html.dark .bot-action-count {
   color: var(--app-text-muted);
 }
 

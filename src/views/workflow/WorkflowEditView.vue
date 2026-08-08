@@ -80,11 +80,34 @@ const hasTriggerNode = computed(() => nodes.value.some(node => isTriggerCallable
 
 const nodeExecutionStatus = computed(() => {
   const map = {}
-  executionLog.value?.trace?.nodes?.forEach(trace => {
-    map[trace.nodeId] = trace
+  const nodes = getExecutionNodes(executionLog.value)
+  nodes.forEach(trace => {
+    const nodeId = trace?.nodeId ?? trace?.nodeID ?? trace?.id
+    if (nodeId !== undefined && nodeId !== null) {
+      map[nodeId] = trace
+    }
   })
   return map
 })
+
+const parseTraceJson = (trace) => {
+  if (!trace) return null
+  if (typeof trace !== 'string') return trace
+  try {
+    return JSON.parse(trace)
+  } catch (error) {
+    return null
+  }
+}
+
+const getExecutionNodes = (execution) => {
+  if (!execution) return []
+  if (Array.isArray(execution.nodeLogs) && execution.nodeLogs.length > 0) {
+    return execution.nodeLogs
+  }
+  const trace = parseTraceJson(execution.trace)
+  return Array.isArray(trace?.nodes) ? trace.nodes : []
+}
 
 const refreshNodeHeights = () => {
   if (!canvasRef.value) return

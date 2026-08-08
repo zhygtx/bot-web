@@ -114,16 +114,28 @@
                 <h3 class="bot-section-title">BOT 动作</h3>
               </div>
               <div v-show="isSectionExpanded('botActions')" class="bot-section-body">
-                <div
-                  v-for="action in filteredBotActions"
-                  :key="action.actionName"
-                  class="method-item"
-                  draggable="true"
-                  @dragstart="startDrag($event, `system:botAction:${action.actionName}`, buildActionDescriptor(action))"
-                  @dragend="endDrag"
-                >
-                  <span class="method-signature">{{ action.actionDisplayName }}</span>
-                  <p v-if="action.description" class="method-item-description">{{ action.description }}</p>
+                <div v-for="group in botActionGroups" :key="group.name" class="bot-action-group">
+                  <div class="bot-action-group-header" @click="toggleActionGroup(group.name)">
+                    <el-icon class="category-toggle-icon">
+                      <ArrowDown v-if="isActionGroupExpanded(group.name)" />
+                      <ArrowRight v-else />
+                    </el-icon>
+                    <h5 class="bot-action-group-title">{{ group.name }}</h5>
+                    <span class="bot-action-count">{{ group.actions.length }}</span>
+                  </div>
+                  <div v-show="isActionGroupExpanded(group.name)" class="bot-action-group-body">
+                    <div
+                      v-for="action in group.actions"
+                      :key="action.actionName"
+                      class="method-item"
+                      draggable="true"
+                      @dragstart="startDrag($event, `system:botAction:${action.actionName}`, buildActionDescriptor(action))"
+                      @dragend="endDrag"
+                    >
+                      <span class="method-signature">{{ action.actionDisplayName }}</span>
+                      <p v-if="getActionDescription(action)" class="method-item-description">{{ getActionDescription(action) }}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -156,6 +168,7 @@ const pluginList = ref([])
 const versionMap = ref({})
 const pluginDetailCache = ref({})
 const sectionExpanded = ref({ botEvents: true, botActions: false })
+const actionGroupExpanded = ref({})
 
 const hasBotQQFromLocalStorage = computed(() => localStorage.getItem('botQQ') !== null)
 
@@ -183,12 +196,36 @@ const filteredBotEvents = computed(() => {
   return list.filter(e => (e.eventName || '').toLowerCase().includes(kw) || (e.description || '').toLowerCase().includes(kw))
 })
 
-const filteredBotActions = computed(() => {
+const botActionGroups = computed(() => {
   const kw = searchKeyword.value.trim().toLowerCase()
-  if (!kw) return props.botActions
-  return props.botActions.filter(a =>
-    (a.actionDisplayName || '').toLowerCase().includes(kw) || (a.description || '').toLowerCase().includes(kw))
+  const list = props.botActions.filter(a =>
+    !kw || (a.actionDisplayName || '').toLowerCase().includes(kw) || (a.description || '').toLowerCase().includes(kw))
+  const groupMap = new Map()
+  list.forEach(action => {
+    const categories = Array.isArray(action.categories) && action.categories.length
+      ? action.categories
+      : ['其他']
+    categories.forEach((category, index) => {
+      if (!groupMap.has(category)) {
+        groupMap.set(category, {
+          name: category,
+          order: action.categoryOrders?.[index] ?? 0,
+          actions: []
+        })
+      }
+      groupMap.get(category).actions.push(action)
+    })
+  })
+  return [...groupMap.values()].sort((a, b) =>
+    (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name, 'zh-CN'))
 })
+
+const getActionDescription = (action) => {
+  const description = (action?.description || '').trim()
+  if (!description) return ''
+  if (/^分类[：:]/.test(description)) return ''
+  return description
+}
 
 const loadPluginList = async (reset = true) => {
   if (reset) pluginList.value = []
@@ -249,6 +286,15 @@ const toggleSection = (key) => {
 
 const isSectionExpanded = (key) => sectionExpanded.value[key] !== false
 
+const isActionGroupExpanded = (key) => actionGroupExpanded.value[key] !== false
+
+const toggleActionGroup = (key) => {
+  actionGroupExpanded.value = {
+    ...actionGroupExpanded.value,
+    [key]: !isActionGroupExpanded(key)
+  }
+}
+
 const togglePanel = () => emit('toggle-plugin-list')
 
 const buildEventDescriptor = (event) => ({
@@ -265,7 +311,7 @@ const buildEventDescriptor = (event) => ({
 const buildActionDescriptor = (action) => ({
   key: `system:botAction:${action.actionName}`,
   name: action.actionDisplayName,
-  description: action.description,
+  description: getActionDescription(action),
   kind: 'TASK',
   source: 'SYSTEM',
   returnType: action.returnInfo?.type || 'void',
@@ -356,6 +402,14 @@ watch(activeTab, (tab) => {
     nextTick(() => loadPluginList(true))
   }
 })
+
+watch(botActionGroups, (groups) => {
+  const next = { ...actionGroupExpanded.value }
+  groups.forEach(group => {
+    if (!(group.name in next)) next[group.name] = false
+  })
+  actionGroupExpanded.value = next
+}, { immediate: true })
 
 loadPluginList(true)
 </script>

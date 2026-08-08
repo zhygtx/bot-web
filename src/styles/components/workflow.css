@@ -383,7 +383,8 @@ to { opacity: 1; transform: translateY(0);
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
+  padding: 4px 12px;
+  min-height: 24px;
   cursor: pointer;
   transition: background 0.2s;
   background: #fff;
@@ -396,6 +397,7 @@ to { opacity: 1; transform: translateY(0);
 .workflow-edit-view .execution-status {
   font-weight: 600;
   font-size: 12px;
+  line-height: 1;
   padding: 2px 8px;
   border-radius: 4px;
 }
@@ -414,6 +416,7 @@ to { opacity: 1; transform: translateY(0);
   color: var(--app-text-muted);
   flex: 1;
   font-size: 12px;
+  line-height: 1;
 }
 .expand-arrow.workflow-edit-view,
 .workflow-edit-view .expand-arrow {
@@ -428,12 +431,12 @@ to { opacity: 1; transform: translateY(0);
 /* 展开详情区 */
 .execution-detail.workflow-edit-view,
 .workflow-edit-view .execution-detail {
-  border-top: 1px solid #f0f0f0;
+  border-top: none;
   background: var(--app-bg-muted);
 }
 .detail-section.workflow-edit-view,
 .workflow-edit-view .detail-section {
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 0;
 }
 .detail-section:last-child.workflow-edit-view:last-child,
 .workflow-edit-view .detail-section:last-child {
@@ -443,38 +446,52 @@ to { opacity: 1; transform: translateY(0);
 .workflow-edit-view .section-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
+  justify-content: flex-start;
+  position: relative;
+  padding: 3px 28px 3px 10px;
+  min-height: 24px;
   cursor: pointer;
   transition: background 0.2s;
+  border: 0;
 }
 .section-header:hover.workflow-edit-view:hover,
 .workflow-edit-view .section-header:hover {
   background: var(--app-bg-muted);
 }
-.section-title.workflow-edit-view,
-.workflow-edit-view .section-title {
-  font-size: 12px;
-  font-weight: 600;
+.node-execution-details .section-title.workflow-edit-view,
+.workflow-edit-view .node-execution-details .section-title {
+  display: block;
+  margin: 5px 0 5px 0;
+  padding-bottom: 0px;
+  width: auto;
+  font-size: 15px;
+  font-weight: bold;
   color: var(--app-text);
+  border-bottom: 1px solid #f0f0f0;
+  text-decoration: none;
+  text-align: left;
 }
-.section-title.label-error.workflow-edit-view,
-.workflow-edit-view .section-title.label-error {
+.node-execution-details .section-title.label-error.workflow-edit-view,
+.workflow-edit-view .node-execution-details .section-title.label-error {
   color: var(--app-danger);
 }
 .section-arrow.workflow-edit-view,
 .workflow-edit-view .section-arrow {
+  position: absolute;
+  right: 8px;
+  top: 50%;
   font-size: 12px;
   color: var(--app-text-muted);
   transition: transform 0.2s ease;
+  transform: translateY(-50%);
 }
 .section-arrow.expanded.workflow-edit-view,
 .workflow-edit-view .section-arrow.expanded {
-  transform: rotate(90deg);
+  transform: translateY(-50%) rotate(90deg);
 }
 .section-content.workflow-edit-view,
 .workflow-edit-view .section-content {
-  padding: 0 12px 8px;
+  padding: 0 10px 4px;
 }
 /* JSON 数据展示区 - 复用工作流日志页面样式 */
 .workflow-edit-view .section-content .highlight-code {
@@ -482,6 +499,7 @@ to { opacity: 1; transform: translateY(0);
   overflow-y: auto;
   overflow-x: hidden;
   margin: 0;
+  padding: 6px 8px;
   border: 1px solid var(--app-border);
   border-radius: 4px;
   scrollbar-width: none;
@@ -884,12 +902,12 @@ to { opacity: 1; transform: translateY(0);
   border-top: 1px solid var(--app-border-soft);
 }
 /* ───── 分类树形结构 ───── */
-.category-group.workflow-edit-view,
-.workflow-edit-view .category-group {
+.bot-action-group.workflow-edit-view,
+.workflow-edit-view .bot-action-group {
   margin-bottom: 2px;
 }
-.category-header.workflow-edit-view,
-.workflow-edit-view .category-header {
+.bot-action-group-header.workflow-edit-view,
+.workflow-edit-view .bot-action-group-header {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -899,51 +917,54 @@ to { opacity: 1; transform: translateY(0);
   border-radius: 4px;
   transition: background-color 0.2s;
 }
-.category-header:hover.workflow-edit-view:hover,
-.workflow-edit-view .category-header:hover {
+.bot-action-group-header:hover.workflow-edit-view:hover,
+.workflow-edit-view .bot-action-group-header:hover {
   background-color: var(--app-bg);
 }
-.category-toggle-icon.workflow-edit-view,
-.workflow-edit-view .category-toggle-icon {
+.bot-action-group-header .category-toggle-icon.workflow-edit-view,
+.workflow-edit-view .bot-action-group-header .category-toggle-icon {
   font-size: 14px;
   color: var(--app-text-muted);
   flex-shrink: 0;
 }
-.category-name.workflow-edit-view,
-.workflow-edit-view .category-name {
+.bot-action-group-title.workflow-edit-view,
+.workflow-edit-view .bot-action-group-title {
+  margin: 0;
   font-size: 13px;
   font-weight: 600;
   color: var(--app-text);
+  flex: 1;
+  min-width: 0;
 }
-.category-count.workflow-edit-view,
-.workflow-edit-view .category-count {
+.bot-action-count.workflow-edit-view,
+.workflow-edit-view .bot-action-count {
   font-size: 11px;
   color: var(--app-text-disabled);
-  margin-left: auto;
 }
-.category-items.workflow-edit-view,
-.workflow-edit-view .category-items {
+.bot-action-group-body.workflow-edit-view,
+.workflow-edit-view .bot-action-group-body {
   padding: 2px 0 6px 18px;
   margin-left: 6px;
 }
-.workflow-edit-view .category-items .method-item {
+.workflow-edit-view .bot-action-group-body .method-item {
   padding: 6px 0 6px 8px;
   border-bottom: none;
   cursor: grab;
 }
-.workflow-edit-view .category-items .method-item:active {
+.workflow-edit-view .bot-action-group-body .method-item:active {
   cursor: grabbing;
 }
-.workflow-edit-view .category-items .method-item:hover {
+.workflow-edit-view .bot-action-group-body .method-item:hover {
   background-color: var(--app-bg);
   border-radius: 4px;
 }
-.workflow-edit-view .category-items .method-signature {
+.workflow-edit-view .bot-action-group-body .method-signature {
   font-size: 12px;
 }
-.workflow-edit-view .category-items .method-item-description {
+.workflow-edit-view .bot-action-group-body .method-item-description {
   font-size: 11px;
-  padding-left: 6px;
+  padding-left: 0;
+  border-left: 0;
 }
 
 /* ===== src/components/workflow/WorkflowNodeConfigPanel.vue [0] ===== */

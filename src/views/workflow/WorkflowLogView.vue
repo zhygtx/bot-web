@@ -173,8 +173,12 @@ const loadNodeLogs = async (log) => {
       url: `/workflowLog/${log.id}`,
       method: 'get'
     })
-    if (response.code === 200 && response.data?.trace?.nodes) {
-      log.nodeLogs = response.data.trace.nodes.map((node, index) => ({
+    const rawTrace = response.data?.trace
+    const trace = typeof rawTrace === 'string' ? parseTraceJson(rawTrace) : rawTrace
+    const nodeList = Array.isArray(trace?.nodes) ? trace.nodes : Array.isArray(response.data?.nodeLogs) ? response.data.nodeLogs : []
+    if (response.code === 200) {
+      if (trace) log.trace = trace
+      log.nodeLogs = nodeList.map((node, index) => ({
         id: index + 1,
         nodeId: node.nodeId,
         order: index + 1,
@@ -190,6 +194,14 @@ const loadNodeLogs = async (log) => {
     console.error('Error:', error)
   } finally {
     loadingNodeLogIds.value.delete(log.id)
+  }
+}
+
+const parseTraceJson = (value) => {
+  try {
+    return JSON.parse(value)
+  } catch (error) {
+    return null
   }
 }
 
