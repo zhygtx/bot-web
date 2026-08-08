@@ -79,15 +79,6 @@ const handleSizeChange = size => {
   loadConversations()
 }
 
-const parseLastCode = conversation => {
-  try {
-    if (!conversation.lastCode) return {}
-    return JSON.parse(conversation.lastCode)
-  } catch {
-    return {}
-  }
-}
-
 const formatStatus = status => {
   const map = {
     DRAFT: { label: '草稿', type: 'info' },
@@ -138,7 +129,7 @@ onMounted(loadConversations)
             <div class="card-header">
               <div class="card-title">
                 <el-icon><ChatLineRound /></el-icon>
-                <strong>{{ parseLastCode(conversation).pluginName || '未发布插件' }}</strong>
+                <strong>{{ conversation.pluginName || '未发布插件' }}</strong>
               </div>
               <el-tag :type="formatStatus(conversation.status).type" effect="plain">
                 {{ formatStatus(conversation.status).label }}
@@ -146,7 +137,7 @@ onMounted(loadConversations)
             </div>
 
             <div class="card-description">
-              {{ parseLastCode(conversation).pluginDescription || '暂无描述' }}
+              {{ conversation.pluginDescription || '暂无描述' }}
             </div>
 
             <div class="card-footer">
@@ -177,4 +168,3 @@ onMounted(loadConversations)
     </div>
   </div>
 </template>
-

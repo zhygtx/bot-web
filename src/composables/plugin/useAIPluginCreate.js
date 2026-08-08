@@ -740,6 +740,8 @@ export const useAIPluginCreate = () => {
                     finish(() => resolve())
                     return
                   } else if (event.type === 'done') {
+                    // 编译完成后后端会回传 PluginInfo，把 AI 生成的元信息同步到发布设置
+                    syncPublishInfo(event.data)
                     finish(() => resolve())
                     return
                   } else if (event.type === 'error') {
@@ -1150,6 +1152,7 @@ function normalizeGeneratedFile(file) {
 }
 
 function normalizePayload(data) {
+  const firstVersion = Array.isArray(data.pluginVersionList) ? data.pluginVersionList[0] : null
   return {
     conversationId: data.conversationId,
     round: data.round || data.currentRound,
@@ -1157,8 +1160,8 @@ function normalizePayload(data) {
     dependencies: Array.isArray(data.dependencies) ? data.dependencies : [],
     pluginName: data.pluginName || data.name || '',
     pluginDescription: data.pluginDescription || data.description || '',
-    version: data.version || '',
-    changelog: data.changelog || '',
+    version: data.version || firstVersion?.version || '',
+    changelog: data.changelog || firstVersion?.changelog || '',
     isPublic: typeof data.isPublic === 'boolean' ? data.isPublic : undefined,
     reviewResult: data.reviewResult || null
   }

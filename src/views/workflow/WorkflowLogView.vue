@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Clock, VideoPlay, CircleCheck, CircleClose, ArrowRight, ArrowUp, Refresh, Filter } from '@element-plus/icons-vue'
 import request from '../../utils/request'
+import HighlightCode from '../../components/common/HighlightCode.vue'
 
 const props = defineProps({
   workflowId: { type: String, default: '' }
@@ -86,39 +87,6 @@ const formatJsonData = (data) => {
     return JSON.stringify(parsed, null, 2)
   } catch (e) {
     return data
-  }
-}
-
-const isJsonData = (data) => {
-  if (!data || typeof data !== 'string') return false
-  try {
-    JSON.parse(data)
-    return true
-  } catch (e) {
-    return false
-  }
-}
-
-const escapeHtml = (str) => {
-  if (!str) return str
-  const div = document.createElement('div')
-  div.textContent = str
-  return div.innerHTML
-}
-
-const highlightJson = (jsonStr) => {
-  if (!jsonStr) return ''
-  try {
-    JSON.parse(jsonStr)
-    const escapedStr = escapeHtml(jsonStr)
-    return escapedStr
-      .replace(/(".*?")(:)/g, '<span class="json-key">$1</span>$2')
-      .replace(/: ("(?:\\.|[^"\\])*")/g, ': <span class="json-string">$1</span>')
-      .replace(/: (\d+\.?\d*)/g, ': <span class="json-number">$1</span>')
-      .replace(/: (true|false)/g, ': <span class="json-boolean">$1</span>')
-      .replace(/: (null)/g, ': <span class="json-null">$1</span>')
-  } catch (e) {
-    return escapeHtml(jsonStr)
   }
 }
 
@@ -211,7 +179,6 @@ const loadNodeLogs = async (log) => {
         nodeId: node.nodeId,
         order: index + 1,
         methodName: node.name || node.callable || '未知方法',
-        methodDescription: node.callable || '',
         isError: node.status === 'FAILED',
         executionTime: Math.max(0, (Number(node.endTime) || 0) - (Number(node.startTime) || 0)),
         input: node.input,
@@ -422,12 +389,12 @@ onUnmounted(() => {
               </div>
               <div class="summary-context error-log" v-if="log.errorMessage">
                 <div class="summary-label error-label">错误日志</div>
-                <div class="json-viewer" @click="openModal('错误日志', log.errorMessage)">
-                  <div class="json-viewer-scroll">
-                    <pre class="error-text">{{ log.errorMessage }}</pre>
-                  </div>
-                  <div class="viewer-hint">点击查看完整数据</div>
-                </div>
+                <HighlightCode
+                  :content="log.errorMessage"
+                  plain
+                  class="error-text"
+                  @click="openModal('错误日志', log.errorMessage)"
+                />
               </div>
             </div>
 
@@ -445,36 +412,24 @@ onUnmounted(() => {
                       <span class="node-name">{{ nodeLog.methodName }}</span>
                       <span class="node-time">{{ nodeLog.executionTime }}ms</span>
                     </div>
-                    <div class="node-description" v-if="nodeLog.methodDescription">
-                      {{ nodeLog.methodDescription }}
-                    </div>
                     <div class="node-details">
                       <div class="detail-row" v-if="nodeLog.input !== null && nodeLog.input !== undefined">
                         <span class="detail-label">输入:</span>
-                        <div class="json-viewer" @click="openModal('输入 - ' + (nodeLog.methodName || '未知方法'), nodeLog.input)">
-                          <div class="json-viewer-scroll">
-                            <pre v-html="highlightJson(formatJsonData(nodeLog.input))"></pre>
-                          </div>
-                          <div class="viewer-hint">点击查看完整数据</div>
-                        </div>
+                        <HighlightCode
+                          :content="formatJsonData(nodeLog.input)"
+                          @click="openModal('输入 - ' + (nodeLog.methodName || '未知方法'), nodeLog.input)"
+                        />
                       </div>
                       <div class="detail-row" :class="{ 'detail-row-error': nodeLog.isError }">
                         <span class="detail-label" :class="{ 'label-error': nodeLog.isError }">
                           {{ nodeLog.isError ? '错误:' : '输出:' }}
                         </span>
-                        <div
-                          class="json-viewer"
-                          :class="{ 'json-viewer-error': nodeLog.isError }"
+                        <HighlightCode
+                          :content="formatJsonData(nodeLog.output)"
+                          :plain="nodeLog.isError"
+                          :class="{ 'error-text': nodeLog.isError }"
                           @click="openModal((nodeLog.isError ? '错误 - ' : '输出 - ') + (nodeLog.methodName || '未知方法'), nodeLog.output)"
-                        >
-                          <div class="json-viewer-scroll">
-                            <pre
-                              :class="{ 'error-text': nodeLog.isError }"
-                              v-html="highlightJson(formatJsonData(nodeLog.output))"
-                            ></pre>
-                          </div>
-                          <div class="viewer-hint">点击查看完整数据</div>
-                        </div>
+                        />
                       </div>
                     </div>
                   </div>
@@ -520,7 +475,7 @@ onUnmounted(() => {
         </div>
       </template>
       <div class="modal-json-viewer">
-        <pre v-html="highlightJson(modalContent)"></pre>
+        <HighlightCode :content="modalContent" />
       </div>
     </el-dialog>
   </div>

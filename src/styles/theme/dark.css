@@ -340,7 +340,6 @@ html.dark .loading-more {
 }
 html.dark .modal-json-viewer,
 html.dark .json-viewer {
-  background-color: #08111d;
   border: 1px solid var(--app-border);
 }
 html.dark .plugin-detail,
@@ -974,7 +973,6 @@ html.dark .loading-more {
 }
 html.dark .modal-json-viewer,
 html.dark .json-viewer {
-  background-color: #08111d;
   border: 1px solid var(--app-border);
 }
 html.dark .plugin-detail,

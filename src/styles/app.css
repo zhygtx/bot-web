@@ -1196,8 +1196,8 @@ body {
 .delete-icon-container.plugin-view,
 .plugin-view .delete-icon-container {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 4px;
+  right: 4px;
   z-index: 10;
 }
 .delete-icon.plugin-view,
@@ -3015,23 +3015,85 @@ body {
   font-size: 12px;
   font-family: Consolas, Monaco, monospace;
 }
-.monaco-host {
+.code-view-host {
   flex: 1;
   min-height: 0;
+  margin: 0;
+  overflow: auto;
+}
+/* highlight.js 代码展示通用样式 */
+.highlight-code {
+  margin: 0;
+  padding: 8px 10px;
+  display: block;
   width: 100%;
-}
-/* Monaco Editor 完全拥抱原生样式 */
-.monaco-editor {
+  box-sizing: border-box;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
-.monaco-editor .margin {
-  background-color: transparent;
+.highlight-code code.hljs {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: transparent;
+  padding: 0;
+  overflow: visible;
 }
-.monaco-editor .line-numbers {
+.code-diff-view {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.code-diff-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 12px;
+  font-size: 12px;
   color: var(--app-text-muted);
+  background: var(--app-bg-muted);
+  border-bottom: 1px solid var(--app-border);
 }
-.monaco-editor .current-line-margin {
-  background-color: transparent;
+.code-diff-grid {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 48px minmax(0, 1fr);
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.code-diff-grid .diff-line-number {
+  padding: 0 8px;
+  text-align: right;
+  color: var(--app-text-muted);
+  background: var(--app-bg-muted);
+  border-right: 1px solid var(--app-border);
+  user-select: none;
+  white-space: pre;
+}
+.code-diff-grid .diff-line {
+  padding: 0 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  border-right: 1px solid var(--app-border);
+}
+.code-diff-grid .diff-line.added,
+.code-diff-grid .diff-line-number.added {
+  background: var(--app-success-soft);
+}
+.code-diff-grid .diff-line.removed,
+.code-diff-grid .diff-line-number.removed {
+  background: var(--app-danger-soft);
 }
 .publish-settings-form {
   display: grid;
@@ -3476,6 +3538,11 @@ body {
   min-height: 0;
   overflow-y: auto;
   padding-bottom: 8px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.workflow-log-view .log-content::-webkit-scrollbar {
+  display: none;
 }
 .log-list.workflow-log-view,
 .workflow-log-view .log-list {
@@ -3638,58 +3705,17 @@ body {
   color: var(--app-danger);
   font-weight: 500;
 }
-.workflow-log-view .json-viewer pre.error-text {
-  color: var(--app-danger);
-}
-.json-viewer.workflow-log-view,
-.workflow-log-view .json-viewer {
-  background-color: #304156;
-  border-radius: 4px;
-  cursor: pointer;
-  position: relative;
-  transition: all 0.2s ease;
-}
-.json-viewer:hover.workflow-log-view:hover,
-.workflow-log-view .json-viewer:hover {
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
-}
-.json-viewer-scroll.workflow-log-view,
-.workflow-log-view .json-viewer-scroll {
-  max-height: 120px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 12px;
-}
-.workflow-log-view .json-viewer pre {
+/* 输入/输出直接用 HighlightCode 作为展示框，不再额外包一层容器 */
+.workflow-log-view .summary-context.error-log .highlight-code,
+.workflow-log-view .node-details .highlight-code {
+  max-height: none;
+  overflow: visible;
   margin: 0;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--app-text);
-  white-space: pre-wrap;
-  word-break: break-all;
+  border: 1px solid var(--app-border);
+  border-radius: 4px;
 }
-.workflow-log-view .json-viewer .viewer-hint {
-  position: absolute;
-  bottom: 4px;
-  right: 8px;
-  font-size: 10px;
-  color: rgba(255, 255, 255, 0.4);
-}
-.workflow-log-view .json-key {
-  color: #ffa07a;
-}
-.workflow-log-view .json-string {
-  color: #98fb98;
-}
-.workflow-log-view .json-number {
-  color: #ffa500;
-}
-.workflow-log-view .json-boolean {
-  color: #87ceeb;
-}
-.workflow-log-view .json-null {
-  color: #9370db;
+.workflow-log-view .highlight-code.error-text {
+  color: var(--app-danger);
 }
 .big-text-placeholder.workflow-log-view,
 .workflow-log-view .big-text-placeholder {
@@ -3720,20 +3746,21 @@ body {
 }
 .modal-json-viewer.workflow-log-view,
 .workflow-log-view .modal-json-viewer {
-  background-color: #304156;
-  padding: 16px;
+  border: 1px solid var(--app-border);
+  padding: 0;
   border-radius: 8px;
   max-height: 60vh;
   overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.workflow-log-view .modal-json-viewer::-webkit-scrollbar {
+  display: none;
 }
 .workflow-log-view .modal-json-viewer pre {
   margin: 0;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
-  font-size: 14px;
-  line-height: 1.6;
-  color: var(--app-text);
   white-space: pre-wrap;
-  word-break: break-all;
+  word-break: break-word;
 }
 .node-timeline.workflow-log-view,
 .workflow-log-view .node-timeline {
@@ -3846,14 +3873,6 @@ body {
   color: var(--app-danger);
   font-weight: 500;
 }
-.json-viewer-error.workflow-log-view,
-.workflow-log-view .json-viewer-error {
-  border: 1px solid var(--app-danger-border);
-  box-shadow: 0 0 8px var(--app-danger-soft);
-}
-.workflow-log-view .json-viewer-error pre {
-  color: var(--app-danger) !important;
-}
 .pagination.workflow-log-view,
 .workflow-log-view .pagination {
   flex-shrink: 0;
@@ -3877,6 +3896,11 @@ body {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     display: block;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+.workflow-log-view::-webkit-scrollbar {
+    display: none;
 }
 .filter-section.workflow-log-view,
 .workflow-log-view .filter-section {
@@ -4769,31 +4793,21 @@ body {
 }
 .modal-json-viewer.workflow-edit-view,
 .workflow-edit-view .modal-json-viewer {
-  background-color: #304156;
-  padding: 16px;
+  border: 1px solid var(--app-border);
+  padding: 0;
   border-radius: 8px;
   max-height: 60vh;
   overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.workflow-edit-view .modal-json-viewer::-webkit-scrollbar {
+  display: none;
 }
 .workflow-edit-view .modal-json-viewer pre {
   margin: 0;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
-  font-size: 14px;
-  line-height: 1.6;
-  color: var(--app-text);
   white-space: pre-wrap;
-  word-break: break-all;
-}
-/* JSON 语法高亮 - 与工作流日志页面一致 */
-.workflow-edit-view .json-key { color: #ffa07a;
-}
-.workflow-edit-view .json-string { color: #98fb98;
-}
-.workflow-edit-view .json-number { color: #ffa500;
-}
-.workflow-edit-view .json-boolean { color: #87ceeb;
-}
-.workflow-edit-view .json-null { color: #9370db;
+  word-break: break-word;
 }
 /* 历史日志浮动面板 */
 .history-log-backdrop.workflow-edit-view,
@@ -4833,6 +4847,11 @@ body {
   flex: 1;
   overflow-y: auto;
   padding: 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.workflow-edit-view .history-log-body::-webkit-scrollbar {
+  display: none;
 }
 /* 滑入/滑出动画 */
 .history-slide-enter-active.workflow-edit-view,
@@ -5352,47 +5371,20 @@ to { opacity: 1; transform: translateY(0);
   padding: 0 12px 8px;
 }
 /* JSON 数据展示区 - 复用工作流日志页面样式 */
-.json-viewer.workflow-edit-view,
-.workflow-edit-view .json-viewer {
-  background-color: #304156;
-  border-radius: 4px;
-  cursor: pointer;
-  position: relative;
-  transition: all 0.2s ease;
-}
-.json-viewer:hover.workflow-edit-view:hover,
-.workflow-edit-view .json-viewer:hover {
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
-}
-.json-viewer-scroll.workflow-edit-view,
-.workflow-edit-view .json-viewer-scroll {
+.workflow-edit-view .section-content .highlight-code {
   max-height: 120px;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 12px;
-}
-.json-viewer-scroll::-webkit-scrollbar.workflow-edit-view::-webkit-scrollbar,
-.workflow-edit-view .json-viewer-scroll::-webkit-scrollbar {
-  display: block;
-}
-.workflow-edit-view .json-viewer pre {
   margin: 0;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--app-text);
-  white-space: pre-wrap;
-  word-break: break-all;
+  border: 1px solid var(--app-border);
+  border-radius: 4px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
-.workflow-edit-view .json-viewer .viewer-hint {
-  position: absolute;
-  bottom: 4px;
-  right: 8px;
-  font-size: 10px;
-  color: rgba(255, 255, 255, 0.4);
-  opacity: 1;
+.workflow-edit-view .section-content .highlight-code::-webkit-scrollbar {
+  display: none;
 }
-.workflow-edit-view .json-viewer-error pre {
+.workflow-edit-view .highlight-code.error-text {
   color: var(--app-danger);
 }
 .big-text-placeholder.workflow-edit-view,
@@ -5402,17 +5394,6 @@ to { opacity: 1; transform: translateY(0);
   text-align: center;
   padding: 10px 0;
   font-size: 13px;
-}
-/* JSON 语法高亮 - 复用工作流日志页面配色 */
-.workflow-edit-view .json-key { color: #ffa07a;
-}
-.workflow-edit-view .json-string { color: #98fb98;
-}
-.workflow-edit-view .json-number { color: #ffa500;
-}
-.workflow-edit-view .json-boolean { color: #87ceeb;
-}
-.workflow-edit-view .json-null { color: #9370db;
 }
 
 /* ===== src/components/workflow/PluginListComponent.vue [0] ===== */
@@ -6274,40 +6255,6 @@ to { opacity: 1; transform: translateY(0);
   margin: 8px 0 0;
   font-size: 12px;
   color: var(--app-text-muted);
-}
-.workflow-edit-view .json-text,
-.workflow-edit-view .error-box pre,
-.workflow-edit-view .detail-row pre {
-  margin: 0;
-  padding: 10px;
-  background: var(--app-bg-muted);
-  border: 1px solid var(--app-border);
-  border-radius: 4px;
-  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--app-text);
-  white-space: pre-wrap;
-  word-break: break-all;
-  max-height: 240px;
-  overflow-y: auto;
-}
-.workflow-edit-view .json-text-error {
-  color: var(--app-danger);
-}
-.workflow-edit-view .error-box {
-  margin-bottom: 12px;
-}
-.workflow-edit-view .error-box h4 {
-  margin: 0 0 6px;
-}
-.workflow-edit-view .detail-row {
-  margin-top: 6px;
-}
-.workflow-edit-view .detail-label {
-  font-size: 12px;
-  color: var(--app-text-muted);
-  margin-right: 6px;
 }
 .workflow-edit-view .source-picker-row {
   display: flex;
