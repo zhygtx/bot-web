@@ -1,0 +1,1431 @@
+/* ===== src/components/workflow/ConnectionComponent.vue [0] ===== */
+.connections.workflow-edit-view,
+.workflow-edit-view .connections {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 30;
+}
+.connection-path.workflow-edit-view,
+.workflow-edit-view .connection-path {
+  fill: none;
+  transition: none;
+}
+.temp-connection-path.workflow-edit-view,
+.workflow-edit-view .temp-connection-path {
+  fill: none;
+  transition: none;
+}
+.connection-hitbox-path.workflow-edit-view,
+.workflow-edit-view .connection-hitbox-path {
+  cursor: pointer;
+  pointer-events: stroke;
+}
+
+/* ===== src/components/workflow/ContextMenuComponent.vue [0] ===== */
+.context-menu.workflow-edit-view,
+.workflow-edit-view .context-menu {
+  position: fixed;
+  background-color: white;
+  border: 1px solid var(--app-border);
+  border-radius: 4px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  min-width: 120px;
+  overflow: hidden;
+}
+.context-menu-items.workflow-edit-view,
+.workflow-edit-view .context-menu-items {
+  display: flex;
+  flex-direction: column;
+}
+.context-menu-item.workflow-edit-view,
+.workflow-edit-view .context-menu-item {
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--app-text);
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+.context-menu-item:hover.workflow-edit-view:hover,
+.workflow-edit-view .context-menu-item:hover {
+  background-color: var(--app-bg);
+  color: var(--app-primary);
+}
+.context-menu-item:active.workflow-edit-view:active,
+.workflow-edit-view .context-menu-item:active {
+  background-color: var(--app-primary-soft);
+}
+
+/* ===== src/components/workflow/ExecutionStatusBar.vue [0] ===== */
+.execution-status-bar.workflow-edit-view,
+.workflow-edit-view .execution-status-bar {
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--app-border);
+  font-size: 13px;
+  animation: slideDown-0 0.3s ease;
+}
+.bar-success.workflow-edit-view,
+.workflow-edit-view .bar-success {
+  background: var(--app-success-soft);
+}
+.bar-failed.workflow-edit-view,
+.workflow-edit-view .bar-failed {
+  background: var(--app-danger-soft);
+}
+@keyframes slideDown-0 {
+from { opacity: 0; transform: translateY(-10px);
+}
+to { opacity: 1; transform: translateY(0);
+}
+}
+.bar-content.workflow-edit-view,
+.workflow-edit-view .bar-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.bar-left.workflow-edit-view,
+.workflow-edit-view .bar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.bar-status.workflow-edit-view,
+.workflow-edit-view .bar-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.bar-status.success.workflow-edit-view,
+.workflow-edit-view .bar-status.success { color: var(--app-success);
+}
+.bar-status.failed.workflow-edit-view,
+.workflow-edit-view .bar-status.failed { color: var(--app-danger);
+}
+.bar-divider.workflow-edit-view,
+.workflow-edit-view .bar-divider {
+  color: var(--app-border);
+}
+.bar-time.workflow-edit-view,
+.workflow-edit-view .bar-time { color: var(--app-text-soft); white-space: nowrap;
+}
+.workflow-edit-view .bar-time strong { color: var(--app-primary);
+}
+.bar-nodes.workflow-edit-view,
+.workflow-edit-view .bar-nodes { color: var(--app-text-soft); white-space: nowrap;
+}
+.bar-context-label.workflow-edit-view,
+.workflow-edit-view .bar-context-label {
+  color: var(--app-text-muted);
+  white-space: nowrap;
+}
+.bar-context-preview.workflow-edit-view,
+.workflow-edit-view .bar-context-preview {
+  color: var(--app-primary);
+  cursor: pointer;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 1px 6px;
+  border-radius: 3px;
+  transition: all 0.2s;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.bar-context-preview:hover.workflow-edit-view:hover,
+.workflow-edit-view .bar-context-preview:hover {
+  background: var(--app-primary-soft-weak);
+}
+.bar-error-label.workflow-edit-view,
+.workflow-edit-view .bar-error-label {
+  color: var(--app-danger);
+  white-space: nowrap;
+}
+.bar-error-preview.workflow-edit-view,
+.workflow-edit-view .bar-error-preview {
+  color: var(--app-danger);
+  cursor: pointer;
+  max-width: 400px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 1px 6px;
+  border-radius: 3px;
+  transition: all 0.2s;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.bar-error-preview:hover.workflow-edit-view:hover,
+.workflow-edit-view .bar-error-preview:hover {
+  background: var(--app-danger-soft);
+}
+.bar-right.workflow-edit-view,
+.workflow-edit-view .bar-right {
+  flex-shrink: 0;
+}
+
+/* ===== src/components/workflow/NodeComponent.vue [0] ===== */
+/* 工作流节点样式 */
+.workflow-node.workflow-edit-view,
+.workflow-edit-view .workflow-node {
+  position: absolute;
+  min-width: 250px;
+  width: 250px;
+  z-index: 50;
+  transition: none; /* 移除过渡效果，确保节点拖动时完全跟随鼠标 */
+  cursor: grab;
+}
+.workflow-node:active.workflow-edit-view:active,
+.workflow-edit-view .workflow-node:active {
+  cursor: grabbing;
+}
+.workflow-node:hover:not(:active).workflow-edit-view:hover:not(:active),
+.workflow-edit-view .workflow-node:hover:not(:active) {
+  transform: translateY(-2px);
+  transition: all 0.3s ease;
+}
+/* 卡牌悬浮时圆点放大 + 右侧实心 */
+.workflow-edit-view .workflow-node:hover .node-dot {
+  transform: scale(1.3);
+}
+.workflow-edit-view .workflow-node:hover .node-dot-left {
+  transform: translateY(-50%) scale(1.3);
+}
+.workflow-edit-view .workflow-node:hover .node-dot-right {
+  transform: translateY(-50%) scale(1.3);
+  background-color: var(--app-primary);
+}
+.node-body.workflow-edit-view,
+.workflow-edit-view .node-body {
+  background-color: white;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  min-height: 80px;
+  position: relative;
+}
+.node-content-inner.workflow-edit-view,
+.workflow-edit-view .node-content-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.node-dot.workflow-edit-view,
+.workflow-edit-view .node-dot {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--app-primary);
+  border-radius: 50%;
+  background-color: white;
+  flex-shrink: 0;
+  cursor: crosshair;
+  transition: all 0.3s ease;
+  z-index: 1;
+}
+.node-dot-left.workflow-edit-view,
+.workflow-edit-view .node-dot-left {
+  left: -7px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.node-dot-right.workflow-edit-view,
+.workflow-edit-view .node-dot-right {
+  right: -7px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+/* 右侧端口 3x 透明点击区域（视觉不变） */
+.node-dot-right::before.workflow-edit-view::before,
+.workflow-edit-view .node-dot-right::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 36px;
+  height: 36px;
+  margin-top: -18px;
+  margin-left: -18px;
+  border-radius: 50%;
+}
+.node-dot-filled.workflow-edit-view,
+.workflow-edit-view .node-dot-filled {
+  background-color: var(--app-primary);
+}
+.node-header.workflow-edit-view,
+.workflow-edit-view .node-header {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+.node-method-name.workflow-edit-view,
+.workflow-edit-view .node-method-name {
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--app-text);
+}
+.node-description.workflow-edit-view,
+.workflow-edit-view .node-description {
+  font-size: 12px;
+  color: var(--app-text-muted);
+  text-align: center;
+  margin-bottom: 4px;
+  line-height: 1.3;
+  max-height: 2.6em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.node-params.workflow-edit-view,
+.workflow-edit-view .node-params {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--app-text-soft);
+  font-family: 'Courier New', monospace;
+}
+.node-param.workflow-edit-view,
+.workflow-edit-view .node-param {
+  background-color: var(--app-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--app-border);
+}
+.node-return.workflow-edit-view,
+.workflow-edit-view .node-return {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--app-text-muted);
+  margin-top: 4px;
+}
+.return-label.workflow-edit-view,
+.workflow-edit-view .return-label {
+  font-size: 11px;
+  color: var(--app-text-muted);
+}
+.return-type.workflow-edit-view,
+.workflow-edit-view .return-type {
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  color: var(--app-text-soft);
+}
+.node-selected.workflow-edit-view .node-body,
+.workflow-edit-view .node-selected .node-body {
+  border-color: var(--app-primary) !important;
+  box-shadow: 0 0 0 2px var(--app-primary-border-strong) !important;
+}
+/* 执行状态边框 */
+.node-success.workflow-edit-view .node-body,
+.workflow-edit-view .node-success .node-body {
+  border-color: var(--app-success) !important;
+  box-shadow: 0 0 0 2px var(--app-success-border) !important;
+}
+.node-failed.workflow-edit-view .node-body,
+.workflow-edit-view .node-failed .node-body {
+  border-color: var(--app-danger) !important;
+  box-shadow: 0 0 0 2px var(--app-danger-border) !important;
+}
+/* 已选 + 执行状态 不覆盖 */
+.node-success.node-selected.workflow-edit-view .node-body,
+.workflow-edit-view .node-success.node-selected .node-body {
+  border-color: var(--app-primary) !important;
+  box-shadow: 0 0 0 2px var(--app-primary-border-strong) !important;
+}
+.node-failed.node-selected.workflow-edit-view .node-body,
+.workflow-edit-view .node-failed.node-selected .node-body {
+  border-color: var(--app-primary) !important;
+  box-shadow: 0 0 0 2px var(--app-primary-border-strong) !important;
+}
+
+/* ===== src/components/workflow/NodeExecutionDetails.vue [0] ===== */
+/* 浮动窗口容器 */
+.node-execution-details.workflow-edit-view,
+.workflow-edit-view .node-execution-details {
+  font-size: 12px;
+  width: 250px;
+  max-width: 250px;
+  box-sizing: border-box;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  border: 2px solid var(--app-border);
+}
+.node-execution-details.success.workflow-edit-view,
+.workflow-edit-view .node-execution-details.success {
+  border-color: var(--app-success);
+}
+.node-execution-details.failed.workflow-edit-view,
+.workflow-edit-view .node-execution-details.failed {
+  border-color: var(--app-danger);
+}
+/* 执行摘要条 */
+.execution-summary.workflow-edit-view,
+.workflow-edit-view .execution-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+  background: #fff;
+}
+.execution-summary:hover.workflow-edit-view:hover,
+.workflow-edit-view .execution-summary:hover {
+  background: var(--app-bg);
+}
+.execution-status.workflow-edit-view,
+.workflow-edit-view .execution-status {
+  font-weight: 600;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.execution-status.success.workflow-edit-view,
+.workflow-edit-view .execution-status.success {
+  color: var(--app-success);
+  background: var(--app-success-soft);
+}
+.execution-status.failed.workflow-edit-view,
+.workflow-edit-view .execution-status.failed {
+  color: var(--app-danger);
+  background: var(--app-danger-soft);
+}
+.execution-time.workflow-edit-view,
+.workflow-edit-view .execution-time {
+  color: var(--app-text-muted);
+  flex: 1;
+  font-size: 12px;
+}
+.expand-arrow.workflow-edit-view,
+.workflow-edit-view .expand-arrow {
+  font-size: 14px;
+  color: var(--app-text-disabled);
+  transition: transform 0.2s ease;
+}
+.expand-arrow.expanded.workflow-edit-view,
+.workflow-edit-view .expand-arrow.expanded {
+  transform: rotate(90deg);
+}
+/* 展开详情区 */
+.execution-detail.workflow-edit-view,
+.workflow-edit-view .execution-detail {
+  border-top: 1px solid #f0f0f0;
+  background: var(--app-bg-muted);
+}
+.detail-section.workflow-edit-view,
+.workflow-edit-view .detail-section {
+  border-bottom: 1px solid #f0f0f0;
+}
+.detail-section:last-child.workflow-edit-view:last-child,
+.workflow-edit-view .detail-section:last-child {
+  border-bottom: none;
+}
+.section-header.workflow-edit-view,
+.workflow-edit-view .section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.section-header:hover.workflow-edit-view:hover,
+.workflow-edit-view .section-header:hover {
+  background: var(--app-bg-muted);
+}
+.section-title.workflow-edit-view,
+.workflow-edit-view .section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--app-text);
+}
+.section-title.label-error.workflow-edit-view,
+.workflow-edit-view .section-title.label-error {
+  color: var(--app-danger);
+}
+.section-arrow.workflow-edit-view,
+.workflow-edit-view .section-arrow {
+  font-size: 12px;
+  color: var(--app-text-muted);
+  transition: transform 0.2s ease;
+}
+.section-arrow.expanded.workflow-edit-view,
+.workflow-edit-view .section-arrow.expanded {
+  transform: rotate(90deg);
+}
+.section-content.workflow-edit-view,
+.workflow-edit-view .section-content {
+  padding: 0 12px 8px;
+}
+/* JSON 数据展示区 - 复用工作流日志页面样式 */
+.workflow-edit-view .section-content .highlight-code {
+  max-height: 120px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin: 0;
+  border: 1px solid var(--app-border);
+  border-radius: 4px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.workflow-edit-view .section-content .highlight-code::-webkit-scrollbar {
+  display: none;
+}
+.workflow-edit-view .highlight-code.error-text {
+  color: var(--app-danger);
+}
+.big-text-placeholder.workflow-edit-view,
+.workflow-edit-view .big-text-placeholder {
+  color: var(--app-text-muted) !important;
+  font-style: italic;
+  text-align: center;
+  padding: 10px 0;
+  font-size: 13px;
+}
+
+/* ===== src/components/workflow/PluginListComponent.vue [0] ===== */
+/* ───── 外层容器 ───── */
+.plugin-list-float.workflow-edit-view,
+.workflow-edit-view .plugin-list-float {
+  position: absolute;
+  left: 20px;
+  top: 100px;
+  width: 320px;
+  height: calc(100% - 120px);
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  z-index: 300;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+.plugin-list-collapsed.workflow-edit-view,
+.workflow-edit-view .plugin-list-collapsed {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.collapse-btn.workflow-edit-view,
+.workflow-edit-view .collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: var(--app-text-muted);
+}
+/* ───── 收起栏 ───── */
+.collapse-bar.workflow-edit-view,
+.workflow-edit-view .collapse-bar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--app-border-soft);
+  background: var(--app-bg-muted);
+  flex-shrink: 0;
+}
+/* ───── 面板主体：左侧导航 + 右侧内容 ───── */
+.plugin-panel-body.workflow-edit-view,
+.workflow-edit-view .plugin-panel-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  user-select: none;
+}
+/* ───── 左侧图标导航 ───── */
+.side-nav.workflow-edit-view,
+.workflow-edit-view .side-nav {
+  width: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 8px;
+  gap: 4px;
+  border-right: 1px solid var(--app-border-soft);
+  background: var(--app-bg-muted);
+  flex-shrink: 0;
+}
+.nav-item.workflow-edit-view,
+.workflow-edit-view .nav-item {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: var(--app-text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.nav-item:hover.workflow-edit-view:hover,
+.workflow-edit-view .nav-item:hover {
+  background: var(--app-primary-soft);
+  color: var(--app-primary);
+}
+.nav-item.active.workflow-edit-view,
+.workflow-edit-view .nav-item.active {
+  background: var(--app-primary);
+  color: #fff;
+}
+/* ───── 右侧内容区 ───── */
+.content-area.workflow-edit-view,
+.workflow-edit-view .content-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+/* ───── 搜索框 ───── */
+.search-box.workflow-edit-view,
+.workflow-edit-view .search-box {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--app-border-soft);
+  flex-shrink: 0;
+}
+.workflow-edit-view .search-box .el-input__wrapper {
+  padding: 6px 12px;
+}
+.workflow-edit-view .search-box .el-input__inner {
+  font-size: 14px;
+  padding: 6px 0;
+}
+/* ───── 滚动容器（使用 el-scrollbar） ───── */
+.scroll-container.workflow-edit-view,
+.workflow-edit-view .scroll-container {
+  flex: 1;
+  min-height: 0;
+}
+.workflow-edit-view .scroll-container .el-scrollbar__wrap {
+  padding: 10px 12px;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.workflow-edit-view .scroll-container .el-scrollbar__wrap::-webkit-scrollbar {
+  display: none;
+}
+.workflow-edit-view .scroll-container .el-scrollbar__bar {
+  display: none;
+}
+/* ───── 插件列表 ───── */
+.plugin-list.workflow-edit-view,
+.workflow-edit-view .plugin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+/* ───── 插件卡片 ───── */
+.plugin-item-card.workflow-edit-view,
+.workflow-edit-view .plugin-item-card {
+  border: 1px solid var(--app-border-soft);
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  transition: all 0.2s;
+  overflow: hidden;
+}
+.plugin-item-card:hover.workflow-edit-view:hover,
+.workflow-edit-view .plugin-item-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+.workflow-edit-view .plugin-item-card .el-card__body {
+  padding: 0;
+}
+.plugin-card-content.workflow-edit-view,
+.workflow-edit-view .plugin-card-content {
+  padding: 16px;
+}
+.plugin-card-header.workflow-edit-view,
+.workflow-edit-view .plugin-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.plugin-name.workflow-edit-view,
+.workflow-edit-view .plugin-name {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--app-text);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.plugin-version-selector.workflow-edit-view,
+.workflow-edit-view .plugin-version-selector {
+  flex-shrink: 0;
+}
+.version-select.workflow-edit-view,
+.workflow-edit-view .version-select {
+  width: 80px;
+}
+.workflow-edit-view .version-select .el-select__wrapper {
+  padding: 4px 8px;
+}
+.workflow-edit-view .version-select .el-select__trigger {
+  padding: 2px 8px;
+}
+.info-icon.workflow-edit-view,
+.workflow-edit-view .info-icon {
+  font-size: 18px;
+  color: var(--app-primary);
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+.info-icon:hover.workflow-edit-view:hover,
+.workflow-edit-view .info-icon:hover {
+  background: var(--app-primary-soft);
+}
+.plugin-card-description.workflow-edit-view,
+.workflow-edit-view .plugin-card-description {
+  font-size: 14px;
+  color: var(--app-text-soft);
+  line-height: 1.5;
+  margin-bottom: 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.plugin-card-toggle.workflow-edit-view,
+.workflow-edit-view .plugin-card-toggle {
+  display: flex;
+  justify-content: flex-end;
+  color: var(--app-text-disabled);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.plugin-card-toggle:hover.workflow-edit-view:hover,
+.workflow-edit-view .plugin-card-toggle:hover {
+  color: var(--app-primary);
+}
+/* ───── 展开的方法区域 ───── */
+.plugin-card-methods.workflow-edit-view,
+.workflow-edit-view .plugin-card-methods {
+  margin-top: 8px;
+  animation: slideDown-0 0.25s ease;
+}
+.workflow-edit-view .plugin-card-methods h4 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--app-text);
+}
+.method-class-group.workflow-edit-view,
+.workflow-edit-view .method-class-group {
+  margin-bottom: 8px;
+  border-left: 2px solid var(--app-primary);
+  padding-left: 10px;
+}
+.method-class-label.workflow-edit-view,
+.workflow-edit-view .method-class-label {
+  padding: 4px 0;
+}
+.method-class-name.workflow-edit-view,
+.workflow-edit-view .method-class-name {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--app-text);
+}
+.method-class-description.workflow-edit-view,
+.workflow-edit-view .method-class-description {
+  font-size: 11px;
+  color: var(--app-text-muted);
+  margin: 2px 0 0;
+}
+.methods-list.workflow-edit-view,
+.workflow-edit-view .methods-list {
+  padding: 6px 10px;
+}
+.method-item.workflow-edit-view,
+.workflow-edit-view .method-item {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--app-bg-muted);
+  cursor: grab;
+}
+.method-item:last-child.workflow-edit-view:last-child,
+.workflow-edit-view .method-item:last-child {
+  border-bottom: none;
+}
+.method-item:active.workflow-edit-view:active,
+.workflow-edit-view .method-item:active {
+  cursor: grabbing;
+}
+.method-signature.workflow-edit-view,
+.workflow-edit-view .method-signature {
+  font-weight: 600;
+  color: var(--app-text);
+  font-size: 12px;
+  font-family: 'Courier New', monospace;
+  line-height: 1.4;
+}
+.method-signature:active.workflow-edit-view:active,
+.workflow-edit-view .method-signature:active {
+}
+.method-item-description.workflow-edit-view,
+.workflow-edit-view .method-item-description {
+  font-size: 11px;
+  color: var(--app-text-muted);
+  margin: 4px 0 0;
+  padding-left: 8px;
+  border-left: 2px solid var(--app-border-soft);
+}
+@keyframes slideDown-0 {
+from { opacity: 0; transform: translateY(-8px);
+}
+to { opacity: 1; transform: translateY(0);
+}
+}
+/* ───── 空状态 / 加载状态 ───── */
+.no-methods.workflow-edit-view,
+.workflow-edit-view .no-methods {
+  font-size: 12px;
+  color: var(--app-text-disabled);
+  text-align: center;
+  padding: 8px 0;
+}
+.loading-state.workflow-edit-view,
+.workflow-edit-view .loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 30px 0;
+  color: var(--app-text-disabled);
+  font-size: 13px;
+  gap: 8px;
+}
+.loading-more.workflow-edit-view,
+.workflow-edit-view .loading-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 0;
+  color: var(--app-text-disabled);
+  font-size: 12px;
+}
+.no-more.workflow-edit-view,
+.workflow-edit-view .no-more {
+  text-align: center;
+  padding: 8px 0;
+  color: var(--app-text-disabled);
+  font-size: 11px;
+}
+/* ───── BOT 系统 ───── */
+.bot-content.workflow-edit-view,
+.workflow-edit-view .bot-content {
+  padding-top: 10px;
+}
+/* ───── BOT 事件/动作 扁平块 ───── */
+.bot-section.workflow-edit-view,
+.workflow-edit-view .bot-section {
+  margin-bottom: 12px;
+  border: 1px solid var(--app-border-soft);
+  border-radius: 6px;
+  background: var(--app-bg-muted);
+  padding: 0 0 8px;
+}
+.bot-section-header.workflow-edit-view,
+.workflow-edit-view .bot-section-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 12px 8px;
+  cursor: pointer;
+  user-select: none;
+}
+.bot-section-title.workflow-edit-view,
+.workflow-edit-view .bot-section-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--app-text);
+}
+.bot-section-subtitle.workflow-edit-view,
+.workflow-edit-view .bot-section-subtitle {
+  font-size: 11px;
+  color: var(--app-text-muted);
+}
+.bot-section-body.workflow-edit-view,
+.workflow-edit-view .bot-section-body {
+  padding: 6px 12px 0;
+  border-top: 1px solid var(--app-border-soft);
+}
+/* ───── 分类树形结构 ───── */
+.category-group.workflow-edit-view,
+.workflow-edit-view .category-group {
+  margin-bottom: 2px;
+}
+.category-header.workflow-edit-view,
+.workflow-edit-view .category-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 4px;
+  cursor: pointer;
+  user-select: none;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+.category-header:hover.workflow-edit-view:hover,
+.workflow-edit-view .category-header:hover {
+  background-color: var(--app-bg);
+}
+.category-toggle-icon.workflow-edit-view,
+.workflow-edit-view .category-toggle-icon {
+  font-size: 14px;
+  color: var(--app-text-muted);
+  flex-shrink: 0;
+}
+.category-name.workflow-edit-view,
+.workflow-edit-view .category-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--app-text);
+}
+.category-count.workflow-edit-view,
+.workflow-edit-view .category-count {
+  font-size: 11px;
+  color: var(--app-text-disabled);
+  margin-left: auto;
+}
+.category-items.workflow-edit-view,
+.workflow-edit-view .category-items {
+  padding: 2px 0 6px 18px;
+  margin-left: 6px;
+}
+.workflow-edit-view .category-items .method-item {
+  padding: 6px 0 6px 8px;
+  border-bottom: none;
+  cursor: grab;
+}
+.workflow-edit-view .category-items .method-item:active {
+  cursor: grabbing;
+}
+.workflow-edit-view .category-items .method-item:hover {
+  background-color: var(--app-bg);
+  border-radius: 4px;
+}
+.workflow-edit-view .category-items .method-signature {
+  font-size: 12px;
+}
+.workflow-edit-view .category-items .method-item-description {
+  font-size: 11px;
+  padding-left: 6px;
+}
+
+/* ===== src/components/workflow/WorkflowNodeConfigPanel.vue [0] ===== */
+/* 右侧配置面板（悬浮窗） */
+.config-panel-float.workflow-edit-view,
+.workflow-edit-view .config-panel-float {
+  position: absolute;
+  right: 20px;
+  top: 100px;
+  width: 600px;
+  height: calc(100% - 120px);
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+}
+/* 面板头部 */
+.panel-header.workflow-edit-view,
+.workflow-edit-view .panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  border-bottom: 1px solid var(--app-border);
+  background-color: var(--app-bg-muted);
+  flex-shrink: 0;
+}
+.panel-title.workflow-edit-view,
+.workflow-edit-view .panel-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--app-text);
+}
+.panel-close-btn.workflow-edit-view,
+.workflow-edit-view .panel-close-btn {
+  color: var(--app-text-muted);
+}
+/* 面板主体 */
+.panel-body.workflow-edit-view,
+.workflow-edit-view .panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 15px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.panel-body::-webkit-scrollbar.workflow-edit-view::-webkit-scrollbar,
+.workflow-edit-view .panel-body::-webkit-scrollbar {
+  display: none;
+}
+.section-title.workflow-edit-view,
+.workflow-edit-view .section-title {
+  margin: 0 0 16px 0;
+  font-size: 15px;
+  font-weight: bold;
+  color: var(--app-text);
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f0f0f0;
+}
+/* 面板底部 */
+.panel-footer.workflow-edit-view,
+.workflow-edit-view .panel-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--app-border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-shrink: 0;
+}
+/* 参数行 */
+.param-rows.workflow-edit-view,
+.workflow-edit-view .param-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.param-row.workflow-edit-view,
+.workflow-edit-view .param-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background-color: var(--app-bg-muted);
+  border-radius: 6px;
+  border: 1px solid #ececec;
+}
+.param-name-col.workflow-edit-view,
+.workflow-edit-view .param-name-col {
+  width: 150px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.param-name-row.workflow-edit-view,
+.workflow-edit-view .param-name-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.param-name.workflow-edit-view,
+.workflow-edit-view .param-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--app-text);
+}
+.param-required.workflow-edit-view,
+.workflow-edit-view .param-required {
+  color: var(--app-danger);
+  font-weight: bold;
+  margin-right: 2px;
+}
+.param-type.workflow-edit-view,
+.workflow-edit-view .param-type {
+  font-size: 11px;
+  color: var(--app-text-muted);
+}
+.param-desc.workflow-edit-view,
+.workflow-edit-view .param-desc {
+  display: block;
+  font-size: 11px;
+  color: var(--app-text-muted);
+  margin-top: 2px;
+  line-height: 1.3;
+  word-break: break-all;
+}
+.param-ref-col.workflow-edit-view,
+.workflow-edit-view .param-ref-col {
+  width: 100px;
+  flex-shrink: 0;
+}
+.param-value-col.workflow-edit-view,
+.workflow-edit-view .param-value-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.hint-text.workflow-edit-view,
+.workflow-edit-view .hint-text {
+  font-size: 12px;
+  color: var(--app-text-muted);
+  white-space: nowrap;
+}
+/* 自定义级联选择器触发器（模拟 input 外观） */
+.cascader-trigger.workflow-edit-view,
+.workflow-edit-view .cascader-trigger {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--app-border);
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+  font-size: 12px;
+}
+.cascader-trigger:hover.workflow-edit-view:hover,
+.workflow-edit-view .cascader-trigger:hover {
+  border-color: var(--app-text-disabled);
+}
+.trigger-content.workflow-edit-view,
+.workflow-edit-view .trigger-content {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  overflow: hidden;
+  min-width: 0;
+}
+.trigger-node.workflow-edit-view,
+.workflow-edit-view .trigger-node {
+   overflow: hidden;
+   text-overflow: ellipsis;
+   white-space: nowrap;
+   font-size: 12px;
+   color: var(--app-text);
+}
+.trigger-sep.workflow-edit-view,
+.workflow-edit-view .trigger-sep {
+   font-size: 12px;
+   color: var(--app-text-disabled);
+   flex-shrink: 0;
+   margin: 0 1px;
+}
+.trigger-return.workflow-edit-view,
+.workflow-edit-view .trigger-return {
+   font-size: 12px;
+   color: var(--app-primary);
+   flex-shrink: 0;
+}
+.trigger-desc.workflow-edit-view,
+.workflow-edit-view .trigger-desc {
+  color: var(--app-text-muted);
+  flex-shrink: 0;
+  margin-left: 8px;
+  font-size: 12px;
+}
+.trigger-placeholder.workflow-edit-view,
+.workflow-edit-view .trigger-placeholder {
+  flex: 1;
+  font-size: 12px;
+  color: var(--app-text-disabled);
+}
+.trigger-arrow.workflow-edit-view,
+.workflow-edit-view .trigger-arrow {
+  font-size: 10px;
+  color: var(--app-text-disabled);
+  margin-left: 4px;
+  flex-shrink: 0;
+}
+.no-params-hint.workflow-edit-view,
+.workflow-edit-view .no-params-hint {
+  text-align: center;
+  color: var(--app-text-muted);
+  padding: 30px;
+  font-size: 14px;
+}
+/* 条件配置区域 */
+.condition-section.workflow-edit-view,
+.workflow-edit-view .condition-section {
+  margin-top: 20px;
+}
+/* 定时事件配置 */
+.scheduled-event-config.workflow-edit-view,
+.workflow-edit-view .scheduled-event-config {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 40px; background-color: var(--app-bg-muted); border-radius: 8px;
+}
+.workflow-edit-view .scheduled-event-config h4 { margin-bottom: 30px; font-size: 18px; color: var(--app-text);
+}
+.scheduled-time-selector.workflow-edit-view,
+.workflow-edit-view .scheduled-time-selector { display: flex; align-items: center; gap: 15px; margin-bottom: 20px;
+}
+.workflow-edit-view .scheduled-time-selector label { font-size: 14px; color: var(--app-text-soft); font-weight: 500;
+}
+.scheduled-time-hint.workflow-edit-view,
+.workflow-edit-view .scheduled-time-hint { margin-top: 20px; padding: 15px 20px; background-color: var(--app-primary-soft); border-radius: 4px; border-left: 4px solid var(--app-primary);
+}
+.workflow-edit-view .scheduled-time-hint p { margin: 0; font-size: 13px; color: var(--app-text-soft);
+}
+/* 面板滑入/滑出动画 */
+.panel-slide-enter-active.workflow-edit-view,
+.workflow-edit-view .panel-slide-enter-active { transition: transform 0.3s ease;
+}
+.panel-slide-leave-active.workflow-edit-view,
+.workflow-edit-view .panel-slide-leave-active { transition: transform 0.25s ease;
+}
+.panel-slide-enter-from.workflow-edit-view,
+.workflow-edit-view .panel-slide-enter-from { transform: translateX(100%);
+}
+.panel-slide-leave-to.workflow-edit-view,
+.workflow-edit-view .panel-slide-leave-to { transform: translateX(100%);
+}
+
+/* ===== src/components/workflow/WorkflowNodeConfigPanel.vue [1] ===== */
+/* 自定义级联面板（popover 内容，非 scoped） */
+.custom-cascader-popper {
+  padding: 0 !important;
+  max-width: none !important;
+}
+.cascader-panel-custom {
+  display: flex;
+  min-height: 200px;
+  max-height: 320px;
+  overflow: hidden;
+  min-width: 500px;
+}
+.cascader-level {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--app-border);
+  min-width: 200px;
+  max-width: 350px;
+}
+.cascader-level-right {
+  border-right: none;
+}
+.level-label {
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--app-text-muted);
+  background: var(--app-bg-muted);
+  border-bottom: 1px solid var(--app-border);
+  flex-shrink: 0;
+}
+.level-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.level-list::-webkit-scrollbar {
+  display: none;
+}
+.cascader-option {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-size: 13px;
+  min-width: 0;
+  text-align: left;
+  gap: 2px;
+}
+.cascader-option:hover {
+  background: var(--app-bg);
+}
+.cascader-option.active {
+  background: var(--app-primary-soft);
+  color: var(--app-primary);
+}
+.option-main {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 1;
+  min-width: 0;
+  color: inherit;
+  font-size: 13px;
+}
+.option-desc {
+  color: var(--app-text-muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: normal;
+  word-break: break-all;
+  line-height: 1.4;
+}
+.level-empty,
+.level-hint {
+  padding: 20px 12px;
+  font-size: 13px;
+  color: var(--app-text-disabled);
+  text-align: center;
+}
+
+/* ===== 新工作流模型（callable + edges）补充样式 ===== */
+.workflow-edit-view .node-outputs {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  pointer-events: none;
+}
+.workflow-edit-view .node-dot {
+  pointer-events: auto;
+}
+.workflow-edit-view .node-dot-success,
+.workflow-edit-view .node-dot-failure {
+  right: -7px;
+  transform: translateY(-50%);
+}
+.workflow-edit-view .node-dot-success {
+  top: 50%;
+}
+.workflow-edit-view .node-branch .node-dot-success {
+  top: 35%;
+}
+.workflow-edit-view .node-dot-failure {
+  top: 75%;
+  border-color: var(--app-danger);
+}
+.workflow-edit-view .node-dot-failure.node-dot-filled,
+.workflow-edit-view .workflow-node:hover .node-dot-failure {
+  background-color: var(--app-danger);
+}
+.workflow-edit-view .port-label {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  line-height: 1;
+  color: var(--app-text-muted);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.workflow-edit-view .node-type-tag {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  line-height: 16px;
+  background: var(--app-primary-soft);
+  color: var(--app-primary);
+  flex-shrink: 0;
+}
+.workflow-edit-view .trigger-info p {
+  color: var(--app-text-soft);
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 8px 0 0;
+}
+.workflow-edit-view .branch-section {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--app-border);
+}
+.workflow-edit-view .branch-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--app-text-muted);
+}
+.workflow-edit-view .source-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+.workflow-edit-view .source-picker-row .el-select {
+  flex: 1;
+  min-width: 0;
+}
+.workflow-edit-view .type-error {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--app-danger);
+  word-break: break-all;
+}
+.workflow-edit-view .locked-hint {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--app-text-muted);
+}
+.workflow-edit-view .schedule-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--app-text-muted);
+}
+.workflow-edit-view .schedule-mode-switch {
+  margin-bottom: 12px;
+}
+.workflow-edit-view .cron-builder {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+.workflow-edit-view .cron-builder-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.workflow-edit-view .cron-field-label {
+  width: 28px;
+  font-size: 13px;
+  color: var(--app-text-soft);
+  flex-shrink: 0;
+}
+.workflow-edit-view .cron-unit {
+  font-size: 12px;
+  color: var(--app-text-muted);
+}
+.workflow-edit-view .cron-preview {
+  margin-top: 12px;
+  padding: 8px 10px;
+  background: var(--app-bg-muted);
+  border: 1px solid var(--app-border);
+  border-radius: 4px;
+  font-size: 12px;
+}
+.workflow-edit-view .cron-preview-label {
+  color: var(--app-text-muted);
+  margin-right: 6px;
+}
+.workflow-edit-view .cron-preview code {
+  color: var(--app-primary);
+  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+}

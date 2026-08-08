@@ -1,0 +1,186 @@
+/* ===== src/views/LoginView.vue [0] ===== */
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: var(--app-bg);
+  background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+.login-box.login-container,
+.login-container .login-box {
+  width: 400px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  padding: 30px;
+}
+.login-header.login-container,
+.login-container .login-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+.login-container .login-header h2 {
+  color: var(--app-text);
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+.login-container .login-header p {
+  color: var(--app-text-muted);
+  font-size: 14px;
+}
+.login-form.login-container,
+.login-container .login-form {
+  width: 100%;
+}
+.login-button.login-container,
+.login-container .login-button {
+  width: 100%;
+  height: 40px;
+  font-size: 16px;
+}
+.login-footer.login-container,
+.login-container .login-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+  font-size: 14px;
+  color: var(--app-text-soft);
+}
+.login-container .login-footer span {
+  cursor: pointer;
+  transition: color 0.3s;
+}
+.login-container .login-footer span:hover {
+  color: var(--app-primary);
+}
+
+/* ===== src/views/LoginView.vue [1] ===== */
+/* ───────── 暗色模式 ───────── */
+
+/* ===== src/views/RegisterView.vue [0] ===== */
+.register-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: var(--app-bg);
+  background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+.register-box.register-container,
+.register-container .register-box {
+  width: 600px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  padding: 30px;
+}
+.register-header.register-container,
+.register-container .register-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+.register-container .register-header h2 {
+  color: var(--app-text);
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+.register-container .register-header p {
+  color: var(--app-text-muted);
+  font-size: 14px;
+}
+.register-form.register-container,
+.register-container .register-form {
+  width: 100%;
+}
+.register-button.register-container,
+.register-container .register-button {
+  width: 100%;
+  height: 40px;
+  font-size: 16px;
+}
+.register-footer.register-container,
+.register-container .register-footer {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 14px;
+  color: var(--app-text-soft);
+}
+.login-link.register-container,
+.register-container .login-link {
+  color: var(--app-primary);
+  cursor: pointer;
+  margin-left: 5px;
+  transition: color 0.3s;
+}
+.login-link:hover.register-container:hover,
+.register-container .login-link:hover {
+  color: var(--app-primary-hover);
+}
+
+/* ===== src/views/RegisterView.vue [1] ===== */
+/* ───────── 暗色模式 ───────── */
+
+/* ===== src/views/ForgotPasswordView.vue [0] ===== */
+.forgot-password-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: var(--app-bg);
+  background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+.forgot-password-box.forgot-password-container,
+.forgot-password-container .forgot-password-box {
+  width: 600px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  padding: 30px;
+}
+.forgot-password-header.forgot-password-container,
+.forgot-password-container .forgot-password-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+.forgot-password-container .forgot-password-header h2 {
+  color: var(--app-text);
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+.forgot-password-container .forgot-password-header p {
+  color: var(--app-text-muted);
+  font-size: 14px;
+}
+.forgot-password-form.forgot-password-container,
+.forgot-password-container .forgot-password-form {
+  width: 100%;
+}
+.reset-password-button.forgot-password-container,
+.forgot-password-container .reset-password-button {
+  width: 100%;
+  height: 40px;
+  font-size: 16px;
+}
+.forgot-password-footer.forgot-password-container,
+.forgot-password-container .forgot-password-footer {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 14px;
+  color: var(--app-text-soft);
+}
+.login-link.forgot-password-container,
+.forgot-password-container .login-link {
+  color: var(--app-primary);
+  cursor: pointer;
+  margin-left: 5px;
+  transition: color 0.3s;
+}
+.login-link:hover.forgot-password-container:hover,
+.forgot-password-container .login-link:hover {
+  color: var(--app-primary-hover);
+}
+
+/* ===== src/views/ForgotPasswordView.vue [1] ===== */
+/* ───────── 暗色模式 ───────── */
+

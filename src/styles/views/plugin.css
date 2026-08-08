@@ -1,0 +1,965 @@
+/* ===== src/views/plugin/PluginListView.vue [0] ===== */
+.plugin-view {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+/* ===== 筛选栏 ===== */
+.filter-section.plugin-view,
+.plugin-view .filter-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.filter-item.plugin-view,
+.plugin-view .filter-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.filter-icon.plugin-view,
+.plugin-view .filter-icon {
+  color: var(--app-text-muted);
+}
+.filter-input.plugin-view,
+.plugin-view .filter-input {
+  width: 300px;
+}
+.filter-select.plugin-view,
+.plugin-view .filter-select {
+  width: 150px;
+}
+.filter-spacer.plugin-view,
+.plugin-view .filter-spacer {
+  flex: 1;
+}
+.plugin-content.plugin-view,
+.plugin-view .plugin-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.content-wrapper.plugin-view,
+.plugin-view .content-wrapper {
+  width: 100%;
+  min-height: 300px;
+}
+.plugin-item-card.plugin-view,
+.plugin-view .plugin-item-card {
+  margin-bottom: 20px;
+  height: 320px;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  cursor: pointer;
+  overflow: hidden;
+  position: relative;
+}
+.plugin-item-card:hover.plugin-view:hover,
+.plugin-view .plugin-item-card:hover {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+.plugin-card-content.plugin-view,
+.plugin-view .plugin-card-content {
+  padding: 20px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.plugin-card-header.plugin-view,
+.plugin-view .plugin-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+.plugin-name.plugin-view,
+.plugin-view .plugin-name {
+  margin: 0;
+  font-size: 18px;
+  font-weight: bold;
+  color: var(--app-text);
+  flex: 1;
+  margin-right: 10px;
+}
+.plugin-status.plugin-view,
+.plugin-view .plugin-status {
+  flex-shrink: 0;
+}
+.lock-icon.plugin-view,
+.plugin-view .lock-icon {
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.lock-icon:hover.plugin-view:hover,
+.plugin-view .lock-icon:hover {
+  transform: scale(1.1);
+}
+.public-lock.plugin-view,
+.plugin-view .public-lock {
+  color: var(--app-success);
+}
+.private-lock.plugin-view,
+.plugin-view .private-lock {
+  color: var(--app-danger);
+}
+.delete-icon-container.plugin-view,
+.plugin-view .delete-icon-container {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 10;
+}
+.delete-icon.plugin-view,
+.plugin-view .delete-icon {
+  font-size: 28px;
+  color: var(--app-danger);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  opacity: 0;
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  padding: 6px;
+  box-shadow: 0 0px 0px rgba(0, 0, 0, 0.15);
+}
+.plugin-view .plugin-item-card:hover .delete-icon {
+  opacity: 1;
+}
+.delete-icon:hover.plugin-view:hover,
+.plugin-view .delete-icon:hover {
+  color: var(--app-danger);
+  transform: scale(1.15);
+  background-color: var(--app-danger-soft);
+  box-shadow: 0 4px 12px var(--app-danger-soft-strong);
+}
+.plugin-card-version.plugin-view,
+.plugin-view .plugin-card-version {
+  font-size: 14px;
+  color: var(--app-text-soft);
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--app-border);
+}
+.plugin-card-description.plugin-view,
+.plugin-view .plugin-card-description {
+  font-size: 14px;
+  color: var(--app-text-soft);
+  line-height: 1.6;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--app-border);
+  flex: 1;
+  overflow: hidden;
+}
+.plugin-card-footer.plugin-view,
+.plugin-view .plugin-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--app-text-muted);
+  margin-top: auto;
+}
+.plugin-card-author.plugin-view,
+.plugin-view .plugin-card-author,
+.plugin-card-time.plugin-view,
+.plugin-view .plugin-card-time {
+  display: flex;
+  align-items: center;
+}
+.footer-icon.plugin-view,
+.plugin-view .footer-icon {
+  font-size: 14px;
+  margin-right: 4px;
+}
+.pagination.plugin-view,
+.plugin-view .pagination {
+  margin-top: 30px;
+  display: flex;
+  justify-content: center;
+}
+.plugin-view .el-pagination .el-pager li.active {
+  background-color: var(--app-primary);
+  color: white;
+}
+.plugin-view .el-pagination .el-pager li:hover:not(.disabled) {
+  color: var(--app-primary);
+}
+
+/* ===== src/views/plugin/PluginDetailView.vue [0] ===== */
+.plugin-detail {
+  padding: 20px;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.detail-header.plugin-detail,
+.plugin-detail .detail-header {
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.header-actions.plugin-detail,
+.plugin-detail .header-actions {
+  display: flex;
+  gap: 10px;
+}
+.detail-card.plugin-detail,
+.plugin-detail .detail-card {
+  margin-bottom: 20px;
+}
+.card-header.plugin-detail,
+.plugin-detail .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.plugin-name.plugin-detail,
+.plugin-detail .plugin-name {
+  margin: 0;
+  font-size: 24px;
+  font-weight: bold;
+  color: var(--app-text);
+}
+.plugin-description.plugin-detail,
+.plugin-detail .plugin-description {
+  margin-top: 20px;
+}
+.plugin-detail .plugin-description h3 {
+  margin: 0 0 10px 0;
+  font-size: 18px;
+  font-weight: bold;
+  color: var(--app-text);
+}
+.plugin-detail .plugin-description p {
+  margin: 0;
+  color: var(--app-text-soft);
+  line-height: 1.5;
+}
+.version-number.plugin-detail,
+.plugin-detail .version-number {
+  font-size: 18px;
+  font-weight: bold;
+  color: var(--app-text);
+}
+/* 版本 Tag 切换栏样式放大 */
+.plugin-detail .el-tabs__item {
+  font-size: 16px;
+  font-weight: 600;
+}
+.version-changelog.plugin-detail,
+.plugin-detail .version-changelog {
+  margin-top: 20px;
+}
+.plugin-detail .version-changelog h4 {
+  margin: 0 0 10px 0;
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--app-text);
+}
+.plugin-detail .version-changelog p {
+  margin: 0;
+  color: var(--app-text-soft);
+  line-height: 1.5;
+}
+/* 版本变更说明 markdown 渲染样式（v-html 内容需用 :deep 穿透） */
+.version-changelog.plugin-detail .markdown-body,
+.plugin-detail .version-changelog .markdown-body {
+  color: var(--app-text-soft);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.version-changelog.plugin-detail .markdown-body h3,
+.plugin-detail .version-changelog .markdown-body h3,
+.version-changelog.plugin-detail .markdown-body h4,
+.plugin-detail .version-changelog .markdown-body h4,
+.version-changelog.plugin-detail .markdown-body h5,
+.plugin-detail .version-changelog .markdown-body h5 {
+  margin: 8px 0 4px;
+  font-size: 15px;
+  color: var(--app-text);
+}
+.version-changelog.plugin-detail .markdown-body p,
+.plugin-detail .version-changelog .markdown-body p {
+  margin: 4px 0;
+}
+.version-changelog.plugin-detail .markdown-body ul,
+.plugin-detail .version-changelog .markdown-body ul,
+.version-changelog.plugin-detail .markdown-body ol,
+.plugin-detail .version-changelog .markdown-body ol {
+  margin: 4px 0;
+  padding-left: 20px;
+}
+.version-changelog.plugin-detail .markdown-body li,
+.plugin-detail .version-changelog .markdown-body li {
+  margin: 2px 0;
+}
+.version-changelog.plugin-detail .markdown-body code,
+.plugin-detail .version-changelog .markdown-body code {
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.05);
+  font-family: Consolas, Monaco, monospace;
+  font-size: 0.9em;
+  color: var(--app-text);
+}
+.version-changelog.plugin-detail .markdown-body pre,
+.plugin-detail .version-changelog .markdown-body pre {
+  margin: 6px 0;
+  padding: 10px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.04);
+  overflow-x: auto;
+}
+.version-changelog.plugin-detail .markdown-body pre code,
+.plugin-detail .version-changelog .markdown-body pre code {
+  padding: 0;
+  background: transparent;
+}
+.version-changelog.plugin-detail .markdown-body strong,
+.plugin-detail .version-changelog .markdown-body strong {
+  color: var(--app-text);
+  font-weight: 600;
+}
+.version-changelog.plugin-detail .markdown-body table,
+.plugin-detail .version-changelog .markdown-body table {
+  border-collapse: collapse;
+  margin: 6px 0;
+}
+.version-changelog.plugin-detail .markdown-body th,
+.plugin-detail .version-changelog .markdown-body th,
+.version-changelog.plugin-detail .markdown-body td,
+.plugin-detail .version-changelog .markdown-body td {
+  padding: 6px 10px;
+  border: 1px solid var(--app-border);
+  text-align: left;
+}
+.version-changelog.plugin-detail .markdown-body blockquote,
+.plugin-detail .version-changelog .markdown-body blockquote {
+  margin: 6px 0;
+  padding: 4px 12px;
+  border-left: 3px solid var(--app-border);
+  color: var(--app-text-soft);
+}
+/* 暗色模式下代码块背景反向叠加（浅色背景太暗看不清） */
+.version-entity-info.plugin-detail,
+.plugin-detail .version-entity-info,
+.version-method-info.plugin-detail,
+.plugin-detail .version-method-info {
+  margin-top: 20px;
+}
+.plugin-detail .version-entity-info h4,
+.plugin-detail .version-method-info h4 {
+  margin: 0 0 15px 0;
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--app-text);
+}
+/* 实体类卡片样式 */
+.entity-cards-container.plugin-detail,
+.plugin-detail .entity-cards-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+.entity-card-item.plugin-detail,
+.plugin-detail .entity-card-item {
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+.entity-card-item:hover.plugin-detail:hover,
+.plugin-detail .entity-card-item:hover {
+  transform: translateY(-2px);
+}
+.entity-card-header.plugin-detail,
+.plugin-detail .entity-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+}
+.entity-card-title.plugin-detail,
+.plugin-detail .entity-card-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--app-text);
+  flex: 1;
+}
+.entity-card-description.plugin-detail,
+.plugin-detail .entity-card-description {
+  font-size: 13px;
+  color: var(--app-text-soft);
+  flex: 1;
+  min-width: 200px;
+  text-align: right;
+}
+.entity-card-body.plugin-detail,
+.plugin-detail .entity-card-body {
+  padding-top: 10px;
+}
+/* 方法类卡片样式 */
+.method-classes-container.plugin-detail,
+.plugin-detail .method-classes-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 20px;
+  margin-top: 16px;
+}
+.method-class-card.plugin-detail,
+.plugin-detail .method-class-card {
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+.method-class-card:hover.plugin-detail:hover,
+.plugin-detail .method-class-card:hover {
+  transform: translateY(-2px);
+}
+.method-class-header.plugin-detail,
+.plugin-detail .method-class-header {
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+}
+.method-class-title.plugin-detail,
+.plugin-detail .method-class-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--app-text);
+}
+.method-class-body.plugin-detail,
+.plugin-detail .method-class-body {
+  padding-top: 10px;
+}
+.method-class-description.plugin-detail,
+.plugin-detail .method-class-description {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  color: var(--app-text-soft);
+  line-height: 1.4;
+}
+.methods-container.plugin-detail,
+.plugin-detail .methods-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.method-card-item.plugin-detail,
+.plugin-detail .method-card-item {
+  border-radius: 6px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  border-left: 3px solid var(--app-primary);
+}
+.method-card-item:hover.plugin-detail:hover,
+.plugin-detail .method-card-item:hover {
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+}
+.method-card-header.plugin-detail,
+.plugin-detail .method-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.method-name.plugin-detail,
+.plugin-detail .method-name {
+  font-weight: bold;
+  color: var(--app-text);
+  font-size: 14px;
+  flex: 1;
+}
+.method-description.plugin-detail,
+.plugin-detail .method-description {
+  font-size: 13px;
+  color: var(--app-text-soft);
+  margin: 8px 0;
+  line-height: 1.4;
+}
+.method-return-type.plugin-detail,
+.plugin-detail .method-return-type {
+  font-size: 12px;
+  color: var(--app-text-muted);
+  background-color: var(--app-primary-soft);
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--app-primary-soft);
+  flex-shrink: 0;
+}
+.method-card-body.plugin-detail,
+.plugin-detail .method-card-body {
+  padding-top: 8px;
+}
+/* 通用样式 */
+.properties-collapse.plugin-detail,
+.plugin-detail .properties-collapse,
+.parameters-collapse.plugin-detail,
+.plugin-detail .parameters-collapse {
+  border: 1px solid var(--app-border);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+.properties-collapse-item.plugin-detail,
+.plugin-detail .properties-collapse-item,
+.parameters-collapse-item.plugin-detail,
+.plugin-detail .parameters-collapse-item {
+  border-bottom: 1px solid var(--app-border);
+}
+.properties-collapse-item:last-child.plugin-detail:last-child,
+.plugin-detail .properties-collapse-item:last-child,
+.parameters-collapse-item:last-child.plugin-detail:last-child,
+.plugin-detail .parameters-collapse-item:last-child {
+  border-bottom: none;
+}
+.properties-list.plugin-detail,
+.plugin-detail .properties-list,
+.parameters-list.plugin-detail,
+.plugin-detail .parameters-list {
+  padding: 12px;
+  background-color: #ffffff;
+  border-top: 1px solid var(--app-border);
+}
+.property-item.plugin-detail,
+.plugin-detail .property-item,
+.parameter-item.plugin-detail,
+.plugin-detail .parameter-item {
+  display: flex;
+  margin-bottom: 8px;
+  font-size: 13px;
+  padding: 4px 0;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.property-name.plugin-detail,
+.plugin-detail .property-name,
+.parameter-name.plugin-detail,
+.plugin-detail .parameter-name {
+  font-weight: bold;
+  margin-right: 12px;
+  color: var(--app-text);
+  min-width: 100px;
+  flex-shrink: 0;
+}
+.property-type.plugin-detail,
+.plugin-detail .property-type,
+.parameter-type.plugin-detail,
+.plugin-detail .parameter-type {
+  color: var(--app-text-soft);
+  word-break: break-all;
+  font-family: 'Courier New', monospace;
+  background-color: var(--app-bg-muted);
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid #e9ecef;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+.property-description.plugin-detail,
+.plugin-detail .property-description,
+.parameter-description.plugin-detail,
+.plugin-detail .parameter-description {
+  color: var(--app-text-muted);
+  font-size: 12px;
+  flex: 1;
+  min-width: 150px;
+  font-style: italic;
+}
+.method-return-description.plugin-detail,
+.plugin-detail .method-return-description {
+  font-size: 12px;
+  color: var(--app-text-muted);
+  background-color: var(--app-primary-soft);
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--app-primary-soft);
+  margin-left: 8px;
+  flex-shrink: 0;
+  font-style: italic;
+}
+.no-properties.plugin-detail,
+.plugin-detail .no-properties,
+.no-parameters.plugin-detail,
+.plugin-detail .no-parameters {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--app-text-muted);
+  font-style: italic;
+}
+/* 编辑模式样式 */
+.edit-entity-description.plugin-detail,
+.plugin-detail .edit-entity-description {
+  flex: 1;
+  min-width: 200px;
+  max-width: 300px;
+}
+.edit-method-description.plugin-detail,
+.plugin-detail .edit-method-description {
+  width: 100%;
+  margin: 8px 0;
+}
+.edit-method-class-description.plugin-detail,
+.plugin-detail .edit-method-class-description {
+  width: 100%;
+  min-height: 60px;
+  margin-bottom: 16px;
+}
+/* 响应式调整 */
+@media (max-width: 768px) {
+.entity-cards-container.plugin-detail,
+.plugin-detail .entity-cards-container,
+  .method-classes-container.plugin-detail,
+.plugin-detail .method-classes-container {
+    grid-template-columns: 1fr;
+}
+.entity-card-header.plugin-detail,
+.plugin-detail .entity-card-header,
+  .method-card-header.plugin-detail,
+.plugin-detail .method-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+}
+.entity-card-description.plugin-detail,
+.plugin-detail .entity-card-description {
+    text-align: left;
+    min-width: auto;
+}
+}
+.compatible-versions.plugin-detail,
+.plugin-detail .compatible-versions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  min-height: 32px;
+  padding: 4px 0;
+}
+.compatible-tag.plugin-detail,
+.plugin-detail .compatible-tag {
+  margin-right: 8px;
+  margin-bottom: 4px;
+  border-radius: 12px;
+  padding: 4px 12px;
+  font-size: 12px;
+  background-color: var(--app-primary-soft);
+  border: 1px solid var(--app-primary-soft);
+  color: var(--app-primary);
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+}
+.compatible-tag:hover.plugin-detail:hover,
+.plugin-detail .compatible-tag:hover {
+  background-color: var(--app-primary-soft);
+  border-color: #91d5ff;
+  color: var(--app-primary-strong);
+}
+/* 编辑模式下的表单元素样式 */
+.edit-plugin-name.plugin-detail,
+.plugin-detail .edit-plugin-name {
+  width: 300px;
+  font-size: 24px;
+  font-weight: bold;
+}
+.edit-plugin-description.plugin-detail,
+.plugin-detail .edit-plugin-description {
+  width: 100%;
+  min-height: 100px;
+}
+.edit-changelog.plugin-detail,
+.plugin-detail .edit-changelog {
+  width: 100%;
+  min-height: 80px;
+}
+.edit-method-class-description.plugin-detail,
+.plugin-detail .edit-method-class-description {
+  width: 100%;
+  min-height: 60px;
+  margin-bottom: 10px;
+}
+.edit-compatible-versions.plugin-detail,
+.plugin-detail .edit-compatible-versions {
+  width: 100%;
+}
+/* 加载状态样式 */
+.loading-overlay.plugin-detail,
+.plugin-detail .loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+.loading-content.plugin-detail,
+.plugin-detail .loading-content {
+  text-align: center;
+}
+.loading-spinner.plugin-detail,
+.plugin-detail .loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid var(--app-primary);
+  border-radius: 50%;
+  animation: spin-0 1s linear infinite;
+  margin: 0 auto 10px;
+}
+.loading-text.plugin-detail,
+.plugin-detail .loading-text {
+  color: var(--app-text-soft);
+  font-size: 14px;
+}
+@keyframes spin-0 {
+0% { transform: rotate(0deg);
+}
+100% { transform: rotate(360deg);
+}
+}
+
+/* ===== src/views/plugin/PluginCreateView.vue [0] ===== */
+.plugin-create-form {
+  padding: 10px 0;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+/* 表单项目样式 */
+.form-item.plugin-create-form,
+.plugin-create-form .form-item {
+  display: flex;
+  margin-bottom: 20px;
+  align-items: flex-start;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+/* 确保上传框所在的form-item没有背景 */
+.form-item:has(.upload-component).plugin-create-form:has(.upload-component),
+.plugin-create-form .form-item:has(.upload-component) {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+/* 确保上传框及其所有父元素没有背景 */
+.form-item:has(.upload-component).plugin-create-form:has(.upload-component),
+.plugin-create-form .form-item:has(.upload-component),
+.form-item:has(.upload-component).plugin-create-form:has(.upload-component) > *,
+.plugin-create-form .form-item:has(.upload-component) > * {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+/* 确保整个表单容器没有背景 */
+.plugin-create-form {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+/* 标签样式 */
+.form-label.plugin-create-form,
+.plugin-create-form .form-label {
+  width: 100px;
+  text-align: right;
+  margin-right: 20px;
+  font-weight: 500;
+  padding-top: 8px;
+  border: none !important;
+  background: transparent !important;
+}
+/* 必填标志 */
+.required.plugin-create-form,
+.plugin-create-form .required {
+  color: var(--app-danger);
+  margin-right: 4px;
+}
+/* 表单输入区域 */
+.form-item.plugin-create-form > *:not(.form-label),
+.plugin-create-form .form-item > *:not(.form-label) {
+  flex: 1;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+/* 上传组件 */
+.upload-component.plugin-create-form,
+.plugin-create-form .upload-component {
+  border: 1px dashed var(--app-border) !important;
+  border-radius: 6px !important;
+  padding: 40px 20px !important;
+  text-align: center !important;
+  min-height: 160px !important;
+  margin: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  transition: all 0.3s ease;
+}
+.upload-component:hover.plugin-create-form:hover,
+.plugin-create-form .upload-component:hover {
+  border-color: var(--app-primary) !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+/* 确保el-upload内部元素没有边框和背景 */
+.upload-component.plugin-create-form,
+.plugin-create-form .upload-component,
+.plugin-create-form .upload-component .el-upload,
+.plugin-create-form .upload-component .el-upload__text,
+.plugin-create-form .upload-component .el-upload--text,
+.plugin-create-form .upload-component .el-upload--drag,
+.plugin-create-form .upload-component .el-upload-dragger {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  outline: none !important;
+}
+/* 确保el-upload组件本身没有背景 */
+.el-upload.plugin-create-form,
+.plugin-create-form .el-upload,
+.el-upload--drag.plugin-create-form,
+.plugin-create-form .el-upload--drag {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+/* 确保el-upload-dragger没有背景和阴影 */
+.el-upload-dragger.plugin-create-form,
+.plugin-create-form .el-upload-dragger {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+/* 确保el-upload-dragger在hover时没有背景和阴影 */
+.el-upload-dragger:hover.plugin-create-form:hover,
+.plugin-create-form .el-upload-dragger:hover {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+/* 上传图标 */
+.upload-icon.plugin-create-form,
+.plugin-create-form .upload-icon {
+  font-size: 36px;
+  color: var(--app-text-disabled);
+  margin-bottom: 12px;
+}
+/* 上传文本 */
+.upload-text.plugin-create-form,
+.plugin-create-form .upload-text {
+  font-size: 14px;
+  color: var(--app-text-soft);
+  margin-bottom: 6px;
+}
+/* 上传提示 */
+.upload-tip.plugin-create-form,
+.plugin-create-form .upload-tip {
+  font-size: 12px;
+  color: var(--app-text-muted);
+  line-height: 1.4;
+}
+/* 上传完成状态 */
+.uploaded-file.plugin-create-form,
+.plugin-create-form .uploaded-file {
+  display: flex;
+  align-items: center;
+  padding: 20px;
+  border: 1px solid var(--app-primary-soft);
+  border-radius: 6px;
+  background-color: var(--app-success-soft);
+  transition: all 0.3s ease;
+}
+.uploaded-file:hover.plugin-create-form:hover,
+.plugin-create-form .uploaded-file:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+/* 文件图标 */
+.file-icon.plugin-create-form,
+.plugin-create-form .file-icon {
+  font-size: 24px;
+  color: var(--app-success);
+  margin-right: 16px;
+}
+/* 文件信息 */
+.file-info.plugin-create-form,
+.plugin-create-form .file-info {
+  flex: 1;
+}
+.file-name.plugin-create-form,
+.plugin-create-form .file-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--app-text);
+  margin-bottom: 4px;
+  word-break: break-all;
+}
+.file-size.plugin-create-form,
+.plugin-create-form .file-size {
+  font-size: 12px;
+  color: var(--app-text-muted);
+}
+/* 移除按钮 */
+.remove-button.plugin-create-form,
+.plugin-create-form .remove-button {
+  margin-left: 16px;
+  color: var(--app-danger);
+}
+.remove-button:hover.plugin-create-form:hover,
+.plugin-create-form .remove-button:hover {
+  color: var(--app-danger);
+}
+/* 操作按钮区域 */
+.form-buttons.plugin-create-form,
+.plugin-create-form .form-buttons {
+  margin-left: 120px;
+}
+/* 确保输入框等元素样式正常 */
+.el-input.plugin-create-form,
+.plugin-create-form .el-input,
+.el-input__wrapper.plugin-create-form,
+.plugin-create-form .el-input__wrapper,
+.el-textarea.plugin-create-form,
+.plugin-create-form .el-textarea,
+.el-select.plugin-create-form,
+.plugin-create-form .el-select {
+  border: 1px solid var(--app-border) !important;
+  background: white !important;
+  box-shadow: none !important;
+}
+/* 确保开关组件样式正常 */
+.el-switch.plugin-create-form,
+.plugin-create-form .el-switch {
+  margin-top: 4px;
+}
+

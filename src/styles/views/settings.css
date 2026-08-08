@@ -1,0 +1,356 @@
+/* ===== src/views/bot/SettingsView.vue [0] ===== */
+.settings-view {
+  width: 100%;
+}
+.settings-cards.settings-view,
+.settings-view .settings-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+.settings-card.settings-view,
+.settings-view .settings-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  transition: box-shadow 0.3s ease;
+}
+.settings-card:hover.settings-view:hover,
+.settings-view .settings-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+.card-header.settings-view,
+.settings-view .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.card-title.settings-view,
+.settings-view .card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--app-text);
+}
+.card-icon.settings-view,
+.settings-view .card-icon {
+  font-size: 18px;
+  color: var(--app-primary);
+}
+/* ─── 卡片头部状态标签 ─── */
+.header-status.settings-view,
+.settings-view .header-status {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 500;
+  margin-left: 10px;
+  padding: 2px 10px;
+  border-radius: 12px;
+  gap: 4px;
+}
+.header-status.online.settings-view,
+.settings-view .header-status.online {
+  color: var(--app-success);
+  background: rgba(34, 197, 94, 0.1);
+}
+.header-status.offline.settings-view,
+.settings-view .header-status.offline {
+  color: var(--app-text-muted);
+  background: rgba(148, 163, 184, 0.1);
+}
+.card-actions.settings-view,
+.settings-view .card-actions {
+  display: flex;
+  gap: 8px;
+}
+.disabled-delete-wrapper.settings-view,
+.settings-view .disabled-delete-wrapper {
+  display: inline-block;
+  cursor: not-allowed;
+}
+.card-body.settings-view,
+.settings-view .card-body {
+  min-height: 60px;
+}
+.info-row.settings-view,
+.settings-view .info-row {
+  display: flex;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+.info-row:last-child.settings-view:last-child,
+.settings-view .info-row:last-child {
+  border-bottom: none;
+}
+.info-label.settings-view,
+.settings-view .info-label {
+  width: 90px;
+  flex-shrink: 0;
+  font-size: 13px;
+  color: var(--app-text-muted);
+}
+.info-value.settings-view,
+.settings-view .info-value {
+  flex: 1;
+  font-size: 14px;
+  color: var(--app-text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  word-break: break-all;
+}
+.port-value.settings-view,
+.settings-view .port-value {
+  color: var(--app-primary);
+  font-weight: 600;
+}
+.visit-link.settings-view,
+.settings-view .visit-link {
+  display: inline-block;
+  padding: 2px 10px;
+  background-color: var(--app-primary-soft);
+  color: var(--app-primary);
+  border-radius: 4px;
+  text-decoration: none;
+  font-size: 12px;
+  border: 1px solid var(--app-primary-soft);
+  transition: all 0.3s;
+}
+.visit-link:hover.settings-view:hover,
+.settings-view .visit-link:hover {
+  background-color: var(--app-primary);
+  color: #fff;
+  border-color: var(--app-primary);
+}
+.token-value.settings-view,
+.settings-view .token-value {
+  font-family: "Monaco", "Menlo", monospace;
+  font-size: 12px;
+}
+/* ─── 连接信息凭证 ─── */
+.info-row-credentials.settings-view,
+.settings-view .info-row-credentials {
+  padding: 12px 0;
+}
+.info-credentials.settings-view,
+.settings-view .info-credentials {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-left: 0;
+}
+.credential-item.settings-view,
+.settings-view .credential-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--app-bg-muted);
+  border-radius: 6px;
+  border: 1px solid var(--app-border-soft);
+}
+.credential-label.settings-view,
+.settings-view .credential-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--app-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+  min-width: 40px;
+  line-height: 20px;
+}
+.credential-value.settings-view,
+.settings-view .credential-value {
+  font-family: "Monaco", "Menlo", "Consolas", monospace;
+  font-size: 12px;
+  color: var(--app-text);
+  flex: 1;
+  min-width: 0;
+  word-break: break-all;
+  line-height: 1.5;
+}
+.copy-btn.settings-view,
+.settings-view .copy-btn {
+  flex-shrink: 0;
+  color: var(--app-text-muted);
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+.copy-btn:hover.settings-view:hover,
+.settings-view .copy-btn:hover {
+  color: var(--app-primary);
+  background: var(--app-primary-soft-weak);
+}
+/* ─── 状态指示点 ─── */
+.status-dot.settings-view,
+.settings-view .status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+.status-dot.online.settings-view,
+.settings-view .status-dot.online {
+  background: var(--app-success);
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
+  animation: status-pulse-0 2s ease-in-out infinite;
+}
+.status-dot.offline.settings-view,
+.settings-view .status-dot.offline {
+  background: #cbd5e1;
+}
+@keyframes status-pulse-0 {
+0%, 100% { opacity: 1;
+}
+50% { opacity: 0.5;
+}
+}
+@media (max-width: 1200px) {
+.settings-cards.settings-view,
+.settings-view .settings-cards {
+    grid-template-columns: repeat(2, 1fr);
+}
+}
+@media (max-width: 767px) {
+.settings-cards.settings-view,
+.settings-view .settings-cards {
+    grid-template-columns: 1fr;
+    gap: 12px;
+}
+.settings-view {
+    padding-bottom: 16px;
+    overflow-y: auto;
+    height: 100%;
+}
+.card-title.settings-view,
+.settings-view .card-title {
+    font-size: 15px;
+}
+.card-icon.settings-view,
+.settings-view .card-icon {
+    font-size: 16px;
+}
+.info-label.settings-view,
+.settings-view .info-label {
+    width: 70px;
+    font-size: 12px;
+}
+.info-value.settings-view,
+.settings-view .info-value {
+    font-size: 13px;
+}
+.settings-view .card-actions .el-button {
+    font-size: 12px;
+    padding: 5px 10px;
+}
+}
+
+/* ===== src/views/bot/SettingsView.vue [1] ===== */
+/* ───────── 暗色模式：连接信息凭证 ───────── */
+
+/* ===== src/views/user/ProfileView.vue [0] ===== */
+.profile-view {
+  width: 100%;
+}
+.profile-menu.profile-view,
+.profile-view .profile-menu {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+.profile-menu::-webkit-scrollbar.profile-view::-webkit-scrollbar,
+.profile-view .profile-menu::-webkit-scrollbar {
+  display: none;
+}
+.menu-item.profile-view,
+.profile-view .menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  border: 1px solid var(--app-border);
+}
+.menu-item:hover.profile-view:hover,
+.profile-view .menu-item:hover {
+  background-color: var(--app-bg);
+  border-color: var(--app-text-disabled);
+}
+.menu-item.active.profile-view,
+.profile-view .menu-item.active {
+  background-color: var(--app-primary-soft);
+  border-color: var(--app-primary-strong);
+  color: var(--app-primary-strong);
+}
+.menu-icon.profile-view,
+.profile-view .menu-icon {
+  font-size: 18px;
+}
+.menu-label.profile-view,
+.profile-view .menu-label {
+  font-size: 14px;
+  font-weight: 500;
+}
+.content-section.profile-view,
+.profile-view .content-section {
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 20px;
+}
+.logout-section.profile-view,
+.profile-view .logout-section {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+.section-title.profile-view,
+.profile-view .section-title {
+  font-size: 20px;
+  margin: 0 0 20px 0;
+  color: var(--app-text);
+  font-weight: bold;
+}
+.profile-descriptions.profile-view,
+.profile-view .profile-descriptions {
+  margin-top: 0;
+}
+@media (max-width: 767px) {
+.profile-menu.profile-view,
+.profile-view .profile-menu {
+    gap: 8px;
+}
+.menu-item.profile-view,
+.profile-view .menu-item {
+    padding: 10px 16px;
+}
+.menu-label.profile-view,
+.profile-view .menu-label {
+    font-size: 13px;
+}
+.section-title.profile-view,
+.profile-view .section-title {
+    font-size: 18px;
+}
+.profile-descriptions.profile-view,
+.profile-view .profile-descriptions {
+    font-size: 13px;
+}
+.content-section.profile-view,
+.profile-view .content-section {
+    padding: 16px;
+}
+}
+
