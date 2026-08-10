@@ -65,8 +65,8 @@ const handleLogin = async () => {
     // 登录成功，保存用户信息
     userStore.loginSuccess(response.data)
     
-    // 跳转到基础信息配置
-    router.push('/settings')
+    // 登录成功后默认进入数据统计首页
+    router.push('/statistics')
   } catch (error) {
     console.error('登录失败:', error)
   } finally {
@@ -139,4 +139,3 @@ const goToForgotPassword = () => {
     </div>
   </div>
 </template>
-

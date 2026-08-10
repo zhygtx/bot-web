@@ -1,0 +1,198 @@
+/* 数据统计首页：操作型仪表盘布局，信息密度优先，卡片只承担单个指标 */
+.statistics-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 100%;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.stat-card {
+  min-height: 108px;
+  padding: 16px;
+  background: var(--app-card-bg);
+  border: 1px solid var(--app-border-soft);
+  border-radius: 8px;
+  box-shadow: var(--app-shadow);
+}
+
+.bot-stat-card {
+  grid-column: 1 / -1;
+  min-height: 96px;
+}
+
+.bot-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.bot-status-badge.online {
+  color: var(--app-success);
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.bot-status-badge.offline {
+  color: var(--app-text-muted);
+  background: rgba(148, 163, 184, 0.1);
+}
+
+.bot-status-badge .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.bot-status-badge.online .status-dot {
+  background: var(--app-success);
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
+  animation: bot-status-pulse 2s ease-in-out infinite;
+}
+
+.bot-status-badge.offline .status-dot {
+  background: #cbd5e1;
+}
+
+.bot-live-duration {
+  margin: 10px 0 4px;
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--app-success);
+  font-variant-numeric: tabular-nums;
+}
+
+.bot-qq {
+  font-size: 12px;
+  color: var(--app-text-muted);
+}
+
+.bot-empty {
+  padding-top: 4px;
+  font-size: 14px;
+  color: var(--app-text-muted);
+}
+
+@keyframes bot-status-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.stat-card-label {
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: var(--app-text-muted);
+}
+
+.stat-card-value {
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--app-text);
+  letter-spacing: 0;
+}
+
+.stat-card-sub {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--app-text-muted);
+}
+
+.stat-card.tone-primary .stat-card-value {
+  color: var(--app-primary);
+}
+
+.stat-card.tone-success .stat-card-value {
+  color: var(--app-success);
+}
+
+.stat-card.tone-danger .stat-card-value {
+  color: var(--app-danger);
+}
+
+.stat-card.tone-warning .stat-card-value {
+  color: var(--app-warning);
+}
+
+.stat-card.tone-muted .stat-card-value {
+  color: var(--app-text-soft);
+}
+
+.charts-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(360px, 1fr);
+  gap: 14px;
+}
+
+.chart-panel,
+.data-panel {
+  padding: 16px;
+  background: var(--app-panel-bg);
+  border: 1px solid var(--app-border-soft);
+  border-radius: 8px;
+}
+
+.panel-title {
+  margin-bottom: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.panel-header .panel-title {
+  margin-bottom: 0;
+}
+
+.chart-box {
+  width: 100%;
+  height: 320px;
+}
+
+.data-panel .el-table {
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: transparent;
+  --el-table-header-bg-color: transparent;
+  --el-table-border-color: var(--app-border-soft);
+}
+
+@media (max-width: 1100px) {
+  .charts-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-box {
+    height: 260px;
+  }
+}

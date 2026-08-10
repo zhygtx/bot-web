@@ -1,7 +1,13 @@
 // 全局菜单配置
-import { Connection, Operation, List, Clock, Setting, MagicStick } from '@element-plus/icons-vue'
+import { Connection, Operation, List, Clock, Setting, MagicStick, DataAnalysis } from '@element-plus/icons-vue'
 
 export const menuItems = [
+  {
+    path: '/statistics',
+    name: 'statistics',
+    label: '数据统计',
+    icon: DataAnalysis
+  },
   {
     path: '/plugin/list',
     name: 'plugin',

@@ -7,6 +7,7 @@
 @import './views/plugin.css';
 @import './views/ai-plugin.css';
 @import './views/workflow.css';
+@import './views/statistics.css';
 @import './components/workflow.css';
 
 /* 亮暗色变量统一放在 theme/light.css 与 theme/dark.css，页面样式只引用 var(--app-*) */

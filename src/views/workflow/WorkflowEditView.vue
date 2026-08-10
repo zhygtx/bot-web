@@ -78,6 +78,8 @@ const isCanvasEmpty = computed(() => nodes.value.length === 0)
 
 const hasTriggerNode = computed(() => nodes.value.some(node => isTriggerCallable(node.callable)))
 
+const hasBotEventNode = computed(() => nodes.value.some(node => (node.callable || '').startsWith('system:botEvent:')))
+
 const nodeExecutionStatus = computed(() => {
   const map = {}
   const nodes = getExecutionNodes(executionLog.value)
@@ -136,6 +138,10 @@ const handleSave = async () => {
 }
 
 const handleSaveAndTest = async () => {
+  if (hasBotEventNode.value) {
+    ElMessage.warning('BOT 事件节点不能用于测试')
+    return
+  }
   const validation = validateWorkflowNodes(nodes.value)
   if (!validation.valid) {
     ElMessage.error(validation.message)
@@ -521,7 +527,7 @@ onUnmounted(() => {
           <el-button :type="workflowInfo.enabled ? 'success' : 'danger'" @click="workflowInfo.enabled = !workflowInfo.enabled">
             {{ workflowInfo.enabled ? '启用中' : '已禁用' }}
           </el-button>
-          <el-button type="primary" @click="handleSaveAndTest" :disabled="isCanvasEmpty">保存并测试</el-button>
+          <el-button type="primary" @click="handleSaveAndTest" :disabled="isCanvasEmpty || hasBotEventNode">保存并测试</el-button>
           <el-button type="success" @click="handleSave" :disabled="isCanvasEmpty">保存</el-button>
           <el-button v-if="workflowId || workflowInfo.id" type="warning" @click="showHistoryLog = !showHistoryLog">历史日志</el-button>
         </div>

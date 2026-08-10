@@ -5,7 +5,7 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      redirect: '/settings'
+      redirect: '/statistics'
     },
     {
       path: '/login',
@@ -31,6 +31,12 @@ const router = createRouter({
       name: 'bot-settings',
       component: () => import('../views/bot/SettingsView.vue'),
       meta: { title: '基础信息配置' }
+    },
+    {
+      path: '/statistics',
+      name: 'statistics',
+      component: () => import('../views/statistics/StatisticsView.vue'),
+      meta: { title: '数据统计' }
     },
     {
       path: '/plugin/list',

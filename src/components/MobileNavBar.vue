@@ -1,12 +1,13 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Connection, Clock, Operation, User, Setting } from '@element-plus/icons-vue'
+import { Connection, Clock, Operation, User, Setting, DataAnalysis } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
 
 const navItems = [
+  { path: '/statistics', label: '统计', icon: DataAnalysis },
   { path: '/workflow/list', label: '工作流', icon: Connection },
   { path: '/workflow/log', label: '执行日志', icon: Clock },
   { path: '/plugin/list', label: '插件管理', icon: Operation },
@@ -43,4 +44,3 @@ const navigate = (path) => {
     </div>
   </nav>
 </template>
-
