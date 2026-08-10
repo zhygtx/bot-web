@@ -34,3 +34,4 @@ npm run build
 - 所有请求统一走 `src/utils/request.js`，自动携带 Bearer token，仅 `code === 200` 视为成功。
 - 样式统一放在 `src/styles`，页面样式按视图拆分并在 `app.css` 引入。
 - 暗色主题通过 `html.dark` 与 CSS 变量控制。
+- 侧边栏配色统一使用 `--sidebar-*` 主题变量（专业科技蓝方案），亮/暗模式各自定义。

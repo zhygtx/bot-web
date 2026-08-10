@@ -1,7 +1,7 @@
 :root.dark {
   color-scheme: dark;
 
-  --app-bg: radial-gradient(circle at 20% 0%, rgba(37, 99, 235, 0.16), transparent 28%), linear-gradient(180deg, #121c2a 0%, #08111d 100%);
+  --app-bg: #0f141a;
   --app-bg-soft: #0d1724;
   --app-bg-muted: #111d2c;
   --app-header-bg: rgba(9, 17, 29, 0.92);
@@ -9,6 +9,19 @@
   --app-card-bg-hover: linear-gradient(180deg, rgba(25, 40, 60, 0.98) 0%, rgba(14, 26, 42, 0.98) 100%);
   --app-panel-bg: rgba(13, 23, 36, 0.95);
   --app-panel-muted: rgba(20, 32, 48, 0.88);
+
+  --sidebar-bg: #141b26;
+  --sidebar-primary: #4096ff;
+  --sidebar-text: #a4b0be;
+  --sidebar-text-primary: #e6edf3;
+  --sidebar-text-active: #4096ff;
+  --sidebar-icon: #8896a5;
+  --sidebar-icon-active: #4096ff;
+  --sidebar-hover-bg: #1a2432;
+  --sidebar-active-bg: #1e2a38;
+  --sidebar-border: #263140;
+  --sidebar-divider: #1f2937;
+  --page-bg: #0f141a;
 
   --app-text: #e5eef9;
   --app-text-soft: #a9b9cc;
@@ -18,14 +31,14 @@
   --app-border: rgba(100, 139, 184, 0.24);
   --app-border-soft: rgba(100, 139, 184, 0.16);
 
-  --app-primary: #60a5fa;
-  --app-primary-strong: #3b82f6;
-  --app-primary-hover: #60a5fa;
-  --app-primary-soft: rgba(96, 165, 250, 0.1);
-  --app-primary-soft-strong: rgba(37, 99, 235, 0.16);
-  --app-primary-soft-weak: rgba(96, 165, 250, 0.08);
-  --app-primary-border: rgba(96, 165, 250, 0.4);
-  --app-primary-border-strong: rgba(96, 165, 250, 0.58);
+  --app-primary: #4096ff;
+  --app-primary-strong: #4096ff;
+  --app-primary-hover: #4096ff;
+  --app-primary-soft: rgba(64, 150, 255, 0.12);
+  --app-primary-soft-strong: rgba(64, 150, 255, 0.18);
+  --app-primary-soft-weak: rgba(64, 150, 255, 0.08);
+  --app-primary-border: rgba(64, 150, 255, 0.4);
+  --app-primary-border-strong: rgba(64, 150, 255, 0.55);
 
   --app-success: #67c23a;
   --app-success-soft: rgba(103, 194, 58, 0.12);
