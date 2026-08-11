@@ -97,7 +97,7 @@ const complexTokenGroups = computed(() => advancedTokenGroups)
 
     <div class="theme-editor-actions">
       <el-button :icon="Select" type="primary" @click="emit('apply')" :loading="saving">应用</el-button>
-      <el-button @click="emit('open-json')" :disabled="editingDisabled">高级 JSON</el-button>
+      <el-button @click="emit('open-json')" :disabled="editingDisabled">高级 JSONC</el-button>
       <el-button :icon="Delete" type="danger" @click="emit('delete')" :disabled="editor.builtin">删除</el-button>
     </div>
   </div>

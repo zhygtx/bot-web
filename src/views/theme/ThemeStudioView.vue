@@ -117,7 +117,7 @@ onMounted(() => {
       />
     </aside>
 
-    <el-dialog v-model="jsonDialogVisible" title="高级 JSON" width="720px">
+    <el-dialog v-model="jsonDialogVisible" title="高级 JSONC" width="720px">
       <el-input v-model="jsonContent" type="textarea" :rows="18" class="theme-json-editor" />
       <template #footer>
         <el-button @click="jsonDialogVisible = false">取消</el-button>

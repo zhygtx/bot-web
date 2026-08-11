@@ -4,7 +4,150 @@ import { useThemeStore } from '../stores/theme'
 import { createTheme, deleteTheme, updateTheme } from '../theme/themeApi'
 import { getBuiltinTheme, themeTokenList } from '../theme/registry'
 import { applyTheme } from '../theme/themeRuntime'
-import { cssValueLooksSafe } from '../theme/tokenSchema'
+import { advancedTokenGroups, cssValueLooksSafe } from '../theme/tokenSchema'
+
+const tokenMetaMap = advancedTokenGroups
+  .flatMap(group => group.tokens.map(token => [token.key, { ...token, groupTitle: group.title }]))
+  .reduce((map, [key, meta]) => {
+    map[key] = meta
+    return map
+  }, {})
+
+const stringifyJsonValue = (value) => JSON.stringify(value)
+
+const stripJsoncComments = (content) => {
+  let result = ''
+  let inString = false
+  let inLineComment = false
+  let inBlockComment = false
+  let escaped = false
+
+  for (let index = 0; index < content.length; index += 1) {
+    const char = content[index]
+    const next = content[index + 1]
+
+    if (inLineComment) {
+      if (char === '\n' || char === '\r') {
+        inLineComment = false
+        result += char
+      }
+      continue
+    }
+
+    if (inBlockComment) {
+      if (char === '*' && next === '/') {
+        inBlockComment = false
+        index += 1
+        continue
+      }
+      if (char === '\n' || char === '\r') result += char
+      continue
+    }
+
+    if (inString) {
+      result += char
+      if (escaped) {
+        escaped = false
+      } else if (char === '\\') {
+        escaped = true
+      } else if (char === '"') {
+        inString = false
+      }
+      continue
+    }
+
+    if (char === '"') {
+      inString = true
+      result += char
+      continue
+    }
+
+    if (char === '/' && next === '/') {
+      inLineComment = true
+      index += 1
+      continue
+    }
+
+    if (char === '/' && next === '*') {
+      inBlockComment = true
+      index += 1
+      continue
+    }
+
+    result += char
+  }
+
+  return result
+}
+
+const removeJsonTrailingCommas = (content) => {
+  let result = ''
+  let inString = false
+  let escaped = false
+
+  for (let index = 0; index < content.length; index += 1) {
+    const char = content[index]
+
+    if (inString) {
+      result += char
+      if (escaped) {
+        escaped = false
+      } else if (char === '\\') {
+        escaped = true
+      } else if (char === '"') {
+        inString = false
+      }
+      continue
+    }
+
+    if (char === '"') {
+      inString = true
+      result += char
+      continue
+    }
+
+    if (char === ',') {
+      let nextIndex = index + 1
+      while (/\s/.test(content[nextIndex] || '')) nextIndex += 1
+      if (content[nextIndex] === '}' || content[nextIndex] === ']') continue
+    }
+
+    result += char
+  }
+
+  return result
+}
+
+const parseJsonc = (content) => JSON.parse(removeJsonTrailingCommas(stripJsoncComments(content)))
+
+const buildJsoncTheme = (editor) => {
+  const lines = [
+    '{',
+    '  // 主题名称。可以让 AI 按你的风格重新命名。',
+    `  "name": ${stringifyJsonValue(editor.name)},`,
+    '',
+    '  // 主题模式。light 为亮色，dark 为暗色；通常保持复制来源的模式不变。',
+    `  "mode": ${stringifyJsonValue(editor.mode)},`,
+    '',
+    '  // tokens 是真正会应用到前端的样式变量。注释只给人和 AI 阅读，保存时不会进入数据库。',
+    '  "tokens": {'
+  ]
+
+  themeTokenList.forEach((key, index) => {
+    const meta = tokenMetaMap[key]
+    const comma = index === themeTokenList.length - 1 ? '' : ','
+    lines.push(`    // ${meta?.groupTitle || '未分组'} / ${meta?.label || key}`)
+    if (meta?.placeholder) {
+      lines.push(`    // 可写：${meta.placeholder}`)
+    }
+    lines.push(`    ${stringifyJsonValue(key)}: ${stringifyJsonValue(editor.tokens[key] || '')}${comma}`)
+    if (index !== themeTokenList.length - 1) lines.push('')
+  })
+
+  lines.push('  }')
+  lines.push('}')
+  return lines.join('\n')
+}
 
 export const useThemeEditor = ({ previewDraft = false, afterApply } = {}) => {
   const themeStore = useThemeStore()
@@ -196,19 +339,15 @@ export const useThemeEditor = ({ previewDraft = false, afterApply } = {}) => {
   }
 
   const openJsonEditor = () => {
-    jsonContent.value = JSON.stringify({
-      name: editor.name,
-      mode: editor.mode,
-      tokens: editor.tokens
-    }, null, 2)
+    jsonContent.value = buildJsoncTheme(editor)
     jsonDialogVisible.value = true
   }
 
   const applyJsonContent = async () => {
     try {
-      const parsed = JSON.parse(jsonContent.value)
+      const parsed = parseJsonc(jsonContent.value)
       if (!parsed.name || !parsed.tokens) {
-        throw new Error('JSON 必须包含 name 和 tokens')
+        throw new Error('JSONC 必须包含 name 和 tokens')
       }
       const parsedMode = parsed.mode === 'dark' ? 'dark' : parsed.mode === 'light' ? 'light' : editor.mode
       Object.entries(parsed.tokens).forEach(([key, value]) => {
@@ -231,7 +370,7 @@ export const useThemeEditor = ({ previewDraft = false, afterApply } = {}) => {
       await saveEditorTheme({ showMessage: true })
       jsonDialogVisible.value = false
     } catch (error) {
-      ElMessage.error(error.message || 'JSON 解析失败')
+      ElMessage.error(error.message || 'JSONC 解析失败')
     }
   }
 
