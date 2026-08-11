@@ -2,11 +2,9 @@
 import { computed } from 'vue'
 import { Delete, Select } from '@element-plus/icons-vue'
 import {
-  backgroundTokenGroups,
+  advancedTokenGroups,
   colorTokenGroups,
-  predefinedThemeColors,
-  shadowTokenGroups,
-  shapeTokenGroups
+  predefinedThemeColors
 } from '../../theme/tokenSchema'
 
 const props = defineProps({
@@ -38,12 +36,7 @@ const editModeModel = computed({
 
 const editingDisabled = computed(() => props.editor.builtin)
 
-const complexTokenGroups = computed(() => [
-  ...colorTokenGroups,
-  ...backgroundTokenGroups,
-  ...shadowTokenGroups,
-  ...shapeTokenGroups
-])
+const complexTokenGroups = computed(() => advancedTokenGroups)
 </script>
 
 <template>
@@ -93,7 +86,11 @@ const complexTokenGroups = computed(() => [
         <h3>{{ group.title }}</h3>
         <label v-for="item in group.tokens" :key="item.key" class="token-row token-row-wide">
           <span>{{ item.label }}</span>
-          <el-input v-model="editor.tokens[item.key]" :disabled="editingDisabled" />
+          <el-input
+            v-model="editor.tokens[item.key]"
+            :disabled="editingDisabled"
+            :placeholder="item.placeholder"
+          />
         </label>
       </section>
     </div>

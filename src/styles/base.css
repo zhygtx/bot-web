@@ -16,7 +16,7 @@ body {
   color: var(--app-text);
   font-size: 14px;
   line-height: 1.5;
-  transition: background-color 0.3s ease, background 0.3s ease, color 0.3s ease;
+  transition: background-color var(--app-transition), background var(--app-transition), color var(--app-transition);
 }
 #app {
   height: 100vh;
@@ -42,12 +42,33 @@ body {
   --el-card-bg-color: transparent;
   --el-card-border-color: var(--app-border-soft);
   background: var(--app-card-bg);
-  border-color: var(--app-border-soft);
+  border: var(--app-border-card);
+  border-radius: var(--app-radius-card);
+  box-shadow: var(--app-shadow);
   color: var(--app-text);
+  transition: background var(--app-transition), border-color var(--app-transition), box-shadow var(--app-transition), transform var(--app-transition-fast);
 }
 
 .el-card__header,
 .el-card__body {
   background: transparent;
   color: inherit;
+}
+
+.el-card__body {
+  padding: var(--app-card-padding);
+}
+
+.el-input__wrapper,
+.el-select__wrapper,
+.el-textarea__inner {
+  border-radius: var(--app-radius-control);
+  min-height: var(--app-control-height);
+  transition: box-shadow var(--app-transition-fast), background var(--app-transition-fast), border-color var(--app-transition-fast);
+}
+
+.el-input__wrapper.is-focus,
+.el-select__wrapper.is-focused,
+.el-textarea__inner:focus {
+  box-shadow: var(--app-border-focus);
 }

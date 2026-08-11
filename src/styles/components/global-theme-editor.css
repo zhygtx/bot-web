@@ -7,19 +7,20 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid var(--app-border-soft);
-  border-radius: var(--app-radius-card);
+  border: var(--app-border-panel);
+  border-radius: var(--app-radius-floating);
   background: var(--app-card-bg);
   box-shadow: var(--app-shadow-hover);
+  backdrop-filter: var(--app-floating-backdrop-filter);
   color: var(--app-text);
   transform-origin: top right;
   transition:
-    left 0.3s ease,
-    top 0.3s ease,
+    left var(--app-transition),
+    top var(--app-transition),
     opacity 0.24s ease,
-    transform 0.3s ease,
-    box-shadow 0.3s ease,
-    border-color 0.3s ease;
+    transform var(--app-transition),
+    box-shadow var(--app-transition),
+    border-color var(--app-transition);
 }
 
 .global-theme-editor-header {
@@ -28,10 +29,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--app-gap);
   padding: 0 12px 0 16px;
-  border-bottom: 1px solid var(--app-border-soft);
+  border-bottom: var(--app-border-panel);
   background: var(--app-header-bg);
+  backdrop-filter: var(--app-header-backdrop-filter);
   color: var(--app-text);
   font-weight: 700;
   cursor: grab;
@@ -44,7 +46,7 @@
 }
 
 .global-theme-editor .theme-editor-panel {
-  padding: 16px;
+  padding: var(--app-panel-padding);
   padding-top: 12px;
 }
 
@@ -56,7 +58,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--app-primary-border);
+  border: var(--app-border-control);
   border-radius: 50%;
   background: var(--app-primary);
   color: var(--app-on-primary);
@@ -65,12 +67,12 @@
   touch-action: none;
   transform-origin: center;
   transition:
-    left 0.3s ease,
-    top 0.3s ease,
+    left var(--app-transition),
+    top var(--app-transition),
     opacity 0.2s ease,
-    transform 0.3s ease,
-    box-shadow 0.3s ease,
-    border-color 0.3s ease;
+    transform var(--app-transition),
+    box-shadow var(--app-transition),
+    border-color var(--app-transition);
 }
 
 .global-theme-editor-bubble:active {
@@ -88,7 +90,7 @@
 .theme-editor-bubble-pop-leave-active {
   transition:
     opacity 0.24s ease,
-    transform 0.3s ease;
+    transform var(--app-transition);
 }
 
 .theme-editor-panel-pop-enter-from,

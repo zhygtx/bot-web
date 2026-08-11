@@ -1075,10 +1075,11 @@
   justify-content: space-between;
   align-items: center;
   padding: 10px 20px;
-  background: var(--app-surface-raised-soft);
+  min-height: var(--app-toolbar-height);
+  background: var(--workflow-toolbar-bg);
   border-radius: var(--app-radius-card);
-  box-shadow: var(--app-shadow);
-  backdrop-filter: blur(var(--app-blur-surface));
+  box-shadow: var(--workflow-panel-shadow);
+  backdrop-filter: var(--app-header-backdrop-filter);
 }
 .header-center {
   flex: 1;
@@ -1584,9 +1585,10 @@
   top: 90px;
   width: 600px;
   height: calc(100% - 110px);
-  background: var(--app-surface-raised);
-  border-radius: 8px;
-  box-shadow: var(--app-shadow);
+  background: var(--workflow-config-panel-bg);
+  border-radius: var(--app-radius-card);
+  box-shadow: var(--workflow-panel-shadow);
+  backdrop-filter: var(--app-backdrop-filter);
   z-index: 300;
   display: flex;
   flex-direction: column;
