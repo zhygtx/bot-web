@@ -2,6 +2,7 @@
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import GlobalMenu from './GlobalMenu.vue'
+import GlobalThemeEditor from './GlobalThemeEditor.vue'
 import MobileNavBar from './MobileNavBar.vue'
 import ThemeToggle from './ThemeToggle.vue'
 
@@ -98,6 +99,6 @@ const contentPaddingBottom = computed(() => {
     </el-container>
     
     <MobileNavBar v-if="showMobileNav" />
+    <GlobalThemeEditor />
   </el-container>
 </template>
-

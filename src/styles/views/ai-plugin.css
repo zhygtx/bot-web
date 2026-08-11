@@ -52,12 +52,19 @@
   position: relative;
   height: 220px;
   margin-bottom: 16px;
+  background: var(--app-card-bg);
+  border: 1px solid var(--app-border-soft);
   border-radius: 8px;
+  color: var(--app-text);
   cursor: pointer;
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
+.ai-list-page .conversation-card .el-card__body {
+  background: transparent;
+}
 .conversation-card:hover.ai-list-page:hover,
 .ai-list-page .conversation-card:hover {
+  background: var(--app-card-bg-hover);
   transform: translateY(-2px);
   box-shadow: 0 8px 18px var(--app-primary-border);
 }
@@ -148,13 +155,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.pagination.ai-list-page,
-.ai-list-page .pagination {
-  display: flex;
-  justify-content: center;
-  padding-top: 18px;
-}
-
 /* ===== src/views/plugin/ai-create/AIPluginCreateView.css ===== */
 .ai-plugin-page {
   height: 100%;

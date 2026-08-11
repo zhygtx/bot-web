@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Clock, VideoPlay, CircleCheck, CircleClose, ArrowRight, ArrowUp, Refresh, Filter } from '@element-plus/icons-vue'
 import request from '../../utils/request'
+import AppPagination from '../../components/common/AppPagination.vue'
 import HighlightCode from '../../components/common/HighlightCode.vue'
 
 const props = defineProps({
@@ -462,17 +463,15 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <div class="pagination" v-if="total > 0">
-      <el-pagination
-        v-model:current-page="pageNum"
-        v-model:page-size="pageSize"
-        :page-sizes="[10, 20, 50]"
-        :layout="paginationLayout"
-        :total="total"
-        @size-change="loadLogs"
-        @current-change="handlePageChange"
-      />
-    </div>
+    <AppPagination
+      v-model:current-page="pageNum"
+      v-model:page-size="pageSize"
+      :page-sizes="[10, 20, 50]"
+      :layout="paginationLayout"
+      :total="total"
+      @size-change="loadLogs"
+      @current-change="handlePageChange"
+    />
 
     <el-dialog
       v-model="showModal"

@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import { Delete } from '@element-plus/icons-vue'
 import request from '../../utils/request'
+import AppPagination from '../../components/common/AppPagination.vue'
 
 const router = useRouter()
 
@@ -196,19 +197,15 @@ onMounted(() => {
         
         <el-empty v-if="workflows.length === 0 && !loading" description="暂无工作流" />
         
-        <div class="pagination" v-if="total > 0">
-          <el-pagination
-            v-model:current-page="pageNum"
-            v-model:page-size="pageSize"
-            :page-sizes="[6, 12, 24]"
-            layout="prev, pager, next"
-            :total="total"
-            @size-change="loadWorkflows"
-            @current-change="handlePageChange"
-          />
-        </div>
+        <AppPagination
+          v-model:current-page="pageNum"
+          v-model:page-size="pageSize"
+          :page-sizes="[6, 12, 24]"
+          :total="total"
+          @size-change="loadWorkflows"
+          @current-change="handlePageChange"
+        />
       </div>
     </div>
   </div>
 </template>
-

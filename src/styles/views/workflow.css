@@ -33,14 +33,20 @@
 .workflow-view .workflow-item-card {
   height: 280px;
   border: 1px solid var(--app-border);
+  background: var(--app-card-bg);
   border-radius: var(--app-radius-card);
   box-shadow: var(--app-shadow);
+  color: var(--app-text);
   transition: all 0.3s ease;
   cursor: pointer;
   overflow: hidden;
   position: relative;
 }
+.workflow-view .workflow-item-card .el-card__body {
+  background: transparent;
+}
 .workflow-view .workflow-item-wrapper:hover .workflow-item-card {
+  background: var(--app-card-bg-hover);
   box-shadow: var(--app-shadow-hover);
 }
 .workflow-card-content.workflow-view,
@@ -173,22 +179,6 @@
   font-weight: bold;
   color: var(--app-primary);
 }
-.pagination.workflow-view,
-.workflow-view .pagination {
-  flex-shrink: 0;
-  margin-top: 16px;
-  padding: 12px 0 4px;
-  display: flex;
-  justify-content: center;
-  background: var(--app-bg);
-}
-.workflow-view .el-pagination .el-pager li.active {
-  background-color: var(--app-primary);
-  color: white;
-}
-.workflow-view .el-pagination .el-pager li:hover:not(.disabled) {
-  color: var(--app-primary);
-}
 @media (max-width: 767px) {
 .workflow-view {
     overflow-x: hidden;
@@ -216,21 +206,6 @@
 .delete-icon.workflow-view,
 .workflow-view .delete-icon {
     opacity: 1;
-}
-.pagination.workflow-view,
-.workflow-view .pagination {
-    flex-shrink: 0;
-    margin-top: 8px;
-    padding: 6px 0 0;
-    overflow-x: hidden;
-    justify-content: center;
-    background: transparent;
-}
-.workflow-view .pagination .el-pagination {
-    flex-wrap: nowrap;
-    justify-content: center;
-    min-width: 0;
-    width: auto;
 }
 }
 
@@ -683,22 +658,6 @@
   color: var(--app-danger);
   font-weight: 500;
 }
-.pagination.workflow-log-view,
-.workflow-log-view .pagination {
-  flex-shrink: 0;
-  margin-top: 16px;
-  padding: 12px 0 4px;
-  display: flex;
-  justify-content: center;
-  background: var(--app-bg);
-}
-.workflow-log-view .el-pagination .el-pager li.active {
-  background-color: var(--app-primary);
-  color: white;
-}
-.workflow-log-view .el-pagination .el-pager li:hover:not(.disabled) {
-  color: var(--app-primary);
-}
 @media (max-width: 767px) {
 .workflow-log-view {
     background: linear-gradient(180deg, var(--app-bg-muted) 0%, var(--app-border-soft) 100%);
@@ -1003,20 +962,6 @@
     border: 1px solid var(--app-border-soft);
     border-radius: 8px;
 }
-.pagination.workflow-log-view,
-.workflow-log-view .pagination {
-    margin-top: 8px;
-    padding: 6px 0 20px;
-    overflow-x: hidden;
-    justify-content: center;
-    background: transparent;
-}
-.workflow-log-view .pagination .el-pagination {
-    flex-wrap: nowrap;
-    justify-content: center;
-    min-width: 0;
-    width: auto;
-}
 }
 @media (max-width: 380px) {
 .button-item.workflow-log-view,
@@ -1279,13 +1224,19 @@
 .plugin-item-card {
   margin-bottom: 0;
   border: 1px solid var(--app-border);
+  background: var(--app-card-bg);
   border-radius: var(--app-radius-card);
   box-shadow: var(--app-shadow);
+  color: var(--app-text);
   transition: all 0.3s ease;
   overflow: hidden;
   position: relative;
 }
+.plugin-item-card .el-card__body {
+  background: transparent;
+}
 .plugin-item-card:hover {
+  background: var(--app-card-bg-hover);
   box-shadow: var(--app-shadow-hover);
   transform: translateY(-1px);
 }

@@ -75,3 +75,9 @@ export const getThemeToken = (name, fallback = '') => {
   if (typeof document === 'undefined') return fallback
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback
 }
+
+export const extractCssColor = (value, fallback = '#409eff') => {
+  const text = String(value || '').trim()
+  const colorMatch = text.match(/#[0-9a-fA-F]{3,8}\b|rgba?\([^)]+\)|hsla?\([^)]+\)/)
+  return colorMatch ? colorMatch[0] : text || fallback
+}

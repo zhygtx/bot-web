@@ -203,7 +203,6 @@ to { opacity: 1; transform: translateY(0);
 }
 .workflow-edit-view .workflow-node:hover .node-dot-right {
   transform: translateY(-50%) scale(1.3);
-  background-color: var(--app-primary);
 }
 .node-body.workflow-edit-view,
 .workflow-edit-view .node-body {
@@ -226,13 +225,23 @@ to { opacity: 1; transform: translateY(0);
   position: absolute;
   width: 12px;
   height: 12px;
-  border: 2px solid var(--app-primary);
+  border: 0;
   border-radius: 50%;
-  background: var(--app-surface-raised);
+  background: var(--app-primary);
   flex-shrink: 0;
   cursor: crosshair;
   transition: all 0.3s ease;
   z-index: 1;
+  overflow: visible;
+}
+.node-dot-core.workflow-edit-view,
+.workflow-edit-view .node-dot-core {
+  position: absolute;
+  inset: 3px;
+  border-radius: inherit;
+  background: var(--app-surface-raised);
+  pointer-events: none;
+  transition: opacity 0.2s ease;
 }
 .node-dot-left.workflow-edit-view,
 .workflow-edit-view .node-dot-left {
@@ -261,7 +270,11 @@ to { opacity: 1; transform: translateY(0);
 }
 .node-dot-filled.workflow-edit-view,
 .workflow-edit-view .node-dot-filled {
-  background-color: var(--app-primary);
+  background: var(--app-primary);
+}
+.node-dot-filled.workflow-edit-view .node-dot-core,
+.workflow-edit-view .node-dot-filled .node-dot-core {
+  opacity: 0;
 }
 .node-header.workflow-edit-view,
 .workflow-edit-view .node-header {
@@ -664,16 +677,20 @@ to { opacity: 1; transform: translateY(0);
 .workflow-edit-view .plugin-item-card {
   border: 1px solid var(--app-border-soft);
   border-radius: 6px;
+  background: var(--app-card-bg);
   box-shadow: var(--app-shadow);
+  color: var(--app-text);
   transition: all 0.2s;
   overflow: hidden;
 }
+.workflow-edit-view .plugin-item-card .el-card__body {
+  background: transparent;
+  padding: 0;
+}
 .plugin-item-card:hover.workflow-edit-view:hover,
 .workflow-edit-view .plugin-item-card:hover {
+  background: var(--app-card-bg-hover);
   box-shadow: var(--app-shadow);
-}
-.workflow-edit-view .plugin-item-card .el-card__body {
-  padding: 0;
 }
 .plugin-card-content.workflow-edit-view,
 .workflow-edit-view .plugin-card-content {
@@ -1334,17 +1351,17 @@ to { opacity: 1; transform: translateY(0);
 }
 .workflow-edit-view .node-dot-success {
   top: 50%;
+  background: var(--app-success);
 }
 .workflow-edit-view .node-branch .node-dot-success {
   top: 35%;
 }
 .workflow-edit-view .node-dot-failure {
   top: 75%;
-  border-color: var(--app-danger);
+  background: var(--app-danger);
 }
-.workflow-edit-view .node-dot-failure.node-dot-filled,
-.workflow-edit-view .workflow-node:hover .node-dot-failure {
-  background-color: var(--app-danger);
+.workflow-edit-view .node-dot-failure.node-dot-filled {
+  background: var(--app-danger);
 }
 .workflow-edit-view .port-label {
   position: absolute;

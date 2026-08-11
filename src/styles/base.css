@@ -38,3 +38,16 @@ body {
   padding: 0;
 }
 
+.el-card {
+  --el-card-bg-color: transparent;
+  --el-card-border-color: var(--app-border-soft);
+  background: var(--app-card-bg);
+  border-color: var(--app-border-soft);
+  color: var(--app-text);
+}
+
+.el-card__header,
+.el-card__body {
+  background: transparent;
+  color: inherit;
+}

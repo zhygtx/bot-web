@@ -10,12 +10,20 @@
 }
 .settings-card.settings-view,
 .settings-view .settings-card {
+  background: var(--app-card-bg);
+  border-color: var(--app-border-soft);
   border-radius: var(--app-radius-card);
   box-shadow: var(--app-shadow);
+  color: var(--app-text);
   transition: box-shadow 0.3s ease;
+}
+.settings-view .settings-card .el-card__header,
+.settings-view .settings-card .el-card__body {
+  background: transparent;
 }
 .settings-card:hover.settings-view:hover,
 .settings-view .settings-card:hover {
+  background: var(--app-card-bg-hover);
   box-shadow: var(--app-shadow-hover);
 }
 .card-header.settings-view,

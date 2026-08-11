@@ -16,8 +16,11 @@
     <div class="node-body">
       <div
         class="node-dot node-dot-left"
+        :class="{ 'node-dot-filled': isLeftPortConnected(node.id) }"
         @mousedown="handlePortMouseDown($event, node, 'left')"
-      ></div>
+      >
+        <span class="node-dot-core"></span>
+      </div>
       <div class="node-content-inner">
         <div class="node-header">
           <span class="node-method-name">{{ getNodeName(node) }}</span>
@@ -43,7 +46,9 @@
           :class="[`node-dot-${port}`, { 'node-dot-filled': isRightPortConnected(node.id, port) }]"
           :title="port === 'success' ? '成功输出' : '失败输出'"
           @mousedown="handlePortMouseDown($event, node, port)"
-        ></div>
+        >
+          <span class="node-dot-core"></span>
+        </div>
       </div>
     </div>
   </div>
@@ -80,6 +85,10 @@ const emit = defineEmits([
 ])
 
 const outputPorts = computed(() => getNodePorts(props.node))
+
+const isLeftPortConnected = (nodeId) => {
+  return props.connections.some(connection => connection.toNode === nodeId)
+}
 
 const isRightPortConnected = (nodeId, port) => {
   return props.connections.some(connection =>

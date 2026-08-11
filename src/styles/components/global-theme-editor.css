@@ -1,0 +1,119 @@
+.global-theme-editor {
+  position: fixed;
+  width: 430px;
+  max-width: calc(100vw - 24px);
+  height: min(760px, calc(100vh - 72px));
+  z-index: 1600;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--app-border-soft);
+  border-radius: var(--app-radius-card);
+  background: var(--app-card-bg);
+  box-shadow: var(--app-shadow-hover);
+  color: var(--app-text);
+  transform-origin: top right;
+  transition:
+    left 0.3s ease,
+    top 0.3s ease,
+    opacity 0.24s ease,
+    transform 0.3s ease,
+    box-shadow 0.3s ease,
+    border-color 0.3s ease;
+}
+
+.global-theme-editor-header {
+  height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 12px 0 16px;
+  border-bottom: 1px solid var(--app-border-soft);
+  background: var(--app-header-bg);
+  color: var(--app-text);
+  font-weight: 700;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.global-theme-editor-header:active {
+  cursor: grabbing;
+}
+
+.global-theme-editor .theme-editor-panel {
+  padding: 16px;
+  padding-top: 12px;
+}
+
+.global-theme-editor-bubble {
+  position: fixed;
+  width: 48px;
+  height: 48px;
+  z-index: 1600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--app-primary-border);
+  border-radius: 50%;
+  background: var(--app-primary);
+  color: var(--app-on-primary);
+  box-shadow: var(--app-shadow-hover);
+  cursor: grab;
+  touch-action: none;
+  transform-origin: center;
+  transition:
+    left 0.3s ease,
+    top 0.3s ease,
+    opacity 0.2s ease,
+    transform 0.3s ease,
+    box-shadow 0.3s ease,
+    border-color 0.3s ease;
+}
+
+.global-theme-editor-bubble:active {
+  cursor: grabbing;
+}
+
+.global-theme-editor.is-dragging,
+.global-theme-editor-bubble.is-dragging {
+  transition: none;
+}
+
+.theme-editor-panel-pop-enter-active,
+.theme-editor-panel-pop-leave-active,
+.theme-editor-bubble-pop-enter-active,
+.theme-editor-bubble-pop-leave-active {
+  transition:
+    opacity 0.24s ease,
+    transform 0.3s ease;
+}
+
+.theme-editor-panel-pop-enter-from,
+.theme-editor-panel-pop-leave-to {
+  opacity: 0;
+  transform: scale(0.86);
+}
+
+.theme-editor-bubble-pop-enter-from,
+.theme-editor-bubble-pop-leave-to {
+  opacity: 0;
+  transform: scale(0.58) rotate(-90deg);
+}
+
+.theme-editor-panel-pop-enter-to,
+.theme-editor-panel-pop-leave-from,
+.theme-editor-bubble-pop-enter-to,
+.theme-editor-bubble-pop-leave-from {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+}
+
+@media (max-width: 640px) {
+  .global-theme-editor {
+    width: calc(100vw - 24px);
+    height: calc(100vh - 92px);
+  }
+}

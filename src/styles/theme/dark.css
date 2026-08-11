@@ -12,6 +12,10 @@ html.dark .el-picker-panel {
   color: var(--app-text);
 }
 
+html.dark .el-card {
+  background: var(--app-card-bg);
+}
+
 html.dark .el-input__wrapper,
 html.dark .el-select__wrapper,
 html.dark .el-textarea__inner,
@@ -40,10 +44,4 @@ html.dark .el-button--primary {
   --el-button-hover-border-color: var(--app-primary-hover);
   --el-button-active-bg-color: var(--app-primary);
   --el-button-active-border-color: var(--app-primary);
-}
-
-html.dark .el-pagination {
-  --el-pagination-bg-color: transparent;
-  --el-pagination-button-bg-color: var(--app-panel-muted);
-  --el-pagination-hover-color: var(--app-primary);
 }

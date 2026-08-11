@@ -6,23 +6,26 @@
     :style="{ position: 'absolute', top: svgMinY + 'px', left: svgMinX + 'px', pointerEvents: 'none', overflow: 'visible' }"
   >
     <defs>
-      <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-        <polygon points="0 0, 10 3.5, 0 7" :fill="primaryColor" />
+      <marker id="arrowhead-success" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+        <polygon points="0 0, 10 3.5, 0 7" :fill="successLineColor" />
+      </marker>
+      <marker id="arrowhead-failure" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+        <polygon points="0 0, 10 3.5, 0 7" :fill="dangerLineColor" />
       </marker>
     </defs>
     <path
       v-for="path in connectionPaths"
       :key="path.id"
       :d="path.d"
-      :stroke="path.port === 'failure' ? dangerColor : primaryColor"
+      :stroke="path.port === 'failure' ? dangerLineColor : successLineColor"
       stroke-width="2"
-      marker-end="url(#arrowhead)"
+      :marker-end="path.port === 'failure' ? 'url(#arrowhead-failure)' : 'url(#arrowhead-success)'"
       class="connection-path"
     />
     <path
       v-if="tempConnectionPath"
       :d="tempConnectionPath"
-      :stroke="primaryColor"
+      :stroke="successLineColor"
       stroke-width="2"
       stroke-dasharray="5,5"
       class="temp-connection-path"
@@ -43,7 +46,7 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { getPortPosition, NODE_WIDTH } from '../../utils/workflow'
-import { getThemeToken } from '../../theme/themeRuntime'
+import { extractCssColor, getThemeToken } from '../../theme/themeRuntime'
 
 const props = defineProps({
   connections: {
@@ -65,8 +68,10 @@ const emit = defineEmits(['connectionContextMenu'])
 const nodeHeights = ref({})
 let refreshTimer = null
 
-const primaryColor = computed(() => getThemeToken('--app-primary', '#409eff'))
+const successColor = computed(() => getThemeToken('--app-success', '#67c23a'))
 const dangerColor = computed(() => getThemeToken('--app-danger', '#f56c6c'))
+const successLineColor = computed(() => extractCssColor(successColor.value, '#67c23a'))
+const dangerLineColor = computed(() => extractCssColor(dangerColor.value, '#f56c6c'))
 
 const refreshHeights = () => {
   props.nodes.forEach(node => {

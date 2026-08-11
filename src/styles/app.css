@@ -9,6 +9,8 @@
 @import './views/workflow.css';
 @import './views/statistics.css';
 @import './views/theme-studio.css';
+@import './components/theme-editor.css';
+@import './components/global-theme-editor.css';
 @import './components/workflow.css';
 
 /* 主题变量由 src/theme 运行时加载；CSS 文件只负责兜底变量和组件样式。 */

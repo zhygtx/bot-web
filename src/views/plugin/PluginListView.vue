@@ -5,6 +5,7 @@ import { ElDialog, ElMessageBox, ElInput, ElSelect, ElOption, ElButton, ElIcon }
 import { User, Clock, Lock, Unlock, Delete, Filter, Search, Refresh } from '@element-plus/icons-vue'
 import request from '../../utils/request'
 import { PluginInfo } from '../../models'
+import AppPagination from '../../components/common/AppPagination.vue'
 import PluginCreateView from './PluginCreateView.vue'
 
 const router = useRouter()
@@ -250,17 +251,14 @@ onMounted(() => {
         
         <el-empty v-if="plugins.length === 0 && !loading" description="暂无插件" />
         
-        <div class="pagination" v-if="total > 0">
-          <el-pagination
-            v-model:current-page="pageNum"
-            v-model:page-size="pageSize"
-            :page-sizes="[6, 12, 24]"
-            layout="prev, pager, next"
-            :total="total"
-            @size-change="loadPlugins"
-            @current-change="handlePageChange"
-          />
-        </div>
+        <AppPagination
+          v-model:current-page="pageNum"
+          v-model:page-size="pageSize"
+          :page-sizes="[6, 12, 24]"
+          :total="total"
+          @size-change="loadPlugins"
+          @current-change="handlePageChange"
+        />
       </div>
     </div>
     
@@ -277,4 +275,3 @@ onMounted(() => {
     </el-dialog>
   </div>
 </template>
-

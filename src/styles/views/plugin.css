@@ -55,15 +55,21 @@
   margin-bottom: 20px;
   height: 320px;
   border: 1px solid var(--app-border);
+  background: var(--app-card-bg);
   border-radius: var(--app-radius-card);
   box-shadow: var(--app-shadow);
+  color: var(--app-text);
   transition: all 0.3s ease;
   cursor: pointer;
   overflow: hidden;
   position: relative;
 }
+.plugin-view .plugin-item-card .el-card__body {
+  background: transparent;
+}
 .plugin-item-card:hover.plugin-view:hover,
 .plugin-view .plugin-item-card:hover {
+  background: var(--app-card-bg-hover);
   box-shadow: var(--app-shadow-hover);
   transform: translateY(-2px);
 }
@@ -181,20 +187,6 @@
   font-size: 14px;
   margin-right: 4px;
 }
-.pagination.plugin-view,
-.plugin-view .pagination {
-  margin-top: 30px;
-  display: flex;
-  justify-content: center;
-}
-.plugin-view .el-pagination .el-pager li.active {
-  background-color: var(--app-primary);
-  color: white;
-}
-.plugin-view .el-pagination .el-pager li:hover:not(.disabled) {
-  color: var(--app-primary);
-}
-
 /* ===== src/views/plugin/PluginDetailView.vue [0] ===== */
 .plugin-detail {
   padding: 20px;

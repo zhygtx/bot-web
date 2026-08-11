@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import { ChatLineRound, Clock, Delete, MagicStick, Plus, Refresh } from '@element-plus/icons-vue'
 import request from '../../utils/request'
+import AppPagination from '../../components/common/AppPagination.vue'
 
 const router = useRouter()
 
@@ -155,16 +156,14 @@ onMounted(loadConversations)
       </el-empty>
     </div>
 
-    <div class="pagination" v-if="total > 0">
-      <el-pagination
-        v-model:current-page="pageNum"
-        v-model:page-size="pageSize"
-        :page-sizes="[10, 20, 30]"
-        layout="sizes, prev, pager, next"
-        :total="total"
-        @size-change="handleSizeChange"
-        @current-change="handlePageChange"
-      />
-    </div>
+    <AppPagination
+      v-model:current-page="pageNum"
+      v-model:page-size="pageSize"
+      :page-sizes="[10, 20, 30]"
+      layout="sizes, prev, pager, next"
+      :total="total"
+      @size-change="handleSizeChange"
+      @current-change="handlePageChange"
+    />
   </div>
 </template>

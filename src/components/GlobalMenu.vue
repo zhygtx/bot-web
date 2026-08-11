@@ -3,13 +3,20 @@ import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { Setting, Menu as IconMenu, ArrowRight, ArrowLeft, CaretRight } from '@element-plus/icons-vue'
 import { menuItems } from '../config/menu.js'
+import { useThemePreviewStore } from '../stores/themePreview'
 
 const emit = defineEmits(['collapse-change'])
 
 const route = useRoute()
+const themePreviewStore = useThemePreviewStore()
 
 const isCollapse = ref(false)
 const activeMenu = computed(() => route.path)
+const visibleMenuItems = computed(() => (
+  themePreviewStore.active
+    ? menuItems.filter(item => item.name !== 'themeStudio')
+    : menuItems
+))
 
 const hasChildren = (item) => item.children && item.children.length > 0
 
@@ -37,7 +44,7 @@ const toggleCollapse = () => {
       router
       mode="vertical"
     >
-      <template v-for="item in menuItems" :key="item.path">
+      <template v-for="item in visibleMenuItems" :key="item.path">
         <el-sub-menu v-if="hasChildren(item)" :index="item.path">
           <template #title>
             <el-icon class="menu-item-icon"><component :is="getIcon(item)" /></el-icon>
@@ -66,4 +73,3 @@ const toggleCollapse = () => {
     </div>
   </div>
 </template>
-
