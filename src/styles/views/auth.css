@@ -4,15 +4,14 @@
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background-color: var(--app-bg);
-  background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--auth-bg);
 }
 .login-box.login-container,
 .login-container .login-box {
   width: 400px;
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  background: var(--app-surface-raised);
+  border-radius: var(--app-radius-card);
+  box-shadow: var(--app-surface-shadow);
   padding: 30px;
 }
 .login-header.login-container,
@@ -64,15 +63,14 @@
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background-color: var(--app-bg);
-  background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--auth-bg);
 }
 .register-box.register-container,
 .register-container .register-box {
   width: 600px;
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  background: var(--app-surface-raised);
+  border-radius: var(--app-radius-card);
+  box-shadow: var(--app-surface-shadow);
   padding: 30px;
 }
 .register-header.register-container,
@@ -127,15 +125,14 @@
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background-color: var(--app-bg);
-  background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--auth-bg);
 }
 .forgot-password-box.forgot-password-container,
 .forgot-password-container .forgot-password-box {
   width: 600px;
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  background: var(--app-surface-raised);
+  border-radius: var(--app-radius-card);
+  box-shadow: var(--app-surface-shadow);
   padding: 30px;
 }
 .forgot-password-header.forgot-password-container,
@@ -183,4 +180,3 @@
 
 /* ===== src/views/ForgotPasswordView.vue [1] ===== */
 /* ───────── 暗色模式 ───────── */
-

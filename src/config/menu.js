@@ -1,5 +1,5 @@
 // 全局菜单配置
-import { Connection, Operation, List, Clock, Setting, MagicStick, DataAnalysis } from '@element-plus/icons-vue'
+import { Brush, Connection, Operation, List, Clock, Setting, MagicStick, DataAnalysis } from '@element-plus/icons-vue'
 
 export const menuItems = [
   {
@@ -53,5 +53,11 @@ export const menuItems = [
     name: 'botSettings',
     label: '基础信息配置',
     icon: Setting
+  },
+  {
+    path: '/theme/studio',
+    name: 'themeStudio',
+    label: '主题中心',
+    icon: Brush
   }
 ]

@@ -17,7 +17,7 @@
   padding: 16px;
   background: var(--app-card-bg);
   border: 1px solid var(--app-border-soft);
-  border-radius: 8px;
+  border-radius: var(--app-radius-card);
   box-shadow: var(--app-shadow);
 }
 
@@ -38,12 +38,12 @@
 
 .bot-status-badge.online {
   color: var(--app-success);
-  background: rgba(34, 197, 94, 0.1);
+  background: var(--app-success-soft);
 }
 
 .bot-status-badge.offline {
   color: var(--app-text-muted);
-  background: rgba(148, 163, 184, 0.1);
+  background: var(--app-panel-muted);
 }
 
 .bot-status-badge .status-dot {
@@ -54,12 +54,12 @@
 
 .bot-status-badge.online .status-dot {
   background: var(--app-success);
-  box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
+  box-shadow: 0 0 6px var(--app-success-border);
   animation: bot-status-pulse 2s ease-in-out infinite;
 }
 
 .bot-status-badge.offline .status-dot {
-  background: #cbd5e1;
+  background: var(--app-text-disabled);
 }
 
 .bot-live-duration {
@@ -141,7 +141,7 @@
   padding: 16px;
   background: var(--app-panel-bg);
   border: 1px solid var(--app-border-soft);
-  border-radius: 8px;
+  border-radius: var(--app-radius-card);
 }
 
 .panel-title {

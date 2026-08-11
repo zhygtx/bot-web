@@ -8,6 +8,7 @@
 @import './views/ai-plugin.css';
 @import './views/workflow.css';
 @import './views/statistics.css';
+@import './views/theme-studio.css';
 @import './components/workflow.css';
 
-/* 亮暗色变量统一放在 theme/light.css 与 theme/dark.css，页面样式只引用 var(--app-*) */
+/* 主题变量由 src/theme 运行时加载；CSS 文件只负责兜底变量和组件样式。 */

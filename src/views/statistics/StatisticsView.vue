@@ -5,6 +5,7 @@ import { init, use } from 'echarts/core'
 import { LineChart, BarChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
+import { getThemeToken } from '../../theme/themeRuntime'
 
 // 只注册首页用到的 ECharts 模块，避免全量引入把打包体积撑大
 use([LineChart, BarChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
@@ -163,6 +164,8 @@ const summaryCards = computed(() => [...resourceCards.value, ...todayCards.value
  */
 const trendOption = computed(() => {
   const trend = overview.value?.trend || []
+  const chartPrimary = getThemeToken('--chart-primary', '#409eff')
+  const chartWarning = getThemeToken('--chart-warning', '#e6a23c')
   return {
     tooltip: { trigger: 'axis' },
     legend: { top: 0, data: ['执行次数', '平均耗时'] },
@@ -186,7 +189,7 @@ const trendOption = computed(() => {
         type: 'bar',
         data: trend.map(item => item.executeCount),
         barMaxWidth: 14,
-        itemStyle: { color: '#409eff', borderRadius: [3, 3, 0, 0] }
+        itemStyle: { color: chartPrimary, borderRadius: [3, 3, 0, 0] }
       },
       {
         name: '平均耗时',
@@ -195,8 +198,8 @@ const trendOption = computed(() => {
         smooth: true,
         symbol: 'none',
         data: trend.map(item => item.avgDurationMs),
-        lineStyle: { width: 2, color: '#e6a23c' },
-        itemStyle: { color: '#e6a23c' }
+        lineStyle: { width: 2, color: chartWarning },
+        itemStyle: { color: chartWarning }
       }
     ]
   }

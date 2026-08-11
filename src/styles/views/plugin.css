@@ -12,8 +12,8 @@
   align-items: center;
   gap: 16px;
   padding: 16px 20px;
-  background-color: #ffffff;
-  border-radius: 8px;
+  background: var(--app-surface-raised);
+  border-radius: var(--app-radius-card);
   margin-bottom: 20px;
   flex-wrap: wrap;
 }
@@ -55,8 +55,8 @@
   margin-bottom: 20px;
   height: 320px;
   border: 1px solid var(--app-border);
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: var(--app-radius-card);
+  box-shadow: var(--app-shadow);
   transition: all 0.3s ease;
   cursor: pointer;
   overflow: hidden;
@@ -64,7 +64,7 @@
 }
 .plugin-item-card:hover.plugin-view:hover,
 .plugin-view .plugin-item-card:hover {
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--app-shadow-hover);
   transform: translateY(-2px);
 }
 .plugin-card-content.plugin-view,
@@ -126,10 +126,10 @@
   cursor: pointer;
   transition: all 0.3s ease;
   opacity: 0;
-  background-color: rgba(255, 255, 255, 0.9);
+  background: var(--app-surface-raised-soft);
   border-radius: 50%;
   padding: 6px;
-  box-shadow: 0 0px 0px rgba(0, 0, 0, 0.15);
+  box-shadow: none;
 }
 .plugin-view .plugin-item-card:hover .delete-icon {
   opacity: 1;
@@ -308,7 +308,7 @@
 .plugin-detail .version-changelog .markdown-body code {
   padding: 1px 4px;
   border-radius: 3px;
-  background: rgba(0, 0, 0, 0.05);
+  background: var(--app-border-soft);
   font-family: Consolas, Monaco, monospace;
   font-size: 0.9em;
   color: var(--app-text);
@@ -318,7 +318,7 @@
   margin: 6px 0;
   padding: 10px;
   border-radius: 6px;
-  background: rgba(0, 0, 0, 0.04);
+  background: var(--app-border-soft);
   overflow-x: auto;
 }
 .version-changelog.plugin-detail .markdown-body pre code,
@@ -375,7 +375,7 @@
 }
 .entity-card-item.plugin-detail,
 .plugin-detail .entity-card-item {
-  border-radius: 8px;
+  border-radius: var(--app-radius-card);
   overflow: hidden;
   transition: all 0.3s ease;
 }
@@ -422,7 +422,7 @@
 }
 .method-class-card.plugin-detail,
 .plugin-detail .method-class-card {
-  border-radius: 8px;
+  border-radius: var(--app-radius-card);
   overflow: hidden;
   transition: all 0.3s ease;
 }
@@ -462,7 +462,7 @@
 }
 .method-card-item.plugin-detail,
 .plugin-detail .method-card-item {
-  border-radius: 6px;
+  border-radius: var(--app-radius-control);
   overflow: hidden;
   transition: all 0.3s ease;
   border-left: 3px solid var(--app-primary);
@@ -470,7 +470,7 @@
 .method-card-item:hover.plugin-detail:hover,
 .plugin-detail .method-card-item:hover {
   transform: translateX(4px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+  box-shadow: var(--app-shadow-hover) !important;
 }
 .method-card-header.plugin-detail,
 .plugin-detail .method-card-header {
@@ -481,7 +481,7 @@
   gap: 10px;
   margin-bottom: 8px;
   padding-bottom: 8px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--app-surface-border);
 }
 .method-name.plugin-detail,
 .plugin-detail .method-name {
@@ -538,7 +538,7 @@
 .parameters-list.plugin-detail,
 .plugin-detail .parameters-list {
   padding: 12px;
-  background-color: #ffffff;
+  background: var(--app-surface-raised);
   border-top: 1px solid var(--app-border);
 }
 .property-item.plugin-detail,
@@ -569,10 +569,10 @@
   color: var(--app-text-soft);
   word-break: break-all;
   font-family: 'Courier New', monospace;
-  background-color: var(--app-bg-muted);
+  background: var(--app-bg-muted);
   padding: 2px 6px;
   border-radius: 3px;
-  border: 1px solid #e9ecef;
+  border: 1px solid var(--app-border-soft);
   margin-right: 12px;
   flex-shrink: 0;
 }
@@ -674,7 +674,7 @@
 .compatible-tag:hover.plugin-detail:hover,
 .plugin-detail .compatible-tag:hover {
   background-color: var(--app-primary-soft);
-  border-color: #91d5ff;
+  border-color: var(--app-primary-border);
   color: var(--app-primary-strong);
 }
 /* 编辑模式下的表单元素样式 */
@@ -712,7 +712,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(255, 255, 255, 0.8);
+  background: var(--app-surface-raised-soft);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -726,7 +726,7 @@
 .plugin-detail .loading-spinner {
   width: 40px;
   height: 40px;
-  border: 4px solid #f3f3f3;
+  border: 4px solid var(--app-border-soft);
   border-top: 4px solid var(--app-primary);
   border-radius: 50%;
   animation: spin-0 1s linear infinite;
@@ -896,13 +896,13 @@
   align-items: center;
   padding: 20px;
   border: 1px solid var(--app-primary-soft);
-  border-radius: 6px;
+  border-radius: var(--app-radius-control);
   background-color: var(--app-success-soft);
   transition: all 0.3s ease;
 }
 .uploaded-file:hover.plugin-create-form:hover,
 .plugin-create-form .uploaded-file:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--app-shadow);
 }
 /* 文件图标 */
 .file-icon.plugin-create-form,
@@ -954,7 +954,7 @@
 .el-select.plugin-create-form,
 .plugin-create-form .el-select {
   border: 1px solid var(--app-border) !important;
-  background: white !important;
+  background: var(--app-surface-raised) !important;
   box-shadow: none !important;
 }
 /* 确保开关组件样式正常 */
@@ -962,4 +962,3 @@
 .plugin-create-form .el-switch {
   margin-top: 4px;
 }
-

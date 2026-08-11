@@ -33,6 +33,12 @@ const router = createRouter({
       meta: { title: '基础信息配置' }
     },
     {
+      path: '/theme/studio',
+      name: 'theme-studio',
+      component: () => import('../views/theme/ThemeStudioView.vue'),
+      meta: { title: '主题中心' }
+    },
+    {
       path: '/statistics',
       name: 'statistics',
       component: () => import('../views/statistics/StatisticsView.vue'),

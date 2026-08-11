@@ -27,10 +27,10 @@
 .context-menu.workflow-edit-view,
 .workflow-edit-view .context-menu {
   position: fixed;
-  background-color: white;
+  background: var(--app-panel-bg);
   border: 1px solid var(--app-border);
   border-radius: 4px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--app-shadow);
   z-index: 1000;
   min-width: 120px;
   overflow: hidden;
@@ -51,7 +51,7 @@
 }
 .context-menu-item:hover.workflow-edit-view:hover,
 .workflow-edit-view .context-menu-item:hover {
-  background-color: var(--app-bg);
+  background: var(--app-bg);
   color: var(--app-primary);
 }
 .context-menu-item:active.workflow-edit-view:active,
@@ -207,11 +207,11 @@ to { opacity: 1; transform: translateY(0);
 }
 .node-body.workflow-edit-view,
 .workflow-edit-view .node-body {
-  background-color: white;
+  background: var(--app-surface-raised);
   border: 1px solid var(--app-border);
-  border-radius: 8px;
+  border-radius: var(--app-radius-card);
   padding: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--app-shadow);
   min-height: 80px;
   position: relative;
 }
@@ -228,7 +228,7 @@ to { opacity: 1; transform: translateY(0);
   height: 12px;
   border: 2px solid var(--app-primary);
   border-radius: 50%;
-  background-color: white;
+  background: var(--app-surface-raised);
   flex-shrink: 0;
   cursor: crosshair;
   transition: all 0.3s ease;
@@ -301,7 +301,7 @@ to { opacity: 1; transform: translateY(0);
 }
 .node-param.workflow-edit-view,
 .workflow-edit-view .node-param {
-  background-color: var(--app-bg);
+  background: var(--app-bg);
   padding: 2px 6px;
   border-radius: 4px;
   border: 1px solid var(--app-border);
@@ -363,9 +363,9 @@ to { opacity: 1; transform: translateY(0);
   width: 250px;
   max-width: 250px;
   box-sizing: border-box;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  background: var(--app-surface-raised);
+  border-radius: var(--app-radius-card);
+  box-shadow: var(--app-shadow);
   overflow: hidden;
   border: 2px solid var(--app-border);
 }
@@ -387,7 +387,7 @@ to { opacity: 1; transform: translateY(0);
   min-height: 24px;
   cursor: pointer;
   transition: background 0.2s;
-  background: #fff;
+  background: var(--app-surface-raised);
 }
 .execution-summary:hover.workflow-edit-view:hover,
 .workflow-edit-view .execution-summary:hover {
@@ -467,7 +467,7 @@ to { opacity: 1; transform: translateY(0);
   font-size: 15px;
   font-weight: bold;
   color: var(--app-text);
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--app-surface-border);
   text-decoration: none;
   text-align: left;
 }
@@ -529,9 +529,9 @@ to { opacity: 1; transform: translateY(0);
   top: 100px;
   width: 320px;
   height: calc(100% - 120px);
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  background: var(--app-surface-raised);
+  border-radius: var(--app-radius-card);
+  box-shadow: var(--app-shadow);
   overflow: hidden;
   z-index: 300;
   transition: all 0.3s ease;
@@ -596,7 +596,7 @@ to { opacity: 1; transform: translateY(0);
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  border-radius: var(--app-radius-card);
   color: var(--app-text-muted);
   cursor: pointer;
   transition: all 0.2s;
@@ -609,7 +609,7 @@ to { opacity: 1; transform: translateY(0);
 .nav-item.active.workflow-edit-view,
 .workflow-edit-view .nav-item.active {
   background: var(--app-primary);
-  color: #fff;
+  color: var(--app-on-primary);
 }
 /* ───── 右侧内容区 ───── */
 .content-area.workflow-edit-view,
@@ -664,13 +664,13 @@ to { opacity: 1; transform: translateY(0);
 .workflow-edit-view .plugin-item-card {
   border: 1px solid var(--app-border-soft);
   border-radius: 6px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--app-shadow);
   transition: all 0.2s;
   overflow: hidden;
 }
 .plugin-item-card:hover.workflow-edit-view:hover,
 .workflow-edit-view .plugin-item-card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--app-shadow);
 }
 .workflow-edit-view .plugin-item-card .el-card__body {
   padding: 0;
@@ -919,7 +919,7 @@ to { opacity: 1; transform: translateY(0);
 }
 .bot-action-group-header:hover.workflow-edit-view:hover,
 .workflow-edit-view .bot-action-group-header:hover {
-  background-color: var(--app-bg);
+  background: var(--app-bg);
 }
 .bot-action-group-header .category-toggle-icon.workflow-edit-view,
 .workflow-edit-view .bot-action-group-header .category-toggle-icon {
@@ -955,7 +955,7 @@ to { opacity: 1; transform: translateY(0);
   cursor: grabbing;
 }
 .workflow-edit-view .bot-action-group-body .method-item:hover {
-  background-color: var(--app-bg);
+  background: var(--app-bg);
   border-radius: 4px;
 }
 .workflow-edit-view .bot-action-group-body .method-signature {
@@ -976,9 +976,9 @@ to { opacity: 1; transform: translateY(0);
   top: 100px;
   width: 600px;
   height: calc(100% - 120px);
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  background: var(--app-surface-raised);
+  border-radius: var(--app-radius-card);
+  box-shadow: var(--app-shadow);
   overflow: hidden;
   z-index: 300;
   display: flex;
@@ -992,7 +992,7 @@ to { opacity: 1; transform: translateY(0);
   align-items: center;
   padding: 15px 20px;
   border-bottom: 1px solid var(--app-border);
-  background-color: var(--app-bg-muted);
+  background: var(--app-bg-muted);
   flex-shrink: 0;
 }
 .panel-title.workflow-edit-view,
@@ -1026,7 +1026,7 @@ to { opacity: 1; transform: translateY(0);
   font-weight: bold;
   color: var(--app-text);
   padding-bottom: 8px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--app-surface-border);
 }
 /* 面板底部 */
 .panel-footer.workflow-edit-view,
@@ -1051,9 +1051,9 @@ to { opacity: 1; transform: translateY(0);
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  background-color: var(--app-bg-muted);
-  border-radius: 6px;
-  border: 1px solid #ececec;
+  background: var(--app-bg-muted);
+  border-radius: var(--app-radius-control);
+  border: 1px solid var(--app-border-soft);
 }
 .param-name-col.workflow-edit-view,
 .workflow-edit-view .param-name-col {
@@ -1124,7 +1124,7 @@ to { opacity: 1; transform: translateY(0);
   padding: 0 8px;
   border: 1px solid var(--app-border);
   border-radius: 4px;
-  background: #fff;
+  background: var(--app-surface-raised);
   cursor: pointer;
   box-sizing: border-box;
   transition: border-color 0.2s;
@@ -1200,7 +1200,7 @@ to { opacity: 1; transform: translateY(0);
 .workflow-edit-view .scheduled-event-config {
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
-  padding: 40px; background-color: var(--app-bg-muted); border-radius: 8px;
+  padding: 40px; background: var(--app-bg-muted); border-radius: var(--app-radius-card);
 }
 .workflow-edit-view .scheduled-event-config h4 { margin-bottom: 30px; font-size: 18px; color: var(--app-text);
 }

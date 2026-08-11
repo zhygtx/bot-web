@@ -59,7 +59,7 @@
 .conversation-card:hover.ai-list-page:hover,
 .ai-list-page .conversation-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 8px 18px var(--app-primary-border);
 }
 .delete-icon-container.ai-list-page,
 .ai-list-page .delete-icon-container {
@@ -75,10 +75,10 @@
   cursor: pointer;
   transition: all 0.3s ease;
   opacity: 0;
-  background-color: rgba(255, 255, 255, 0.9);
+  background: var(--app-surface-raised-soft);
   border-radius: 50%;
   padding: 6px;
-  box-shadow: 0 0px 0px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 0px 0px var(--app-primary-border-strong);
 }
 .ai-list-page .conversation-card:hover .delete-icon {
   opacity: 1;
@@ -399,8 +399,8 @@
   left: 14px;
   top: 50%;
   transform: translateY(-50%);
-  background: rgba(30, 30, 30, 0.92);
-  color: #fff;
+  background: var(--app-code-bg);
+  color: var(--app-on-primary);
   padding: 5px 10px;
   border-radius: 5px;
   font-size: 12px;
@@ -411,7 +411,7 @@
   text-overflow: ellipsis;
   pointer-events: none;
   z-index: 100;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 8px var(--app-primary-border-strong);
 }
 .message-row {
   display: flex;
@@ -668,7 +668,7 @@
 /* 亮色模式下思考内容背景略深，与正文形成层次 */
 .thinking-content-scroll {
   padding: 10px 14px;
-  background: rgba(0, 0, 0, 0.03);
+  background: var(--app-border-soft);
 }
 .thinking-content-scroll.is-clamped {
   max-height: 360px;
@@ -699,7 +699,7 @@
   transition: background 0.15s ease, color 0.15s ease;
 }
 .thinking-expand-all:hover {
-  background: rgba(0, 0, 0, 0.04);
+  background: var(--app-border-soft);
   color: var(--app-text);
 }
 /* 思考内容用 markdown 渲染，但视觉权重比正文弱 */
@@ -734,7 +734,7 @@
 .thinking-markdown code {
   padding: 1px 4px;
   border-radius: 3px;
-  background: rgba(0, 0, 0, 0.06);
+  background: var(--app-border);
   font-family: Consolas, Monaco, monospace;
   font-size: 0.9em;
   color: var(--app-text);
@@ -743,7 +743,7 @@
   margin: 6px 0;
   padding: 8px 10px;
   border-radius: 6px;
-  background: rgba(0, 0, 0, 0.04);
+  background: var(--app-border-soft);
   font-size: 12px;
 }
 .thinking-markdown pre code {
@@ -795,10 +795,10 @@
   position: relative;
   min-height: 104px;
   padding: 16px 58px 16px 18px;
-  border: 1px solid rgba(17, 24, 39, 0.14);
+  border: 1px solid var(--app-border);
   border-radius: 18px;
-  background: #fff;
-  box-shadow: 0 14px 34px rgba(17, 24, 39, 0.12);
+  background: var(--app-surface-raised);
+  box-shadow: 0 14px 34px var(--app-primary-border);
 }
 .composer-input {
   width: 100%;
@@ -837,27 +837,27 @@
   margin: 0;
   border: 0;
   /* 白天模式：可发送为黑色 */
-  background: #111827;
-  color: #fff;
+  background: var(--app-code-bg);
+  color: var(--app-on-primary);
   transition: background 0.2s ease, color 0.2s ease, opacity 0.2s ease;
 }
 .composer-send-button.el-button:hover:not(.is-disabled):not(.loading) {
   background: var(--app-code-bg);
-  color: #fff;
+  color: var(--app-on-primary);
 }
 /* 白天模式：不可发送为灰色 */
 .composer-send-button.el-button.is-disabled,
 .composer-send-button.el-button.is-disabled:hover {
-  background: #d1d5db;
-  color: #fff;
+  background: var(--app-text-disabled);
+  color: var(--app-on-primary);
   cursor: not-allowed;
   opacity: 0.7;
 }
 /* 生成中：转圈样式，不可点击 */
 .composer-send-button.el-button.loading,
 .composer-send-button.el-button.loading:hover {
-  background: #111827;
-  color: #fff;
+  background: var(--app-code-bg);
+  color: var(--app-on-primary);
   cursor: default;
   pointer-events: none;
 }
@@ -950,7 +950,7 @@
   flex-shrink: 0;
 }
 .tree-toggle-btn:hover {
-  background: rgba(139, 148, 158, 0.1);
+  background: var(--app-panel-muted);
   color: var(--app-text);
 }
 .tree-toggle-btn svg {
@@ -1102,7 +1102,7 @@
 }
 .tree-item:hover.ai-file-tree:hover,
 .ai-file-tree .tree-item:hover {
-  background: rgba(139, 148, 158, 0.08);
+  background: var(--app-panel-muted);
 }
 .tree-item.active.ai-file-tree,
 .ai-file-tree .tree-item.active {
@@ -1113,15 +1113,15 @@
 /* 变更视图：按文件状态着色（置于 .active 之后，同等优先级下后定义生效） */
 .tree-item.status-modified.ai-file-tree,
 .ai-file-tree .tree-item.status-modified {
-  color: #71CA9A;
+  color: var(--app-success);
 }
 .tree-item.status-added.ai-file-tree,
 .ai-file-tree .tree-item.status-added {
-  color: #ABE78C;
+  color: var(--app-success);
 }
 .tree-item.status-deleted.ai-file-tree,
 .ai-file-tree .tree-item.status-deleted {
-  color: #b0b0b0;
+  color: var(--app-text-muted);
   text-decoration: line-through;
 }
 .tree-item-icon.ai-file-tree,
@@ -1141,4 +1141,3 @@
 .ai-file-tree .tree-children {
   padding-left: 16px;
 }
-

@@ -33,15 +33,15 @@
 .workflow-view .workflow-item-card {
   height: 280px;
   border: 1px solid var(--app-border);
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: var(--app-radius-card);
+  box-shadow: var(--app-shadow);
   transition: all 0.3s ease;
   cursor: pointer;
   overflow: hidden;
   position: relative;
 }
 .workflow-view .workflow-item-wrapper:hover .workflow-item-card {
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--app-shadow-hover);
 }
 .workflow-card-content.workflow-view,
 .workflow-view .workflow-card-content {
@@ -80,7 +80,7 @@
   background-color: var(--app-danger);
   color: white;
   box-shadow: 0 2px 8px var(--app-danger-border);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--app-primary-border);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   z-index: 10;
@@ -123,10 +123,10 @@
   cursor: pointer;
   transition: all 0.3s ease;
   opacity: 0;
-  background-color: rgba(255, 255, 255, 0.9);
+  background: var(--app-surface-raised-soft);
   border-radius: 50%;
   padding: 6px;
-  box-shadow: 0 0px 0px rgba(0, 0, 0, 0.15);
+  box-shadow: none;
 }
 .workflow-view .workflow-item-card:hover .delete-icon {
   opacity: 1;
@@ -152,8 +152,8 @@
   align-items: center;
   justify-content: center;
   padding: 16px 8px;
-  background-color: var(--app-bg);
-  border-radius: 8px;
+  background: var(--app-bg);
+  border-radius: var(--app-radius-card);
   transition: all 0.2s ease;
 }
 .stat-item:hover.workflow-view:hover,
@@ -260,8 +260,8 @@
   align-items: center;
   gap: 16px;
   padding: 16px 20px;
-  background-color: #ffffff;
-  border-radius: 8px;
+  background: var(--app-surface-raised);
+  border-radius: var(--app-radius-card);
   margin-bottom: 20px;
   flex-wrap: wrap;
 }
@@ -318,7 +318,7 @@
   font-size: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
-  background-color: #fff;
+  background: var(--app-surface-raised);
   color: var(--app-text-soft);
 }
 .status-btn:hover.workflow-log-view:hover,
@@ -330,7 +330,7 @@
 .workflow-log-view .status-btn.active {
   background-color: var(--app-primary);
   border-color: var(--app-primary);
-  color: #fff;
+  color: var(--app-on-primary);
 }
 .status-btn.success.active.workflow-log-view,
 .workflow-log-view .status-btn.success.active {
@@ -360,16 +360,16 @@
 }
 .log-item.workflow-log-view,
 .workflow-log-view .log-item {
-  background: #fff;
+  background: var(--app-surface-raised);
   border: 1px solid var(--app-border);
-  border-radius: 8px;
+  border-radius: var(--app-radius-card);
   margin-bottom: 12px;
   overflow: hidden;
   transition: all 0.3s ease;
 }
 .log-item:hover.workflow-log-view:hover,
 .workflow-log-view .log-item:hover {
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--app-shadow-hover);
 }
 .log-header.workflow-log-view,
 .workflow-log-view .log-header {
@@ -477,7 +477,7 @@
 .workflow-log-view .log-detail {
   padding: 0 20px 20px;
   border-top: 1px dashed var(--app-border);
-  background-color: var(--app-bg-muted);
+  background: var(--app-bg-muted);
 }
 .detail-section.workflow-log-view,
 .workflow-log-view .detail-section {
@@ -491,9 +491,9 @@
 }
 .summary-context.workflow-log-view,
 .workflow-log-view .summary-context {
-  background: #fff;
+  background: var(--app-surface-raised);
   padding: 16px;
-  border-radius: 8px;
+  border-radius: var(--app-radius-card);
   margin-bottom: 12px;
 }
 .summary-context:last-child.workflow-log-view:last-child,
@@ -558,7 +558,7 @@
 .workflow-log-view .modal-json-viewer {
   border: 1px solid var(--app-border);
   padding: 0;
-  border-radius: 8px;
+  border-radius: var(--app-radius-card);
   max-height: 60vh;
   overflow-y: auto;
   scrollbar-width: none;
@@ -574,9 +574,9 @@
 }
 .node-timeline.workflow-log-view,
 .workflow-log-view .node-timeline {
-  background: #fff;
+  background: var(--app-surface-raised);
   padding: 16px;
-  border-radius: 8px;
+  border-radius: var(--app-radius-card);
 }
 .node-log-item.workflow-log-view,
 .workflow-log-view .node-log-item {
@@ -630,7 +630,7 @@
   width: 24px;
   height: 24px;
   background-color: var(--app-primary);
-  color: #fff;
+  color: var(--app-on-primary);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -659,7 +659,7 @@
 .node-details.workflow-log-view,
 .workflow-log-view .node-details {
   margin-top: 8px;
-  background-color: var(--app-bg-muted);
+  background: var(--app-bg-muted);
   border-radius: 4px;
   padding: 8px 12px;
 }
@@ -720,7 +720,7 @@
     margin-bottom: 8px;
     border: 1px solid var(--app-primary-soft-weak);
     border-radius: 0 0 12px 12px;
-    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+    box-shadow: var(--app-shadow);
 }
 .filter-item.workflow-log-view,
 .workflow-log-view .filter-item {
@@ -751,7 +751,7 @@
 .filter-icon.workflow-log-view,
 .workflow-log-view .filter-icon {
     font-size: 15px;
-    color: #9aa4b2;
+    color: var(--app-text-muted);
 }
 .workflow-log-view .filter-input .el-input__wrapper,.workflow-log-view .filter-date.el-input__wrapper {
     width: 100%;
@@ -799,19 +799,19 @@
 }
 .status-btn.active.workflow-log-view,
 .workflow-log-view .status-btn.active {
-    color: #fff;
+    color: var(--app-on-primary);
     border-color: transparent;
-    box-shadow: 0 4px 12px var(--app-primary-border);
+    box-shadow: var(--app-shadow);
 }
 .status-btn.success.active.workflow-log-view,
 .workflow-log-view .status-btn.success.active {
     background: linear-gradient(135deg, var(--app-success) 0%, var(--app-success) 100%);
-    box-shadow: 0 4px 12px var(--app-success-soft);
+    box-shadow: var(--app-shadow);
 }
 .status-btn.failed.active.workflow-log-view,
 .workflow-log-view .status-btn.failed.active {
     background: linear-gradient(135deg, var(--app-danger) 0%, var(--app-danger) 100%);
-    box-shadow: 0 4px 12px var(--app-danger-soft-strong);
+    box-shadow: var(--app-shadow);
 }
 .workflow-log-view .filter-date .el-range__icon {
     display: none;
@@ -860,7 +860,7 @@
     font-weight: 500;
 }
 .workflow-log-view .button-item .el-button--primary {
-    box-shadow: 0 6px 14px var(--app-primary-soft-strong);
+    box-shadow: var(--app-shadow);
 }
 .sort-item.workflow-log-view,
 .workflow-log-view .sort-item {
@@ -932,11 +932,11 @@
     margin-bottom: 0;
     border: 1px solid var(--app-border-soft);
     border-radius: 8px;
-    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+    box-shadow: var(--app-shadow);
 }
 .log-item:hover.workflow-log-view:hover,
 .workflow-log-view .log-item:hover {
-    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+    box-shadow: var(--app-shadow-hover);
 }
 .log-header.workflow-log-view,
 .workflow-log-view .log-header {
@@ -960,7 +960,7 @@
 }
 .log-time.workflow-log-view,
 .workflow-log-view .log-time {
-    color: #7b8794;
+    color: var(--app-text-muted);
     font-size: 12px;
     white-space: nowrap;
 }
@@ -981,7 +981,7 @@
 }
 .stat-label.workflow-log-view,
 .workflow-log-view .stat-label {
-    color: #8a94a3;
+    color: var(--app-text-muted);
 }
 .stat-value.workflow-log-view,
 .workflow-log-view .stat-value {
@@ -990,7 +990,7 @@
 .expand-icon.workflow-log-view,
 .workflow-log-view .expand-icon {
     align-self: center;
-    color: #c8d0dc;
+    color: var(--app-text-disabled);
 }
 .log-detail.workflow-log-view,
 .workflow-log-view .log-detail {
@@ -1109,7 +1109,7 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  background-color: var(--app-bg);
+  background: var(--app-bg);
   margin: 0;
   padding: 0;
   overflow: hidden;
@@ -1130,10 +1130,10 @@
   justify-content: space-between;
   align-items: center;
   padding: 10px 20px;
-  background-color: rgba(255, 255, 255, 0.95);
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(10px);
+  background: var(--app-surface-raised-soft);
+  border-radius: var(--app-radius-card);
+  box-shadow: var(--app-shadow);
+  backdrop-filter: blur(var(--app-blur-surface));
 }
 .header-center {
   flex: 1;
@@ -1179,7 +1179,7 @@
 /* 工作流描述 */
 .workflow-description {
   padding: 15px 20px;
-  background-color: white;
+  background: var(--app-surface-raised);
   border-bottom: 1px solid var(--app-border);
 }
 .description-input {
@@ -1191,7 +1191,7 @@
   flex: 1;
   position: relative;
   overflow: hidden;
-  background-color: var(--app-bg-muted);
+  background: var(--app-bg-muted);
 }
 /* 插件列表 */
 .plugin-list-float {
@@ -1200,9 +1200,9 @@
   top: 120px;
   width: 320px;
   height: calc(100% - 120px);
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  background: var(--app-surface-raised);
+  border-radius: var(--app-radius-card);
+  box-shadow: var(--app-shadow);
   overflow: hidden;
   z-index: 300;
   transition: all 0.3s ease;
@@ -1222,7 +1222,7 @@
   align-items: center;
   justify-content: center;
   border-bottom: none;
-  background-color: white;
+  background: var(--app-surface-raised);
 }
 .plugin-list-float.plugin-list-collapsed .plugin-list-header h3 {
   display: none;
@@ -1236,7 +1236,7 @@
   align-items: center;
   padding: 15px 20px;
   border-bottom: 1px solid var(--app-border);
-  background-color: var(--app-bg-muted);
+  background: var(--app-bg-muted);
 }
 .plugin-list-header h3 {
   margin: 0;
@@ -1279,14 +1279,14 @@
 .plugin-item-card {
   margin-bottom: 0;
   border: 1px solid var(--app-border);
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-radius: var(--app-radius-card);
+  box-shadow: var(--app-shadow);
   transition: all 0.3s ease;
   overflow: hidden;
   position: relative;
 }
 .plugin-item-card:hover {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--app-shadow-hover);
   transform: translateY(-1px);
 }
 .plugin-card-content {
@@ -1366,20 +1366,20 @@
 /* 方法类卡片样式 */
 .method-class-card {
   border: 1px solid var(--app-border);
-  border-radius: 8px;
+  border-radius: var(--app-radius-card);
   margin-bottom: 15px;
   overflow: hidden;
-  background-color: white;
+  background: var(--app-surface-raised);
   border-left: 4px solid var(--app-primary);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--app-shadow);
   transition: all 0.3s ease;
 }
 .method-class-card:hover {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--app-shadow-hover);
 }
 .method-class-header {
   padding: 10px 15px;
-  background-color: var(--app-bg-muted);
+  background: var(--app-bg-muted);
   border-bottom: 1px solid var(--app-border);
   display: flex;
   flex-direction: column;
@@ -1408,7 +1408,7 @@
   display: flex;
   flex-direction: column;
   padding: 12px 0;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--app-surface-border);
   transition: all 0.2s ease;
   gap: 6px;
 }
@@ -1478,7 +1478,7 @@
   margin: 0;
   overflow: hidden;
   position: relative;
-  background-color: white;
+  background: var(--app-canvas-bg);
   box-shadow: none;
 }
 .canvas {
@@ -1490,8 +1490,8 @@
   cursor: grab;
   transition: none; /* 移除过渡效果，确保画布拖动时完全跟随鼠标 */
   user-select: none; /* 禁止选中 */
-  background-image: radial-gradient(#c8c8c8 1.5px, transparent 1.5px);
-  background-size: 20px 20px;
+  background-image: radial-gradient(var(--app-canvas-dot) 1.5px, transparent 1.5px);
+  background-size: var(--app-canvas-grid-size) var(--app-canvas-grid-size);
 }
 .canvas-world {
   width: 0;
@@ -1539,16 +1539,16 @@
 }
 .workflow-node:hover:not(:active) {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--app-shadow-hover);
   transition: all 0.3s ease;
 }
 .node-content {
   width: 100%;
 }
 .node-body {
-  background-color: white;
+  background: var(--app-surface-raised);
   border: 1px solid var(--app-border);
-  border-radius: 8px;
+  border-radius: var(--app-radius-card);
   padding: 12px;
 }
 /* 测试结果弹窗样式 */
@@ -1570,7 +1570,7 @@
   color: var(--app-text);
   margin: 0;
   padding: 10px;
-  background-color: var(--app-bg-muted);
+  background: var(--app-bg-muted);
   border-radius: 4px;
   border: 1px solid var(--app-border);
 }
@@ -1633,9 +1633,9 @@
   top: 90px;
   width: 600px;
   height: calc(100% - 110px);
-  background-color: white;
+  background: var(--app-surface-raised);
   border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--app-shadow);
   z-index: 300;
   display: flex;
   flex-direction: column;
@@ -1699,11 +1699,11 @@
   z-index: 250;
   width: 44px;
   height: 44px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--app-shadow);
   transition: all 0.3s ease;
 }
 .locate-btn:hover.workflow-edit-view:hover,
 .workflow-edit-view .locate-btn:hover {
   transform: scale(1.1);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--app-shadow-hover);
 }

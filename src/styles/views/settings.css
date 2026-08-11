@@ -10,13 +10,13 @@
 }
 .settings-card.settings-view,
 .settings-view .settings-card {
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  border-radius: var(--app-radius-card);
+  box-shadow: var(--app-shadow);
   transition: box-shadow 0.3s ease;
 }
 .settings-card:hover.settings-view:hover,
 .settings-view .settings-card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--app-shadow-hover);
 }
 .card-header.settings-view,
 .settings-view .card-header {
@@ -53,12 +53,12 @@
 .header-status.online.settings-view,
 .settings-view .header-status.online {
   color: var(--app-success);
-  background: rgba(34, 197, 94, 0.1);
+  background: var(--app-success-soft);
 }
 .header-status.offline.settings-view,
 .settings-view .header-status.offline {
   color: var(--app-text-muted);
-  background: rgba(148, 163, 184, 0.1);
+  background: var(--app-panel-muted);
 }
 .card-actions.settings-view,
 .settings-view .card-actions {
@@ -79,7 +79,7 @@
   display: flex;
   align-items: center;
   padding: 10px 0;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--app-surface-border);
 }
 .info-row:last-child.settings-view:last-child,
 .settings-view .info-row:last-child {
@@ -122,7 +122,7 @@
 .visit-link:hover.settings-view:hover,
 .settings-view .visit-link:hover {
   background-color: var(--app-primary);
-  color: #fff;
+  color: var(--app-on-primary);
   border-color: var(--app-primary);
 }
 .token-value.settings-view,
@@ -150,7 +150,7 @@
   gap: 8px;
   padding: 8px 12px;
   background: var(--app-bg-muted);
-  border-radius: 6px;
+  border-radius: var(--app-radius-control);
   border: 1px solid var(--app-border-soft);
 }
 .credential-label.settings-view,
@@ -199,12 +199,12 @@
 .status-dot.online.settings-view,
 .settings-view .status-dot.online {
   background: var(--app-success);
-  box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
+  box-shadow: 0 0 6px var(--app-success-border);
   animation: status-pulse-0 2s ease-in-out infinite;
 }
 .status-dot.offline.settings-view,
 .settings-view .status-dot.offline {
-  background: #cbd5e1;
+  background: var(--app-text-disabled);
 }
 @keyframes status-pulse-0 {
 0%, 100% { opacity: 1;
@@ -277,8 +277,8 @@
   align-items: center;
   gap: 8px;
   padding: 12px 20px;
-  background-color: #ffffff;
-  border-radius: 8px;
+  background: var(--app-surface-raised);
+  border-radius: var(--app-radius-card);
   cursor: pointer;
   transition: all 0.2s ease;
   flex-shrink: 0;
@@ -286,7 +286,7 @@
 }
 .menu-item:hover.profile-view:hover,
 .profile-view .menu-item:hover {
-  background-color: var(--app-bg);
+  background: var(--app-bg);
   border-color: var(--app-text-disabled);
 }
 .menu-item.active.profile-view,
@@ -306,8 +306,8 @@
 }
 .content-section.profile-view,
 .profile-view .content-section {
-  background-color: #ffffff;
-  border-radius: 8px;
+  background: var(--app-surface-raised);
+  border-radius: var(--app-radius-card);
   padding: 20px;
 }
 .logout-section.profile-view,
@@ -353,4 +353,3 @@
     padding: 16px;
 }
 }
-

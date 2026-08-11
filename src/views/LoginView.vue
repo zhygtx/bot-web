@@ -2,6 +2,7 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
+import { useThemeStore } from '../stores/theme'
 import { ElMessage } from 'element-plus'
 import request from '../utils/request'
 
@@ -10,6 +11,7 @@ const router = useRouter()
 
 // 获取用户状态管理
 const userStore = useUserStore()
+const themeStore = useThemeStore()
 
 // 登录表单数据
 const loginForm = reactive({
@@ -64,6 +66,7 @@ const handleLogin = async () => {
     
     // 登录成功，保存用户信息
     userStore.loginSuccess(response.data)
+    await themeStore.loadCurrentTheme()
     
     // 登录成功后默认进入数据统计首页
     router.push('/statistics')
