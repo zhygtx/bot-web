@@ -1,6 +1,7 @@
+/* 主题中心：主题列表 + 样式编辑器的两栏布局。 */
 .theme-studio {
   display: grid;
-  grid-template-columns: 300px minmax(520px, 1fr) 420px;
+  grid-template-columns: 300px minmax(0, 1fr);
   gap: 20px;
   height: calc(100vh - 104px);
   min-height: 0;
@@ -8,7 +9,6 @@
 }
 
 .theme-library,
-.theme-preview-panel,
 .theme-editor {
   min-width: 0;
   min-height: 0;
@@ -26,11 +26,6 @@
   flex-direction: column;
 }
 
-.theme-preview-panel {
-  display: flex;
-  flex-direction: column;
-}
-
 .theme-list {
   display: flex;
   flex-direction: column;
@@ -38,18 +33,6 @@
   margin-top: 18px;
   overflow-y: auto;
   min-height: 0;
-}
-
-.preview-panel-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 18px;
-}
-
-.preview-panel-heading .theme-section-subtitle {
-  margin-bottom: 0;
 }
 
 .theme-list-item {
@@ -102,149 +85,6 @@
   color: var(--app-primary);
 }
 
-.preview-shell {
-  flex: 1;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: 170px 1fr;
-  border-radius: var(--app-radius-card);
-  overflow: hidden;
-  border: 1px solid var(--app-border);
-  background: var(--app-bg);
-}
-
-.preview-sidebar {
-  background: var(--sidebar-bg);
-  border-right: 1px solid var(--sidebar-border);
-  padding: 18px 12px;
-}
-
-.preview-brand {
-  height: 34px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--sidebar-border);
-  border-radius: var(--app-radius-card);
-  color: var(--sidebar-text-active);
-  background: var(--sidebar-active-bg);
-  font-weight: 700;
-  margin-bottom: 20px;
-}
-
-.preview-menu {
-  height: 38px;
-  display: flex;
-  align-items: center;
-  border-radius: var(--app-radius-control);
-  color: var(--sidebar-text);
-  padding: 0 12px;
-  margin-bottom: 8px;
-}
-
-.preview-menu.active {
-  color: var(--sidebar-text-active);
-  background: var(--sidebar-active-bg);
-}
-
-.preview-page {
-  background: var(--app-bg);
-  padding: 20px;
-}
-
-.preview-header {
-  height: 48px;
-  display: flex;
-  align-items: center;
-  background: var(--app-header-bg);
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-card);
-  color: var(--app-text);
-  padding: 0 16px;
-  margin-bottom: 18px;
-  box-shadow: var(--app-header-shadow);
-}
-
-.preview-card,
-.preview-chart {
-  background: var(--app-card-bg);
-  border: 1px solid var(--app-border-soft);
-  border-radius: var(--app-radius-card);
-  box-shadow: var(--app-shadow);
-  color: var(--app-text);
-}
-
-.preview-card.wide {
-  padding: 22px;
-  margin-bottom: 18px;
-}
-
-.preview-card-title {
-  font-size: 22px;
-  font-weight: 700;
-  margin-bottom: 12px;
-}
-
-.preview-card-sub {
-  color: var(--app-text-soft);
-  margin-bottom: 18px;
-}
-
-.preview-actions {
-  display: flex;
-  gap: 12px;
-}
-
-.preview-actions button {
-  border: 0;
-  border-radius: var(--app-radius-control);
-  background: var(--app-primary-soft);
-  color: var(--app-primary);
-  padding: 8px 18px;
-}
-
-.preview-actions button.strong {
-  background: var(--app-primary);
-  color: var(--app-on-primary);
-}
-
-.preview-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
-  margin-bottom: 18px;
-}
-
-.preview-grid .preview-card {
-  min-height: 104px;
-  padding: 16px;
-}
-
-.preview-grid span {
-  display: block;
-  color: var(--app-text-muted);
-  margin-bottom: 10px;
-}
-
-.preview-grid strong {
-  font-size: 30px;
-}
-
-.preview-chart {
-  height: 160px;
-  display: flex;
-  align-items: flex-end;
-  gap: 18px;
-  padding: 22px;
-}
-
-.preview-chart i {
-  width: 32px;
-  display: block;
-  border-radius: 8px 8px 0 0;
-  background: var(--chart-primary);
-}
-
 .theme-editor {
   display: flex;
   flex-direction: column;
@@ -253,9 +93,15 @@
   min-height: 0;
 }
 
-@media (max-width: 1400px) {
+@media (max-width: 1100px) {
   .theme-studio {
-    grid-template-columns: 280px 1fr;
+    grid-template-columns: 300px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .theme-studio {
+    grid-template-columns: 1fr;
     height: auto;
     overflow: visible;
   }
@@ -263,16 +109,5 @@
   .theme-editor {
     grid-column: 1 / -1;
     max-height: 640px;
-  }
-}
-
-@media (max-width: 900px) {
-  .theme-studio,
-  .preview-shell {
-    grid-template-columns: 1fr;
-  }
-
-  .preview-sidebar {
-    display: none;
   }
 }

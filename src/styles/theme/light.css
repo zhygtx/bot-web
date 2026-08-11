@@ -1,3 +1,4 @@
+/* 亮色模式默认主题兜底变量；运行时用户主题会覆盖这里的大部分值。 */
 :root {
   color-scheme: light;
   --app-bg: #f5f7fa;

@@ -1,3 +1,4 @@
+/* 主题编辑器面板：颜色配置、CSS 编辑、选择器速查与样式参考。 */
 .theme-section-title {
   font-size: 20px;
   font-weight: 700;
@@ -25,6 +26,13 @@
 .theme-mode-switch,
 .theme-editor-actions {
   flex-shrink: 0;
+}
+
+.editor-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .theme-form .el-form-item {
@@ -84,6 +92,213 @@
   margin-bottom: 0;
 }
 
+.css-editor-panel {
+  gap: 12px;
+}
+
+.css-editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.theme-css-editor {
+  width: 100%;
+  flex: 1;
+  min-height: 360px;
+}
+
+.css-code-editor {
+  position: relative;
+  overflow: hidden;
+  border: var(--app-border-control);
+  border-radius: var(--app-radius-control);
+  background: var(--app-panel-bg);
+  transition: box-shadow var(--app-transition-fast), border-color var(--app-transition-fast);
+}
+
+.css-code-editor.is-focused {
+  border-color: var(--app-primary);
+  box-shadow: var(--app-border-focus);
+}
+
+.css-code-highlight,
+.css-code-input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 14px 16px;
+  font-family: Consolas, Monaco, 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre;
+  tab-size: 2;
+  overflow: auto;
+  box-sizing: border-box;
+}
+
+.css-code-highlight {
+  z-index: 0;
+  pointer-events: none;
+  color: var(--app-text);
+  background: transparent;
+  scrollbar-width: none;
+}
+
+.css-code-highlight::-webkit-scrollbar {
+  display: none;
+}
+
+.css-code-highlight code {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  background: transparent;
+  padding: 0;
+}
+
+.css-code-input {
+  z-index: 1;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--app-text);
+  border: none;
+  outline: none;
+  resize: none;
+}
+
+.css-code-input::selection {
+  background: var(--app-primary-soft);
+}
+
+.css-code-input:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.selector-reference {
+  flex-shrink: 0;
+  border: var(--app-border-panel);
+  border-radius: var(--app-radius-card);
+  padding: 10px 12px;
+  background: var(--app-panel-muted);
+  color: var(--app-text-soft);
+}
+
+.selector-reference summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.selector-loading {
+  padding: 8px 0;
+  font-size: 12px;
+  color: var(--app-text-muted);
+}
+
+.selector-group {
+  margin-top: 10px;
+}
+
+.selector-group h4 {
+  margin: 0 0 6px 0;
+  font-size: 12px;
+  color: var(--app-text-muted);
+}
+
+.selector-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.selector-list code {
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: var(--app-surface-raised);
+  border: 1px solid var(--app-border-soft);
+  font-size: 13px;
+  color: var(--app-primary);
+  word-break: break-all;
+}
+
+.style-source-layout {
+  display: flex;
+  height: 76vh;
+  min-height: 480px;
+  border: var(--app-border-panel);
+  border-radius: var(--app-radius-card);
+  overflow: hidden;
+  background: var(--app-panel-bg);
+}
+
+.style-source-files {
+  width: 190px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  border-right: var(--app-border-panel);
+  background: var(--app-panel-muted);
+  padding: 8px;
+}
+
+.style-source-file {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  margin-bottom: 4px;
+  border: none;
+  border-radius: var(--app-radius-control);
+  background: transparent;
+  color: var(--app-text-soft);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.style-source-file:hover {
+  background: var(--app-primary-soft);
+  color: var(--app-primary);
+}
+
+.style-source-file.active {
+  background: var(--app-primary-soft-strong);
+  color: var(--app-primary);
+}
+
+.style-source-detail {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.style-source-guide {
+  flex-shrink: 0;
+  padding: 10px 14px;
+  border-bottom: var(--app-border-panel);
+  background: var(--app-panel-muted);
+  color: var(--app-text-soft);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.style-source-content {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: auto;
+  padding: 14px 16px;
+  font-family: Consolas, Monaco, 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre;
+  color: var(--app-text);
+  background: var(--app-panel-bg);
+}
+
 .token-color-control {
   display: flex;
   align-items: center;
@@ -108,8 +323,4 @@
   gap: 10px;
   padding-top: 12px;
   border-top: var(--app-border-panel);
-}
-
-.theme-json-editor .el-textarea__inner {
-  font-family: Consolas, Monaco, 'Courier New', monospace;
 }

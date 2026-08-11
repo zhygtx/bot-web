@@ -3,6 +3,7 @@ export const defaultDarkTheme = {
   name: '默认暗色',
   mode: 'dark',
   builtin: true,
+  customCss: '',
   tokens: {
     '--app-bg': '#0f141a',
     '--app-bg-soft': '#0d1724',

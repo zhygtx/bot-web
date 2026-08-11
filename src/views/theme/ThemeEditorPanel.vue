@@ -1,11 +1,9 @@
 <script setup>
-import { computed } from 'vue'
-import { Delete, Select } from '@element-plus/icons-vue'
-import {
-  advancedTokenGroups,
-  colorTokenGroups,
-  predefinedThemeColors
-} from '../../theme/tokenSchema'
+import { computed, ref } from 'vue'
+import { Delete, Document, DocumentAdd, Select, View } from '@element-plus/icons-vue'
+import HighlightCode from '../../components/common/HighlightCode.vue'
+import CssCodeEditor from '../../components/common/CssCodeEditor.vue'
+import { colorTokenGroups, predefinedThemeColors } from '../../theme/tokenSchema'
 
 const props = defineProps({
   editor: {
@@ -19,6 +17,10 @@ const props = defineProps({
   saving: {
     type: Boolean,
     default: false
+  },
+  showLivePreview: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -26,7 +28,8 @@ const emit = defineEmits([
   'update:editMode',
   'apply',
   'delete',
-  'open-json'
+  'insert-css-template',
+  'live-preview'
 ])
 
 const editModeModel = computed({
@@ -36,7 +39,37 @@ const editModeModel = computed({
 
 const editingDisabled = computed(() => props.editor.builtin)
 
-const complexTokenGroups = computed(() => advancedTokenGroups)
+const styleDialogVisible = ref(false)
+const styleLoading = ref(false)
+const styleSourceFiles = ref([])
+const selectedStyleFile = ref(null)
+const selectorGroups = ref([])
+const selectorLoading = ref(false)
+
+const openStyleReference = async () => {
+  styleLoading.value = true
+  try {
+    if (!styleSourceFiles.value.length) {
+      const { styleSourceFiles: files } = await import('../../theme/styleSourceReference')
+      styleSourceFiles.value = files
+    }
+    selectedStyleFile.value = styleSourceFiles.value[0]
+    styleDialogVisible.value = true
+  } finally {
+    styleLoading.value = false
+  }
+}
+
+const loadSelectorGroups = async (event) => {
+  if (!event?.target?.open || selectorGroups.value.length) return
+  selectorLoading.value = true
+  try {
+    const { loadSelectorGroups: load } = await import('../../theme/selectorReference')
+    selectorGroups.value = await load()
+  } finally {
+    selectorLoading.value = false
+  }
+}
 </script>
 
 <template>
@@ -44,8 +77,17 @@ const complexTokenGroups = computed(() => advancedTokenGroups)
     <div class="editor-header">
       <div>
         <div class="theme-section-title">样式编辑器</div>
-        <div class="theme-section-subtitle">{{ editModeModel === 'simple' ? '常用颜色用颜色选择器快速调整' : '所有样式 token 直接输入 CSS 值' }}</div>
+        <div class="theme-section-subtitle">{{ editModeModel === 'simple' ? '常用颜色用颜色选择器快速调整' : 'CSS 直接覆盖所有样式' }}</div>
       </div>
+      <el-button
+        v-if="showLivePreview"
+        type="primary"
+        :icon="View"
+        size="large"
+        @click="emit('live-preview')"
+      >
+        实时预览
+      </el-button>
     </div>
 
     <el-form label-position="top" class="theme-form">
@@ -59,7 +101,7 @@ const complexTokenGroups = computed(() => advancedTokenGroups)
       class="theme-mode-switch"
       :options="[
         { label: '简要颜色配置', value: 'simple' },
-        { label: '复杂样式配置', value: 'advanced' }
+        { label: 'CSS 高级编辑', value: 'advanced' }
       ]"
     />
 
@@ -81,23 +123,73 @@ const complexTokenGroups = computed(() => advancedTokenGroups)
       </section>
     </div>
 
-    <div class="token-groups" v-else>
-      <section v-for="group in complexTokenGroups" :key="group.title" class="token-group">
-        <h3>{{ group.title }}</h3>
-        <label v-for="item in group.tokens" :key="item.key" class="token-row token-row-wide">
-          <span>{{ item.label }}</span>
-          <el-input
-            v-model="editor.tokens[item.key]"
-            :disabled="editingDisabled"
-            :placeholder="item.placeholder"
-          />
-        </label>
-      </section>
+    <div class="token-groups css-editor-panel" v-else>
+      <div class="css-editor-toolbar">
+        <el-button
+          :icon="DocumentAdd"
+          size="small"
+          :disabled="editingDisabled"
+          @click="emit('insert-css-template')"
+        >
+          载入全量变量模板
+        </el-button>
+        <el-button size="small" :disabled="editingDisabled" @click="editor.customCss = ''">
+          清空
+        </el-button>
+        <el-button size="small" :icon="Document" :loading="styleLoading" @click="openStyleReference">
+          查看全局样式参考
+        </el-button>
+      </div>
+      <CssCodeEditor
+        v-model="editor.customCss"
+        class="theme-css-editor"
+        :disabled="editingDisabled"
+      />
+      <details class="selector-reference" @toggle="loadSelectorGroups">
+        <summary>常用选择器速查</summary>
+        <div v-if="selectorLoading" class="selector-loading">正在加载选择器...</div>
+        <section v-for="group in selectorGroups" :key="group.title" class="selector-group">
+          <h4>{{ group.title }}</h4>
+          <div class="selector-list">
+            <code v-for="selector in group.selectors" :key="selector">{{ selector }}</code>
+          </div>
+        </section>
+      </details>
     </div>
+
+    <el-dialog
+      v-model="styleDialogVisible"
+      title="全局样式参考"
+      width="min(1080px, 94vw)"
+      top="3vh"
+      :append-to-body="true"
+    >
+      <div class="style-source-layout">
+        <aside class="style-source-files">
+          <button
+            v-for="file in styleSourceFiles"
+            :key="file.name"
+            class="style-source-file"
+            :class="{ active: selectedStyleFile === file }"
+            type="button"
+            @click="selectedStyleFile = file"
+          >
+            {{ file.name }}
+          </button>
+        </aside>
+        <div class="style-source-detail">
+          <div class="style-source-guide">{{ selectedStyleFile?.guide }}</div>
+          <HighlightCode
+            :content="selectedStyleFile?.content"
+            language="css"
+            class="style-source-content"
+          />
+        </div>
+      </div>
+    </el-dialog>
 
     <div class="theme-editor-actions">
       <el-button :icon="Select" type="primary" @click="emit('apply')" :loading="saving">应用</el-button>
-      <el-button @click="emit('open-json')" :disabled="editingDisabled">高级 JSONC</el-button>
       <el-button :icon="Delete" type="danger" @click="emit('delete')" :disabled="editor.builtin">删除</el-button>
     </div>
   </div>

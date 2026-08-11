@@ -1,3 +1,4 @@
+/* 认证页：登录、注册、找回密码的容器、卡片与表单。 */
 /* ===== src/views/LoginView.vue [0] ===== */
 .login-container {
   display: flex;

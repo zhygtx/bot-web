@@ -1,0 +1,96 @@
+/* 公共分页：所有 AppPagination 统一外观与交互状态。 */
+/* ===== 公共分页 ===== */
+.app-pagination {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 12px 0;
+  margin-top: 18px;
+  color: var(--app-text);
+}
+
+.app-pagination .el-pagination {
+  --el-pagination-bg-color: transparent;
+  --el-pagination-button-bg-color: var(--app-surface-raised);
+  --el-pagination-hover-color: var(--app-primary);
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 5px;
+  border: 1px solid var(--app-border-soft);
+  border-radius: var(--app-radius-card);
+  background: var(--app-surface-raised-soft);
+  box-shadow: var(--app-surface-shadow);
+}
+
+.app-pagination .btn-prev,
+.app-pagination .btn-next,
+.app-pagination .el-pager li {
+  min-width: 32px;
+  height: 32px;
+  border-radius: var(--app-radius-control);
+  background: var(--app-panel-muted);
+  color: var(--app-text-soft);
+  border: 1px solid transparent;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.app-pagination .btn-prev:hover,
+.app-pagination .btn-next:hover,
+.app-pagination .el-pager li:hover:not(.is-disabled) {
+  background: var(--app-primary-soft);
+  color: var(--app-primary);
+  border-color: var(--app-primary-border);
+}
+
+.app-pagination .el-pager li.is-active,
+.app-pagination .el-pager li.active {
+  background: var(--app-primary);
+  color: var(--app-on-primary);
+  border-color: transparent;
+}
+
+.app-pagination .btn-prev:disabled,
+.app-pagination .btn-next:disabled,
+.app-pagination .el-pager li.is-disabled {
+  background: var(--app-panel-muted);
+  color: var(--app-text-disabled);
+  opacity: 0.65;
+}
+
+.app-pagination .el-pagination__total,
+.app-pagination .el-pagination__jump {
+  color: var(--app-text-muted);
+}
+
+.app-pagination .el-input__wrapper,
+.app-pagination .el-select__wrapper {
+  min-height: 32px;
+  border-radius: var(--app-radius-control);
+  background: var(--app-surface-raised);
+  box-shadow: 0 0 0 1px var(--app-border-soft) inset;
+}
+
+@media (max-width: 767px) {
+  .app-pagination {
+    margin-top: 10px;
+    padding: 8px 0;
+    overflow-x: hidden;
+  }
+
+  .app-pagination .el-pagination {
+    gap: 4px;
+    padding: 4px;
+    box-shadow: none;
+  }
+
+  .app-pagination .btn-prev,
+  .app-pagination .btn-next,
+  .app-pagination .el-pager li {
+    min-width: 30px;
+    height: 30px;
+  }
+}

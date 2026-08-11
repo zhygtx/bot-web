@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { DocumentCopy, View } from '@element-plus/icons-vue'
+import { DocumentCopy } from '@element-plus/icons-vue'
 import { useThemeEditor } from '../../composables/useThemeEditor'
 import { useThemePreviewStore } from '../../stores/themePreview'
 import ThemeEditorPanel from './ThemeEditorPanel.vue'
@@ -13,8 +13,6 @@ const {
   loading,
   saving,
   selectedThemeId,
-  jsonDialogVisible,
-  jsonContent,
   editMode,
   editor,
   themes,
@@ -24,8 +22,7 @@ const {
   applySelectedTheme,
   copySelectedTheme,
   deleteCustomTheme,
-  openJsonEditor,
-  applyJsonContent
+  insertCssTemplate
 } = useThemeEditor()
 
 const startLivePreview = () => {
@@ -34,6 +31,7 @@ const startLivePreview = () => {
     name: editor.name,
     mode: editor.mode,
     builtin: editor.builtin,
+    customCss: editor.customCss || '',
     tokens: { ...editor.tokens }
   })
   router.push('/statistics')
@@ -69,61 +67,18 @@ onMounted(() => {
       </div>
     </aside>
 
-    <main class="theme-preview-panel">
-      <div class="preview-panel-heading">
-        <div>
-          <div class="theme-section-title">简要预览</div>
-          <div class="theme-section-subtitle">快速查看统计页、卡片、按钮、图表和侧边栏 token 的组合效果</div>
-        </div>
-        <el-button type="primary" :icon="View" @click="startLivePreview">实时预览</el-button>
-      </div>
-      <div class="preview-shell" :style="editor.tokens">
-        <div class="preview-sidebar">
-          <div class="preview-brand">GeneralBot</div>
-          <div class="preview-menu active">数据统计</div>
-          <div class="preview-menu">插件管理</div>
-          <div class="preview-menu">工作流管理</div>
-        </div>
-        <div class="preview-page">
-          <div class="preview-header">{{ editor.name }}</div>
-          <section class="preview-card wide">
-            <div class="preview-card-title">我的 BOT</div>
-            <div class="preview-card-sub">在线中 · QQ 123456789</div>
-            <div class="preview-actions">
-              <button>切换主题</button>
-              <button class="strong">保存为默认</button>
-            </div>
-          </section>
-          <section class="preview-grid">
-            <div class="preview-card"><span>插件总数</span><strong>128</strong></div>
-            <div class="preview-card"><span>工作流</span><strong>24</strong></div>
-            <div class="preview-card"><span>今日执行</span><strong>1,284</strong></div>
-          </section>
-          <section class="preview-chart">
-            <i v-for="height in [38, 76, 48, 94, 66, 84, 58]" :key="height" :style="{ height: `${height}px` }"></i>
-          </section>
-        </div>
-      </div>
-    </main>
-
     <aside class="theme-editor">
       <ThemeEditorPanel
         v-model:edit-mode="editMode"
         :editor="editor"
         :saving="saving"
+        :show-live-preview="true"
+        @live-preview="startLivePreview"
         @apply="applySelectedTheme"
         @delete="deleteCustomTheme"
-        @open-json="openJsonEditor"
+        @insert-css-template="insertCssTemplate"
       />
     </aside>
-
-    <el-dialog v-model="jsonDialogVisible" title="高级 JSONC" width="720px">
-      <el-input v-model="jsonContent" type="textarea" :rows="18" class="theme-json-editor" />
-      <template #footer>
-        <el-button @click="jsonDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="applyJsonContent">应用并保存</el-button>
-      </template>
-    </el-dialog>
 
   </div>
 </template>

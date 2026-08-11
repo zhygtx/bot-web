@@ -6,6 +6,7 @@
 import { computed, onMounted, watch } from 'vue'
 import hljs from 'highlight.js/lib/core'
 import java from 'highlight.js/lib/languages/java'
+import css from 'highlight.js/lib/languages/css'
 import xml from 'highlight.js/lib/languages/xml'
 import json from 'highlight.js/lib/languages/json'
 import yaml from 'highlight.js/lib/languages/yaml'
@@ -16,6 +17,7 @@ import darkThemeCss from 'highlight.js/styles/github-dark.css?inline'
 import { useTheme } from '../../composables/useTheme'
 
 hljs.registerLanguage('java', java)
+hljs.registerLanguage('css', css)
 hljs.registerLanguage('xml', xml)
 hljs.registerLanguage('json', json)
 hljs.registerLanguage('yaml', yaml)

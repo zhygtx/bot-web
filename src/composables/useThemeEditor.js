@@ -2,160 +2,17 @@ import { computed, nextTick, onUnmounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useThemeStore } from '../stores/theme'
 import { createTheme, deleteTheme, updateTheme } from '../theme/themeApi'
+import { validateCss } from '../theme/cssValidator'
 import { getBuiltinTheme, themeTokenList } from '../theme/registry'
+import { themeVariableGroups } from '../theme/themeTokenReference'
 import { applyTheme } from '../theme/themeRuntime'
-import { advancedTokenGroups, cssValueLooksSafe } from '../theme/tokenSchema'
-
-const tokenMetaMap = advancedTokenGroups
-  .flatMap(group => group.tokens.map(token => [token.key, { ...token, groupTitle: group.title }]))
-  .reduce((map, [key, meta]) => {
-    map[key] = meta
-    return map
-  }, {})
-
-const stringifyJsonValue = (value) => JSON.stringify(value)
-
-const stripJsoncComments = (content) => {
-  let result = ''
-  let inString = false
-  let inLineComment = false
-  let inBlockComment = false
-  let escaped = false
-
-  for (let index = 0; index < content.length; index += 1) {
-    const char = content[index]
-    const next = content[index + 1]
-
-    if (inLineComment) {
-      if (char === '\n' || char === '\r') {
-        inLineComment = false
-        result += char
-      }
-      continue
-    }
-
-    if (inBlockComment) {
-      if (char === '*' && next === '/') {
-        inBlockComment = false
-        index += 1
-        continue
-      }
-      if (char === '\n' || char === '\r') result += char
-      continue
-    }
-
-    if (inString) {
-      result += char
-      if (escaped) {
-        escaped = false
-      } else if (char === '\\') {
-        escaped = true
-      } else if (char === '"') {
-        inString = false
-      }
-      continue
-    }
-
-    if (char === '"') {
-      inString = true
-      result += char
-      continue
-    }
-
-    if (char === '/' && next === '/') {
-      inLineComment = true
-      index += 1
-      continue
-    }
-
-    if (char === '/' && next === '*') {
-      inBlockComment = true
-      index += 1
-      continue
-    }
-
-    result += char
-  }
-
-  return result
-}
-
-const removeJsonTrailingCommas = (content) => {
-  let result = ''
-  let inString = false
-  let escaped = false
-
-  for (let index = 0; index < content.length; index += 1) {
-    const char = content[index]
-
-    if (inString) {
-      result += char
-      if (escaped) {
-        escaped = false
-      } else if (char === '\\') {
-        escaped = true
-      } else if (char === '"') {
-        inString = false
-      }
-      continue
-    }
-
-    if (char === '"') {
-      inString = true
-      result += char
-      continue
-    }
-
-    if (char === ',') {
-      let nextIndex = index + 1
-      while (/\s/.test(content[nextIndex] || '')) nextIndex += 1
-      if (content[nextIndex] === '}' || content[nextIndex] === ']') continue
-    }
-
-    result += char
-  }
-
-  return result
-}
-
-const parseJsonc = (content) => JSON.parse(removeJsonTrailingCommas(stripJsoncComments(content)))
-
-const buildJsoncTheme = (editor) => {
-  const lines = [
-    '{',
-    '  // 主题名称。可以让 AI 按你的风格重新命名。',
-    `  "name": ${stringifyJsonValue(editor.name)},`,
-    '',
-    '  // 主题模式。light 为亮色，dark 为暗色；通常保持复制来源的模式不变。',
-    `  "mode": ${stringifyJsonValue(editor.mode)},`,
-    '',
-    '  // tokens 是真正会应用到前端的样式变量。注释只给人和 AI 阅读，保存时不会进入数据库。',
-    '  "tokens": {'
-  ]
-
-  themeTokenList.forEach((key, index) => {
-    const meta = tokenMetaMap[key]
-    const comma = index === themeTokenList.length - 1 ? '' : ','
-    lines.push(`    // ${meta?.groupTitle || '未分组'} / ${meta?.label || key}`)
-    if (meta?.placeholder) {
-      lines.push(`    // 可写：${meta.placeholder}`)
-    }
-    lines.push(`    ${stringifyJsonValue(key)}: ${stringifyJsonValue(editor.tokens[key] || '')}${comma}`)
-    if (index !== themeTokenList.length - 1) lines.push('')
-  })
-
-  lines.push('  }')
-  lines.push('}')
-  return lines.join('\n')
-}
+import { cssValueLooksSafe } from '../theme/tokenSchema'
 
 export const useThemeEditor = ({ previewDraft = false, afterApply } = {}) => {
   const themeStore = useThemeStore()
   const loading = ref(false)
   const saving = ref(false)
   const selectedThemeId = ref('')
-  const jsonDialogVisible = ref(false)
-  const jsonContent = ref('')
   const editMode = ref('simple')
   const dirty = ref(false)
   let autoSaveTimer = null
@@ -166,6 +23,7 @@ export const useThemeEditor = ({ previewDraft = false, afterApply } = {}) => {
     name: '',
     mode: 'light',
     builtin: true,
+    customCss: '',
     tokens: {}
   })
 
@@ -193,6 +51,7 @@ export const useThemeEditor = ({ previewDraft = false, afterApply } = {}) => {
     name: editor.name || '未命名主题',
     mode: editor.mode,
     builtin: editor.builtin,
+    customCss: editor.customCss || '',
     tokens: { ...editor.tokens }
   })
 
@@ -209,6 +68,7 @@ export const useThemeEditor = ({ previewDraft = false, afterApply } = {}) => {
     editor.name = theme.name
     editor.mode = theme.mode
     editor.builtin = theme.builtin
+    editor.customCss = theme.customCss || ''
     editor.tokens = normalizeEditorTokens(theme.mode, theme.tokens)
     nextTick(() => {
       syncingEditor = false
@@ -250,6 +110,11 @@ export const useThemeEditor = ({ previewDraft = false, afterApply } = {}) => {
       if (showMessage) ElMessage.error(`令牌值不安全：${invalidToken[0]}`)
       return false
     }
+    const cssValidation = validateCss(editor.customCss)
+    if (!cssValidation.valid) {
+      if (showMessage) ElMessage.error(cssValidation.message)
+      return false
+    }
     return true
   }
 
@@ -264,6 +129,7 @@ export const useThemeEditor = ({ previewDraft = false, afterApply } = {}) => {
       const payload = {
         name: themeName,
         mode: editor.mode,
+        customCss: editor.customCss || '',
         tokens: editor.tokens
       }
       const response = editor.builtin || !editor.id
@@ -284,7 +150,7 @@ export const useThemeEditor = ({ previewDraft = false, afterApply } = {}) => {
   }
 
   const scheduleAutoSave = () => {
-    if (syncingEditor || loading.value || jsonDialogVisible.value || editor.builtin) return
+    if (syncingEditor || loading.value || editor.builtin) return
     dirty.value = true
     previewEditorTheme()
     if (autoSaveTimer) clearTimeout(autoSaveTimer)
@@ -316,6 +182,7 @@ export const useThemeEditor = ({ previewDraft = false, afterApply } = {}) => {
       const response = await createTheme({
         name: `${editor.name || selectedTheme.value.name} 副本`,
         mode: editor.mode,
+        customCss: editor.customCss || '',
         tokens: editor.tokens
       })
       await themeStore.loadThemeList()
@@ -338,44 +205,33 @@ export const useThemeEditor = ({ previewDraft = false, afterApply } = {}) => {
     await loadThemes()
   }
 
-  const openJsonEditor = () => {
-    jsonContent.value = buildJsoncTheme(editor)
-    jsonDialogVisible.value = true
+  const buildCssTemplate = () => {
+    const lines = ['/* GeneralBot 全量主题变量模板 */', '', ':root {', '']
+    themeVariableGroups.forEach(group => {
+      lines.push(`  /* ===== ${group.title} ===== */`)
+      group.tokens.forEach(item => {
+        lines.push(`  /* ${item.comment} */`)
+        lines.push(`  ${item.key}: ${editor.tokens[item.key] || ''};`)
+        lines.push('')
+      })
+    })
+    lines.push('}')
+    lines.push('')
+    lines.push('/* 常用组件覆盖示例 */')
+    lines.push('.el-card {')
+    lines.push('  border-radius: 12px;')
+    lines.push('}')
+    return lines.join('\n')
   }
 
-  const applyJsonContent = async () => {
-    try {
-      const parsed = parseJsonc(jsonContent.value)
-      if (!parsed.name || !parsed.tokens) {
-        throw new Error('JSONC 必须包含 name 和 tokens')
-      }
-      const parsedMode = parsed.mode === 'dark' ? 'dark' : parsed.mode === 'light' ? 'light' : editor.mode
-      Object.entries(parsed.tokens).forEach(([key, value]) => {
-        if (!themeTokenList.includes(key)) {
-          throw new Error(`不支持的令牌：${key}`)
-        }
-        if (!cssValueLooksSafe(String(value))) {
-          throw new Error(`令牌值不安全：${key}`)
-        }
-      })
-      editor.name = parsed.name
-      editor.mode = parsedMode
-      editor.tokens = normalizeEditorTokens(parsedMode, parsed.tokens)
-      editor.builtin = false
-      dirty.value = true
-      if (editor.id && themes.value.some(theme => theme.id === editor.id && theme.builtin)) {
-        editor.id = ''
-      }
-      previewEditorTheme()
-      await saveEditorTheme({ showMessage: true })
-      jsonDialogVisible.value = false
-    } catch (error) {
-      ElMessage.error(error.message || 'JSONC 解析失败')
-    }
+  const insertCssTemplate = () => {
+    editor.customCss = buildCssTemplate()
+    dirty.value = true
+    previewEditorTheme()
   }
 
   watch(
-    () => [editor.name, editor.mode, JSON.stringify(editor.tokens)],
+    () => [editor.name, editor.mode, editor.customCss, JSON.stringify(editor.tokens)],
     scheduleAutoSave
   )
 
@@ -389,8 +245,6 @@ export const useThemeEditor = ({ previewDraft = false, afterApply } = {}) => {
     saving,
     selectedThemeId,
     selectedTheme,
-    jsonDialogVisible,
-    jsonContent,
     editMode,
     dirty,
     editor,
@@ -403,7 +257,6 @@ export const useThemeEditor = ({ previewDraft = false, afterApply } = {}) => {
     applySelectedTheme,
     copySelectedTheme,
     deleteCustomTheme,
-    openJsonEditor,
-    applyJsonContent
+    insertCssTemplate
   }
 }

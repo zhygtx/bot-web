@@ -35,3 +35,10 @@ npm run build
 - 样式统一放在 `src/styles`，页面样式按视图拆分并在 `app.css` 引入。
 - 暗色主题通过 `html.dark` 与 CSS 变量控制。
 - 侧边栏配色统一使用 `--sidebar-*` 主题变量（专业科技蓝方案），亮/暗模式各自定义。
+
+## 样式与主题维护
+
+- 新增页面样式放到 `src/styles/views/xxx.css`，新增公共组件样式放到 `src/styles/components/xxx.css`，并统一在 `src/styles/app.css` 引入；组件内不要写 `<style scoped>`。
+- 新增主题变量需要同步 `src/theme/presets/defaultLight.js`、`defaultDark.js`、后端 `BuiltinThemeRegistry` 和 `src/theme/themeTokenReference.js`。
+- 全局样式参考会自动扫描 `src/styles`，常用选择器速查会自动扫描 CSS 生成，新增样式文件后无需手动维护参考列表。
+- 主题 CSS 编辑框和全局样式参考弹窗使用 highlight.js 高亮展示。

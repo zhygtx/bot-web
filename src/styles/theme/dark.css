@@ -1,3 +1,4 @@
+/* 暗色模式兜底：只保留 Element Plus 暗色适配，颜色本体由默认暗色主题提供。 */
 html.dark {
   color-scheme: dark;
 }

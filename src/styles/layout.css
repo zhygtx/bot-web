@@ -1,3 +1,4 @@
+/* 主布局：侧边栏、顶栏、内容区、移动端导航。 */
 /* ===== src/components/Layout.vue [0] ===== */
 .layout-container {
   height: 100vh;

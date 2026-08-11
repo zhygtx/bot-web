@@ -1,3 +1,4 @@
+/* 全局悬浮主题编辑器：可拖动面板、收起气泡与进出场动画。 */
 .global-theme-editor {
   position: fixed;
   width: 430px;

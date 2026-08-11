@@ -8,6 +8,7 @@ export const useThemePreviewStore = defineStore('themePreview', () => {
   const startPreview = (theme) => {
     sourceTheme.value = {
       ...theme,
+      customCss: theme.customCss || '',
       tokens: { ...(theme.tokens || {}) }
     }
     active.value = true

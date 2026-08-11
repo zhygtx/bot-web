@@ -2,8 +2,11 @@ import { cloneTheme, getBuiltinTheme, themeTokenList } from './registry'
 import { cssValueLooksSafe } from './tokenSchema'
 
 export const THEME_CACHE_KEY = 'generalbot-theme-snapshot'
+const USER_THEME_CSS_ID = 'generalbot-user-theme-css'
+const TOKEN_STYLE_ID = 'generalbot-theme-tokens'
 
 const DARK_CLASS = 'dark'
+let themeCssObserver = null
 
 export const normalizeTheme = (theme) => {
   if (!theme || !theme.id || !theme.mode || !theme.tokens) {
@@ -21,6 +24,7 @@ export const normalizeTheme = (theme) => {
   })
   return {
     ...theme,
+    customCss: typeof theme.customCss === 'string' ? theme.customCss : '',
     tokens
   }
 }
@@ -37,9 +41,56 @@ export const applyTheme = (theme) => {
   root.dataset.themeBuiltin = String(!!nextTheme.builtin)
   root.style.colorScheme = nextTheme.mode
 
-  Object.entries(nextTheme.tokens).forEach(([name, value]) => {
-    root.style.setProperty(name, value)
-  })
+  Object.keys(nextTheme.tokens).forEach(name => root.style.removeProperty(name))
+  applyTokenStyle(nextTheme.tokens)
+  applyCustomCss(nextTheme.customCss)
+}
+
+const applyTokenStyle = (tokens) => {
+  if (typeof document === 'undefined') return
+  let style = document.getElementById(TOKEN_STYLE_ID)
+  if (!style) {
+    style = document.createElement('style')
+    style.id = TOKEN_STYLE_ID
+    document.head.appendChild(style)
+  }
+  const lines = Object.entries(tokens).map(([name, value]) => `  ${name}: ${value};`)
+  style.textContent = `:root {\n${lines.join('\n')}\n}`
+
+  const userStyle = document.getElementById(USER_THEME_CSS_ID)
+  if (userStyle) {
+    document.head.insertBefore(style, userStyle)
+  }
+}
+
+const applyCustomCss = (css) => {
+  const existing = document.getElementById(USER_THEME_CSS_ID)
+  if (!css) {
+    existing?.remove()
+    return
+  }
+  let style = existing
+  if (!style) {
+    style = document.createElement('style')
+    style.id = USER_THEME_CSS_ID
+    document.head.appendChild(style)
+  }
+  style.textContent = css
+  setupThemeCssObserver()
+  moveThemeCssToEnd()
+}
+
+const setupThemeCssObserver = () => {
+  if (themeCssObserver || typeof MutationObserver === 'undefined') return
+  themeCssObserver = new MutationObserver(moveThemeCssToEnd)
+  themeCssObserver.observe(document.head, { childList: true })
+}
+
+const moveThemeCssToEnd = () => {
+  const style = document.getElementById(USER_THEME_CSS_ID)
+  if (!style) return
+  const head = document.head
+  if (head.lastElementChild !== style) head.appendChild(style)
 }
 
 export const cacheThemeSnapshot = (theme) => {

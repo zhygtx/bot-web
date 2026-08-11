@@ -3,6 +3,7 @@ export const defaultLightTheme = {
   name: '默认亮色',
   mode: 'light',
   builtin: true,
+  customCss: '',
   tokens: {
     '--app-bg': '#f5f7fa',
     '--app-bg-soft': '#ffffff',

@@ -25,15 +25,12 @@ const themePreviewStore = useThemePreviewStore()
 const {
   loading,
   saving,
-  jsonDialogVisible,
-  jsonContent,
   editMode,
   editor,
   syncEditor,
   applySelectedTheme,
   deleteCustomTheme,
-  openJsonEditor,
-  applyJsonContent
+  insertCssTemplate
 } = useThemeEditor({
   previewDraft: true,
   afterApply: () => {
@@ -181,7 +178,7 @@ onUnmounted(() => {
           :saving="saving"
           @apply="applySelectedTheme"
           @delete="deleteCustomTheme"
-          @open-json="openJsonEditor"
+          @insert-css-template="insertCssTemplate"
         />
       </div>
     </transition>
@@ -202,13 +199,5 @@ onUnmounted(() => {
         <el-icon><Brush /></el-icon>
       </button>
     </transition>
-
-    <el-dialog v-if="themePreviewStore.active" v-model="jsonDialogVisible" title="高级 JSONC" width="720px">
-      <el-input v-model="jsonContent" type="textarea" :rows="18" class="theme-json-editor" />
-      <template #footer>
-        <el-button @click="jsonDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="applyJsonContent">应用并保存</el-button>
-      </template>
-    </el-dialog>
   </teleport>
 </template>

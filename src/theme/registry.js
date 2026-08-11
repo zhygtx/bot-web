@@ -14,6 +14,7 @@ export const getBuiltinTheme = (themeId) => builtinThemeMap[themeId] || builtinT
 
 export const cloneTheme = (theme) => ({
   ...theme,
+  customCss: theme.customCss || '',
   tokens: { ...theme.tokens }
 })
 
