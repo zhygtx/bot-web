@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Clock, VideoPlay, CircleCheck, CircleClose, ArrowRight, ArrowUp, Refresh, Filter } from '@element-plus/icons-vue'
+import { Clock, VideoPlay, CircleCheck, CircleClose, ArrowRight, ArrowUp, Refresh, Filter, Search } from '@element-plus/icons-vue'
 import request from '../../utils/request'
 import AppPagination from '../../components/common/AppPagination.vue'
 import HighlightCode from '../../components/common/HighlightCode.vue'
@@ -21,6 +21,7 @@ const isMobile = ref(false)
 
 const filters = ref({
   workflowName: '',
+  keyword: '',
   dateRange: [],
   status: ''
 })
@@ -137,6 +138,7 @@ const loadLogs = async () => {
       userId: localStorage.getItem('userId') || '',
       workflowId: props.workflowId || undefined,
       workflowName: filters.value.workflowName,
+      keyword: filters.value.keyword.trim(),
       startTime: filters.value.dateRange?.length === 2 ? filters.value.dateRange[0].getTime() : null,
       endTime: filters.value.dateRange?.length === 2 ? filters.value.dateRange[1].getTime() : null,
       sortField: sortField.value,
@@ -242,6 +244,7 @@ const toggleSort = (field) => {
 const resetFilters = () => {
   filters.value = {
     workflowName: '',
+    keyword: '',
     dateRange: [],
     status: ''
   }
@@ -274,6 +277,20 @@ onUnmounted(() => {
         >
           <template #prefix>
             <el-icon class="filter-icon"><Filter /></el-icon>
+          </template>
+        </el-input>
+      </div>
+      <div class="filter-item search-item">
+        <el-input
+          v-model="filters.keyword"
+          placeholder="搜索消息内容 / QQ号"
+          clearable
+          class="filter-input"
+          @keyup.enter="loadLogs"
+          @clear="loadLogs"
+        >
+          <template #prefix>
+            <el-icon class="filter-icon"><Search /></el-icon>
           </template>
         </el-input>
       </div>

@@ -167,9 +167,20 @@ const trendOption = computed(() => {
   const chartPrimary = getThemeToken('--chart-primary', '#409eff')
   const chartWarning = getThemeToken('--chart-warning', '#e6a23c')
   return {
-    tooltip: { trigger: 'axis' },
+    tooltip: {
+      trigger: 'axis',
+      formatter: (params) => {
+        const list = Array.isArray(params) ? params : [params]
+        const header = list[0]?.axisValueLabel ? `${list[0].axisValueLabel}<br/>` : ''
+        const lines = list.map(item => {
+          const suffix = item.seriesName === '平均耗时' ? ' ms' : ' 次'
+          return `${item.marker}${item.seriesName}: ${item.value}${suffix}`
+        })
+        return header + lines.join('<br/>')
+      }
+    },
     legend: { top: 0, data: ['执行次数', '平均耗时'] },
-    grid: { left: 12, right: 16, top: 42, bottom: 8, containLabel: true },
+    grid: { left: 44, right: 44, top: 42, bottom: 8, containLabel: true },
     xAxis: {
       type: 'category',
       boundaryGap: false,
@@ -180,8 +191,18 @@ const trendOption = computed(() => {
       }
     },
     yAxis: [
-      { type: 'value', minInterval: 1 },
-      { type: 'value', name: 'ms' }
+      {
+        type: 'value',
+        minInterval: 1,
+        alignTicks: true
+      },
+      {
+        type: 'value',
+        name: 'ms',
+        nameRotate: 0,
+        alignTicks: true,
+        splitLine: { show: false }
+      }
     ],
     series: [
       {
