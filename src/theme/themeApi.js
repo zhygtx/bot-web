@@ -11,3 +11,5 @@ export const updateTheme = (id, data) => request({ url: `/theme/${id}`, method: 
 export const deleteTheme = (id) => request({ url: `/theme/${id}`, method: 'delete' })
 
 export const switchTheme = (data) => request({ url: '/theme/current', method: 'put', data })
+
+export const resetThemes = () => request({ url: '/theme/reset', method: 'post' })

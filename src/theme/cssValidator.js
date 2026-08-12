@@ -2,11 +2,21 @@ const MAX_CSS_LENGTH = 64 * 1024
 
 const FORBIDDEN_PATTERN = /(?:@import|@charset|@namespace|@(?:-moz-)?document|@font-face|url\s*\(|expression\s*\(|javascript:|behavior\s*:|-moz-binding|progid\s*:)/i
 
+export const normalizeCssInput = (css) => {
+  const lines = String(css || '').split('\n')
+  while (lines.length && /^```[\w-]*$/.test(lines[0].trim())) lines.shift()
+  while (lines.length && /^```[\w-]*$/.test(lines[lines.length - 1].trim())) lines.pop()
+  return lines.join('\n').trim()
+}
+
 export const validateCss = (css) => {
-  const normalized = String(css || '').trim()
+  const normalized = normalizeCssInput(css)
   if (!normalized) return { valid: true }
   if (normalized.length > MAX_CSS_LENGTH) {
     return { valid: false, message: '自定义 CSS 不能超过 64KB' }
+  }
+  if (normalized.includes('```')) {
+    return { valid: false, message: '自定义 CSS 不能包含 Markdown 代码块标记 ```' }
   }
   for (const char of normalized) {
     if (char.charCodeAt(0) < 0x20 && char !== '\n' && char !== '\r' && char !== '\t') {

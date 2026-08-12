@@ -1,8 +1,10 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { Delete, Document, DocumentAdd, Select, View } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { CopyDocument, Delete, Document, DocumentAdd, Download, Select, Upload, View } from '@element-plus/icons-vue'
 import HighlightCode from '../../components/common/HighlightCode.vue'
 import CssCodeEditor from '../../components/common/CssCodeEditor.vue'
+import { normalizeCssInput, validateCss } from '../../theme/cssValidator'
 import { colorTokenGroups, predefinedThemeColors } from '../../theme/tokenSchema'
 
 const props = defineProps({
@@ -45,6 +47,8 @@ const styleSourceFiles = ref([])
 const selectedStyleFile = ref(null)
 const selectorGroups = ref([])
 const selectorLoading = ref(false)
+const importDialogVisible = ref(false)
+const importContent = ref('')
 
 const openStyleReference = async () => {
   styleLoading.value = true
@@ -69,6 +73,51 @@ const loadSelectorGroups = async (event) => {
   } finally {
     selectorLoading.value = false
   }
+}
+
+const buildStyleExportText = () => styleSourceFiles.value
+  .map(file => `/* ===== ${file.name} ===== */\n${file.content}`)
+  .join('\n\n')
+
+const copyAllStyles = async () => {
+  const text = buildStyleExportText()
+  try {
+    await navigator.clipboard.writeText(text)
+    ElMessage.success('全部样式已复制')
+  } catch (error) {
+    ElMessage.error('复制失败，请使用导出文件')
+  }
+}
+
+const downloadAllStyles = () => {
+  const text = buildStyleExportText()
+  const blob = new Blob([text], { type: 'text/css;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'generalbot-styles.css'
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+  ElMessage.success('全部样式已导出')
+}
+
+const openImportOverlay = () => {
+  importContent.value = ''
+  importDialogVisible.value = true
+}
+
+const applyImportOverlay = () => {
+  const content = normalizeCssInput(importContent.value)
+  const result = validateCss(content)
+  if (!result.valid) {
+    ElMessage.error(result.message)
+    return
+  }
+  editor.customCss = content
+  importDialogVisible.value = false
+  ElMessage.success('已填入 CSS 编辑器，将自动保存')
 }
 </script>
 
@@ -139,6 +188,9 @@ const loadSelectorGroups = async (event) => {
         <el-button size="small" :icon="Document" :loading="styleLoading" @click="openStyleReference">
           查看全局样式参考
         </el-button>
+        <el-button size="small" :icon="Upload" :disabled="editingDisabled" @click="openImportOverlay">
+          导入 CSS 覆盖
+        </el-button>
       </div>
       <CssCodeEditor
         v-model="editor.customCss"
@@ -164,6 +216,14 @@ const loadSelectorGroups = async (event) => {
       top="3vh"
       :append-to-body="true"
     >
+      <div class="style-source-actions">
+        <el-button size="small" :icon="CopyDocument" @click="copyAllStyles">
+          复制全部样式
+        </el-button>
+        <el-button size="small" :icon="Download" @click="downloadAllStyles">
+          导出全部样式
+        </el-button>
+      </div>
       <div class="style-source-layout">
         <aside class="style-source-files">
           <button
@@ -186,6 +246,20 @@ const loadSelectorGroups = async (event) => {
           />
         </div>
       </div>
+    </el-dialog>
+
+    <el-dialog
+      v-model="importDialogVisible"
+      title="导入 CSS 覆盖"
+      width="min(760px, 92vw)"
+      top="8vh"
+      :append-to-body="true"
+    >
+      <CssCodeEditor v-model="importContent" class="import-css-editor" />
+      <template #footer>
+        <el-button @click="importDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="applyImportOverlay">应用覆盖</el-button>
+      </template>
     </el-dialog>
 
     <div class="theme-editor-actions">

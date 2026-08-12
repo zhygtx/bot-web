@@ -2,7 +2,7 @@ import { computed, nextTick, onUnmounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useThemeStore } from '../stores/theme'
 import { createTheme, deleteTheme, updateTheme } from '../theme/themeApi'
-import { validateCss } from '../theme/cssValidator'
+import { normalizeCssInput, validateCss } from '../theme/cssValidator'
 import { getBuiltinTheme, themeTokenList } from '../theme/registry'
 import { themeVariableGroups } from '../theme/themeTokenReference'
 import { applyTheme } from '../theme/themeRuntime'
@@ -110,6 +110,10 @@ export const useThemeEditor = ({ previewDraft = false, afterApply } = {}) => {
       if (showMessage) ElMessage.error(`令牌值不安全：${invalidToken[0]}`)
       return false
     }
+    const normalizedCss = normalizeCssInput(editor.customCss)
+    if (normalizedCss !== editor.customCss) {
+      editor.customCss = normalizedCss
+    }
     const cssValidation = validateCss(editor.customCss)
     if (!cssValidation.valid) {
       if (showMessage) ElMessage.error(cssValidation.message)
@@ -164,7 +168,16 @@ export const useThemeEditor = ({ previewDraft = false, afterApply } = {}) => {
       clearTimeout(autoSaveTimer)
       autoSaveTimer = null
     }
-    const latestTheme = dirty.value ? await saveEditorTheme() : null
+    let latestTheme = null
+    if (dirty.value) {
+      try {
+        latestTheme = await saveEditorTheme({ showMessage: true })
+      } catch (error) {
+        ElMessage.error(error.response?.data?.message || error.message || '主题保存失败')
+        return
+      }
+      if (!latestTheme) return
+    }
     const selected = themes.value.find(theme => theme.id === selectedThemeId.value)
     await themeStore.setCurrentTheme(latestTheme || selected || getEditorThemeSnapshot())
     afterApply?.()

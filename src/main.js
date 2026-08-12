@@ -9,6 +9,18 @@ import './styles/app.css'
 import App from './App.vue'
 import { initTheme } from './composables/useTheme'
 import { useThemeStore } from './stores/theme'
+import { resetThemes } from './theme/themeApi'
+import { THEME_CACHE_KEY } from './theme/themeRuntime'
+
+const EMERGENCY_RESET_PARAM = 'theme'
+const emergencyResetRequested = new URLSearchParams(window.location.search).get(EMERGENCY_RESET_PARAM) === 'reset'
+
+if (emergencyResetRequested) {
+  localStorage.removeItem(THEME_CACHE_KEY)
+  const url = new URL(window.location.href)
+  url.searchParams.delete(EMERGENCY_RESET_PARAM)
+  history.replaceState(null, '', url)
+}
 
 initTheme()
 
@@ -24,9 +36,13 @@ app.use(ElementPlus)
 
 // 使用数据库中的用户主题覆盖启动时的本地快照；失败时保留本地或默认主题，避免影响应用进入。
 const themeStore = useThemeStore()
-themeStore.loadCurrentTheme().catch(error => {
-  console.error('加载用户主题失败:', error)
-})
+if (emergencyResetRequested) {
+  resetThemes().finally(() => window.location.reload())
+} else {
+  themeStore.loadCurrentTheme().catch(error => {
+    console.error('加载用户主题失败:', error)
+  })
+}
 
 // 注册所有Element Plus图标组件
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
@@ -38,3 +54,12 @@ app.use(router)
 
 // 挂载应用
 app.mount('#app')
+
+// 键盘紧急恢复：Ctrl+Alt+Shift+R，即使页面被自定义 CSS 弄得无法点击也能触发。
+window.addEventListener('keydown', (event) => {
+  if (event.ctrlKey && event.altKey && event.shiftKey && (event.code === 'KeyR' || event.key.toLowerCase() === 'r')) {
+    event.preventDefault()
+    localStorage.removeItem(THEME_CACHE_KEY)
+    resetThemes().finally(() => window.location.reload())
+  }
+})

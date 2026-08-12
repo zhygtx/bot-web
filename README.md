@@ -28,6 +28,7 @@ npm run build
 - `/workflow/list`、`/workflow/edit/:id?`、`/workflow/log`：工作流管理、可视化编辑、执行日志
 - `/settings`：基础信息配置
 - `/user/profile`：个人信息
+- `/theme/studio`：主题中心，主题列表、颜色/CSS 编辑、实时预览
 
 ## 约定
 
@@ -40,5 +41,14 @@ npm run build
 
 - 新增页面样式放到 `src/styles/views/xxx.css`，新增公共组件样式放到 `src/styles/components/xxx.css`，并统一在 `src/styles/app.css` 引入；组件内不要写 `<style scoped>`。
 - 新增主题变量需要同步 `src/theme/presets/defaultLight.js`、`defaultDark.js`、后端 `BuiltinThemeRegistry` 和 `src/theme/themeTokenReference.js`。
-- 全局样式参考会自动扫描 `src/styles`，常用选择器速查会自动扫描 CSS 生成，新增样式文件后无需手动维护参考列表。
+- 全局样式参考会列出 `src/styles` 下的全部 CSS 源文件；常用选择器速查由 `src/theme/themeTokenReference.js` 维护。
 - 主题 CSS 编辑框和全局样式参考弹窗使用 highlight.js 高亮展示。
+
+## 主题紧急恢复
+
+自定义 CSS 可能把界面破坏到无法点击，因此提供两个独立于页面样式的恢复入口：
+
+- 地址栏访问 `/?theme=reset`
+- 键盘快捷键 `Ctrl + Alt + Shift + R`
+
+触发后前端会清空本地主题快照，并调用 `POST /theme/reset` 把亮色/暗色当前主题切回内置默认主题，然后刷新页面。后端不会删除用户自定义主题，只修改当前激活槽位。

@@ -225,10 +225,17 @@
   word-break: break-all;
 }
 
+.style-source-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
 .style-source-layout {
   display: flex;
-  height: 76vh;
-  min-height: 480px;
+  height: calc(76vh - 52px);
+  min-height: 440px;
   border: var(--app-border-panel);
   border-radius: var(--app-radius-card);
   overflow: hidden;
@@ -297,6 +304,10 @@
   white-space: pre;
   color: var(--app-text);
   background: var(--app-panel-bg);
+}
+
+.import-css-editor {
+  height: 420px;
 }
 
 .token-color-control {

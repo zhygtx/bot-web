@@ -8,6 +8,7 @@
       :disabled="disabled"
       :spellcheck="false"
       @input="handleInput"
+      @paste="handlePaste"
       @scroll="syncScroll"
       @focus="focused = true"
       @blur="focused = false"
@@ -23,6 +24,7 @@ import css from 'highlight.js/lib/languages/css'
 import lightThemeCss from 'highlight.js/styles/github.css?inline'
 import darkThemeCss from 'highlight.js/styles/github-dark.css?inline'
 import { useTheme } from '../../composables/useTheme'
+import { normalizeCssInput } from '../../theme/cssValidator'
 
 hljs.registerLanguage('css', css)
 
@@ -51,6 +53,26 @@ const highlighted = computed(() => {
 
 const handleInput = (event) => {
   emit('update:modelValue', event.target.value)
+}
+
+const handlePaste = (event) => {
+  const pasted = event.clipboardData?.getData('text') || ''
+  const cleaned = normalizeCssInput(pasted)
+  if (!cleaned) {
+    event.preventDefault()
+    return
+  }
+  event.preventDefault()
+  const element = inputRef.value
+  if (!element) return
+  const start = element.selectionStart
+  const end = element.selectionEnd
+  const value = props.modelValue || ''
+  emit('update:modelValue', `${value.slice(0, start)}${cleaned}${value.slice(end)}`)
+  nextTick(() => {
+    element.selectionStart = start + cleaned.length
+    element.selectionEnd = start + cleaned.length
+  })
 }
 
 const syncScroll = () => {
