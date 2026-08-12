@@ -41,7 +41,6 @@ const botEvents = ref([])
 const botActions = ref([])
 const hasBotQQ = ref(localStorage.getItem('botQQ') !== null)
 const isBotOnline = ref(false)
-let syncTimer = null
 
 const draggingNode = ref(null)
 const nodeDragStart = ref({ x: 0, y: 0 })
@@ -351,8 +350,11 @@ const handleWheel = (e) => {
 const backgroundPosition = computed(() => `${canvasX.value * zoom.value}px ${canvasY.value * zoom.value}px`)
 
 const openNodeConfigPanel = (node) => {
+  showConfigPanel.value = false
   configPanelNode.value = node
-  showConfigPanel.value = true
+  nextTick(() => {
+    showConfigPanel.value = true
+  })
   hideContextMenu()
 }
 
@@ -476,9 +478,6 @@ onMounted(async () => {
   loadBotEvents(botEvents)
   loadBotActions(botActions)
   await syncBotInfo(hasBotQQ, isBotOnline)
-  if (hasBotQQ.value) {
-    syncTimer = setInterval(() => syncBotInfo(hasBotQQ, isBotOnline), 5000)
-  }
   await loadWorkflowInfo(workflowId, workflowInfo, nodes, edges, canvasX, canvasY, zoom)
   document.addEventListener('mousemove', handleMouseMoveExtended)
   document.addEventListener('mouseup', handleMouseUpExtended)
@@ -489,7 +488,6 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  if (syncTimer) clearInterval(syncTimer)
   document.removeEventListener('mousemove', handleMouseMoveExtended)
   document.removeEventListener('mouseup', handleMouseUpExtended)
   document.removeEventListener('mouseleave', handleMouseLeaveExtended)

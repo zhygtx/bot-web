@@ -156,7 +156,11 @@ const submitBot = async () => {
         }
       })
     } else {
-      await request({ url: "/bot", method: "post", params: { name: botInfo.value.name || "", botQQ: botForm.botQQ } })
+      await request({
+        url: "/bot",
+        method: "post",
+        params: { name: botInfo.value.name || "", botQQ: botForm.botQQ, token: botForm.token }
+      })
     }
     botDialogVisible.value = false
     await getBotInfo()
@@ -653,4 +657,3 @@ const deleteAIConfig = async () => {
     </el-dialog>
   </div>
 </template>
-
