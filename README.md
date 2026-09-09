@@ -147,3 +147,12 @@ chmod +x deploy.sh
 ### WebSocket 连接失败
 
 确认后端 `napcat.ws.server.enable=true`、端点为 `/ws/bot`，代理已开启 WebSocket Upgrade，并核对 Bot Token。
+
+## 相关开源项目
+
+- [bot-web](https://github.com/zhygtx/bot-web)：本前端项目的独立仓库入口，可在该仓库查看前端最新提交、发布和构建说明。
+- [GeneralBot](https://github.com/zhygtx/GeneralBot)：AI 转写的单人 Python 项目版，与当前 Vue 管理控制台是两个独立项目。
+- [generalbot-api](https://github.com/zhygtx/generalbot-api)：后端使用的 GeneralBot API 配套项目。
+- [napcat-spring-boot-starter](https://github.com/zhygtx/napcat-spring-boot-starter)：后端 NapCat 接入所使用的 Spring Boot 启动器。
+
+项目仍在持续更新和优化，相关仓库的接口、依赖版本和部署方式可能独立变化；跨仓库升级时请同时检查版本兼容性。
