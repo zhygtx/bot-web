@@ -465,6 +465,22 @@
   color: var(--app-text);
   margin-bottom: 12px;
 }
+.node-section-header.workflow-log-view,
+.workflow-log-view .node-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.workflow-log-view .node-section-header h4 {
+  margin-bottom: 8px;
+}
+.node-toggle-all.workflow-log-view,
+.workflow-log-view .node-toggle-all {
+  font-size: 12px;
+  padding: 0;
+}
 .summary-context.workflow-log-view,
 .workflow-log-view .summary-context {
   background: var(--app-surface-raised);
@@ -599,7 +615,19 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  padding: 6px 8px;
   margin-bottom: 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.node-header:hover.workflow-log-view:hover,
+.workflow-log-view .node-header:hover {
+  background-color: var(--app-border-soft);
+}
+.node-header-expanded.workflow-log-view,
+.workflow-log-view .node-header-expanded {
+  background-color: var(--app-primary-soft-weak);
 }
 .node-order.workflow-log-view,
 .workflow-log-view .node-order {
@@ -625,6 +653,23 @@
   font-size: 12px;
   color: var(--app-primary);
   font-weight: 500;
+}
+.node-toggle-hint.workflow-log-view,
+.workflow-log-view .node-toggle-hint {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--app-text-muted);
+  white-space: nowrap;
+}
+.node-header-arrow.workflow-log-view,
+.workflow-log-view .node-header-arrow {
+  font-size: 14px;
+  color: var(--app-text-muted);
+  transition: transform 0.15s ease;
+}
+.node-header-arrow.expanded.workflow-log-view,
+.workflow-log-view .node-header-arrow.expanded {
+  transform: rotate(90deg);
 }
 .node-description.workflow-log-view,
 .workflow-log-view .node-description {

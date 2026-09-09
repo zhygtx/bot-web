@@ -14,7 +14,18 @@
           <el-icon class="section-arrow" :class="{ expanded: showInput }"><ArrowRight /></el-icon>
         </div>
         <div v-show="showInput" class="section-content">
-          <HighlightCode :content="formatJson(nodeTrace.input)" @click="openModal('输入', nodeTrace.input)" />
+          <HighlightCode
+            v-if="!isBigTextRef(nodeTrace.input)"
+            :content="formatJson(nodeTrace.input)"
+            @click="openModal('输入', nodeTrace.input)"
+          />
+          <span
+            v-else
+            class="big-text-placeholder"
+            @click="loadBigText(nodeTrace.input, '输入')"
+          >
+            内容较大，点击查看完整内容
+          </span>
         </div>
       </div>
       <div class="detail-section">
@@ -24,34 +35,39 @@
         </div>
         <div v-show="showOutput" class="section-content">
           <HighlightCode
+            v-if="!isBigTextRef(failed ? nodeTrace.error : nodeTrace.output)"
             :content="failed ? nodeTrace.error : formatJson(nodeTrace.output)"
             :plain="failed"
             :class="{ 'error-text': failed }"
             @click="openModal(failed ? '错误' : '输出', failed ? nodeTrace.error : nodeTrace.output)"
           />
+          <span
+            v-else
+            class="big-text-placeholder"
+            @click="loadBigText(failed ? nodeTrace.error : nodeTrace.output, failed ? '错误' : '输出')"
+          >
+            内容较大，点击查看完整内容
+          </span>
         </div>
       </div>
     </div>
 
-    <el-dialog v-model="showModal" width="80%" @close="closeModal">
-      <template #header>
-        <div class="modal-header">
-          <span>{{ modalTitle }}</span>
-          <el-button link :icon="CopyDocument" @click="copyModalContent" class="copy-btn">复制</el-button>
-        </div>
-      </template>
-      <div class="modal-json-viewer">
-        <HighlightCode :content="modalContent" :plain="modalPlain" />
-      </div>
-    </el-dialog>
+    <DataViewModal
+      v-model="showModal"
+      :title="modalTitle"
+      :content="modalContent"
+      :plain="modalPlain"
+      @close="closeModal"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
-import { ArrowRight, CopyDocument } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { ArrowRight } from '@element-plus/icons-vue'
 import HighlightCode from '../common/HighlightCode.vue'
+import DataViewModal from '../common/DataViewModal.vue'
+import { isBigTextRef, fetchBigText } from '../../composables/workflow/useBigText'
 
 const props = defineProps({
   nodeTrace: {
@@ -102,23 +118,9 @@ const closeModal = () => {
   modalPlain.value = false
 }
 
-const copyModalContent = async () => {
-  try {
-    if (navigator.clipboard) {
-      await navigator.clipboard.writeText(modalContent.value)
-    } else {
-      const textarea = document.createElement('textarea')
-      textarea.value = modalContent.value
-      textarea.style.position = 'fixed'
-      textarea.style.opacity = '0'
-      document.body.appendChild(textarea)
-      textarea.select()
-      document.execCommand('copy')
-      document.body.removeChild(textarea)
-    }
-    ElMessage.success('复制成功')
-  } catch (error) {
-    ElMessage.error('复制失败')
-  }
+// 大数据内容懒加载：先取回完整内容再打开弹窗
+const loadBigText = async (value, title) => {
+  const content = await fetchBigText(value)
+  openModal(title, content)
 }
 </script>

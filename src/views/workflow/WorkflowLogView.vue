@@ -1,10 +1,11 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue'
-import { ElMessage } from 'element-plus'
-import { Clock, VideoPlay, CircleCheck, CircleClose, ArrowRight, ArrowUp, Refresh, Filter, Search } from '@element-plus/icons-vue'
+import { Clock, CircleCheck, CircleClose, ArrowRight, ArrowUp, Refresh, Filter, Search } from '@element-plus/icons-vue'
 import request from '../../utils/request'
 import AppPagination from '../../components/common/AppPagination.vue'
 import HighlightCode from '../../components/common/HighlightCode.vue'
+import DataViewModal from '../../components/common/DataViewModal.vue'
+import { isBigTextRef, fetchBigText } from '../../composables/workflow/useBigText'
 
 const props = defineProps({
   workflowId: { type: String, default: '' }
@@ -108,25 +109,10 @@ const closeModal = () => {
   modalContent.value = ''
 }
 
-const copyModalContent = async () => {
-  try {
-    if (navigator.clipboard) {
-      await navigator.clipboard.writeText(modalContent.value)
-    } else {
-      const textarea = document.createElement('textarea')
-      textarea.value = modalContent.value
-      textarea.style.position = 'fixed'
-      textarea.style.opacity = '0'
-      document.body.appendChild(textarea)
-      textarea.select()
-      document.execCommand('copy')
-      document.body.removeChild(textarea)
-    }
-    ElMessage.success('复制成功')
-  } catch (error) {
-    console.error('复制失败:', error)
-    ElMessage.error('复制失败')
-  }
+// 大数据内容懒加载：先取回完整内容再打开弹窗
+const loadBigText = async (value, title) => {
+  const content = await fetchBigText(value)
+  openModal(title, content)
 }
 
 const loadLogs = async () => {
@@ -187,6 +173,7 @@ const loadNodeLogs = async (log) => {
         order: index + 1,
         methodName: node.name || node.callable || '未知方法',
         isError: node.status === 'FAILED',
+        expanded: false,
         executionTime: Math.max(0, (Number(node.endTime) || 0) - (Number(node.startTime) || 0)),
         input: node.input,
         output: node.status === 'FAILED' ? node.error : node.output
@@ -198,6 +185,21 @@ const loadNodeLogs = async (log) => {
   } finally {
     loadingNodeLogIds.value.delete(log.id)
   }
+}
+
+const toggleNodeLog = (nodeLog) => {
+  nodeLog.expanded = !nodeLog.expanded
+}
+
+const isAllNodeExpanded = (log) => {
+  return log.nodeLogs && log.nodeLogs.length > 0 && log.nodeLogs.every((node) => node.expanded)
+}
+
+const toggleAllNodeLogs = (log) => {
+  const next = !isAllNodeExpanded(log)
+  log.nodeLogs.forEach((node) => {
+    node.expanded = next
+  })
 }
 
 const parseTraceJson = (value) => {
@@ -420,16 +422,34 @@ onUnmounted(() => {
               <div class="summary-context error-log" v-if="log.errorMessage">
                 <div class="summary-label error-label">错误日志</div>
                 <HighlightCode
+                  v-if="!isBigTextRef(log.errorMessage)"
                   :content="log.errorMessage"
                   plain
                   class="error-text"
                   @click="openModal('错误日志', log.errorMessage)"
                 />
+                <span
+                  v-else
+                  class="big-text-placeholder"
+                  @click="loadBigText(log.errorMessage, '错误日志')"
+                >
+                  内容较大，点击查看完整内容
+                </span>
               </div>
             </div>
 
             <div class="detail-section" v-if="log.nodeLogs && log.nodeLogs.length > 0">
-              <h4>节点执行日志</h4>
+              <div class="node-section-header">
+                <h4>节点执行日志</h4>
+                <el-button
+                  link
+                  type="primary"
+                  class="node-toggle-all"
+                  @click="toggleAllNodeLogs(log)"
+                >
+                  {{ isAllNodeExpanded(log) ? '折叠全部' : '展开全部' }}
+                </el-button>
+              </div>
               <div class="node-timeline">
                 <div v-for="(nodeLog, index) in log.nodeLogs" :key="nodeLog.id" class="node-log-item">
                   <div class="timeline-line">
@@ -437,29 +457,53 @@ onUnmounted(() => {
                     <div v-if="index < log.nodeLogs.length - 1" class="timeline-connector"></div>
                   </div>
                   <div class="timeline-content">
-                    <div class="node-header">
+                    <div
+                      class="node-header"
+                      :class="{ 'node-header-expanded': nodeLog.expanded }"
+                      @click="toggleNodeLog(nodeLog)"
+                    >
                       <span class="node-order">{{ nodeLog.order }}</span>
                       <span class="node-name">{{ nodeLog.methodName }}</span>
                       <span class="node-time">{{ nodeLog.executionTime }}ms</span>
+                      <span class="node-toggle-hint">{{ nodeLog.expanded ? '收起' : '展开详情' }}</span>
+                      <el-icon class="node-header-arrow" :class="{ expanded: nodeLog.expanded }">
+                        <ArrowRight />
+                      </el-icon>
                     </div>
-                    <div class="node-details">
+                    <div v-show="nodeLog.expanded" class="node-details">
                       <div class="detail-row" v-if="nodeLog.input !== null && nodeLog.input !== undefined">
                         <span class="detail-label">输入:</span>
                         <HighlightCode
+                          v-if="!isBigTextRef(nodeLog.input)"
                           :content="formatJsonData(nodeLog.input)"
                           @click="openModal('输入 - ' + (nodeLog.methodName || '未知方法'), nodeLog.input)"
                         />
+                        <span
+                          v-else
+                          class="big-text-placeholder"
+                          @click="loadBigText(nodeLog.input, '输入 - ' + (nodeLog.methodName || '未知方法'))"
+                        >
+                          内容较大，点击查看完整内容
+                        </span>
                       </div>
                       <div class="detail-row" :class="{ 'detail-row-error': nodeLog.isError }">
                         <span class="detail-label" :class="{ 'label-error': nodeLog.isError }">
                           {{ nodeLog.isError ? '错误:' : '输出:' }}
                         </span>
                         <HighlightCode
+                          v-if="!isBigTextRef(nodeLog.output)"
                           :content="formatJsonData(nodeLog.output)"
                           :plain="nodeLog.isError"
                           :class="{ 'error-text': nodeLog.isError }"
                           @click="openModal((nodeLog.isError ? '错误 - ' : '输出 - ') + (nodeLog.methodName || '未知方法'), nodeLog.output)"
                         />
+                        <span
+                          v-else
+                          class="big-text-placeholder"
+                          @click="loadBigText(nodeLog.output, (nodeLog.isError ? '错误 - ' : '输出 - ') + (nodeLog.methodName || '未知方法'))"
+                        >
+                          内容较大，点击查看完整内容
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -490,21 +534,11 @@ onUnmounted(() => {
       @current-change="handlePageChange"
     />
 
-    <el-dialog
+    <DataViewModal
       v-model="showModal"
-      width="80%"
-      :close-on-click-modal="true"
+      :title="modalTitle"
+      :content="modalContent"
       @close="closeModal"
-    >
-      <template #header>
-        <div class="modal-header">
-          <span>{{ modalTitle }}</span>
-          <el-button link :icon="VideoPlay" @click="copyModalContent" class="copy-btn">复制</el-button>
-        </div>
-      </template>
-      <div class="modal-json-viewer">
-        <HighlightCode :content="modalContent" />
-      </div>
-    </el-dialog>
+    />
   </div>
 </template>

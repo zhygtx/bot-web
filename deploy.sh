@@ -62,11 +62,13 @@ SKIP_DEPENDENCIES=false
 SKIP_BUILD=false
 
 parse_args() {
+    COMMAND=""
     while [ "$#" -gt 0 ]; do
         case "$1" in
             --skip-deps) SKIP_DEPENDENCIES=true ;;
             --skip-build) SKIP_BUILD=true ;;
-            *) break ;;
+            --*) echo "❌ 未知选项: $1" && exit 1 ;;
+            *) [ -z "$COMMAND" ] && COMMAND="$1" ;;
         esac
         shift
     done
@@ -93,23 +95,106 @@ check_node_installed() {
     fi
 }
 
-install_node() {
-    local current_node_version=$(node --version 2>/dev/null || echo "未安装")
-    [ "$current_node_version" != "未安装" ] && echo "📦 Node.js 当前版本: $current_node_version，正在升级..." || echo "📦 Node.js 未安装，正在安装..."
-    
-    local node_version="setup_20.x"
+# 检测系统 glibc 版本（Node 官方包要求 glibc >= 2.28）
+detect_glibc_version() {
+    GLIBC_VERSION=$(ldd --version 2>/dev/null | head -n1 | sed 's/.*) *//')
+    [ -z "$GLIBC_VERSION" ] && GLIBC_VERSION="0.0"
+}
+
+# glibc 是否 >= 指定版本（如 "2.28"）
+glibc_supported() {
+    [ "$(printf '%s\n%s\n' "$GLIBC_VERSION" "$1" | sort -V | head -n1)" = "$1" ]
+}
+
+ensure_cmd() {
+    for c in "$@"; do
+        if ! command -v "$c" &> /dev/null; then
+            echo "📦 正在安装 $c ..."
+            if command -v apt-get &> /dev/null; then
+                sudo apt-get update && sudo apt-get install -y "$c"
+            elif command -v yum &> /dev/null; then
+                sudo yum install -y "$c"
+            elif command -v dnf &> /dev/null; then
+                sudo dnf install -y "$c"
+            else
+                echo "❌ 缺少 $c，请手动安装后重试"
+                exit 1
+            fi
+        fi
+    done
+}
+
+# 方案 A：glibc >= 2.28（CentOS 8+ / Ubuntu 20.04+ / Debian 11+ 等），走 NodeSource 官方源
+install_node_from_nodesource() {
+    local node_version="setup_22.x"
+    echo "📦 使用 NodeSource 官方源安装 Node.js 22 LTS..."
     if command -v apt-get &> /dev/null; then
-        curl -fsSL https://deb.nodesource.com/$node_version | sudo -E bash -
+        curl -fsSL https://deb.nodesource.com/$node_version | sudo -E bash - || { echo "❌ NodeSource 源配置失败" && exit 1; }
         sudo apt-get update && sudo apt-get install -y nodejs
     elif command -v yum &> /dev/null; then
-        curl -fsSL https://rpm.nodesource.com/$node_version | sudo -E bash -
+        curl -fsSL https://rpm.nodesource.com/$node_version | sudo -E bash - || { echo "❌ NodeSource 源配置失败" && exit 1; }
         sudo yum install -y nodejs
     elif command -v dnf &> /dev/null; then
-        curl -fsSL https://rpm.nodesource.com/$node_version | sudo -E bash -
+        curl -fsSL https://rpm.nodesource.com/$node_version | sudo -E bash - || { echo "❌ NodeSource 源配置失败" && exit 1; }
         sudo dnf install -y nodejs
     else
         echo "❌ 错误: 未找到包管理器，请手动安装 Node.js"
         exit 1
+    fi
+}
+
+# 方案 B：glibc < 2.28（CentOS 7 / Ubuntu 18.04 等），下载官方 glibc-217 非官方构建
+install_node_from_unofficial() {
+    if [ "$(uname -m)" != "x86_64" ]; then
+        echo "❌ glibc < 2.28 的系统仅提供 x86_64 架构的 glibc-217 构建，当前架构无法自动安装"
+        echo "💡 建议: 升级操作系统，或改用 Docker 构建"
+        exit 1
+    fi
+
+    # 清理旧版尝试遗留的 NodeSource 仓库（与 CentOS 7 不兼容）
+    sudo rm -f /etc/yum.repos.d/nodesource*.repo 2>/dev/null
+
+    local node_ver="v22.23.2"  # Node.js 22 LTS (Jod)，glibc 2.17 兼容版，后续版本发布可自行上浮
+    local node_file="node-${node_ver}-linux-x64-glibc-217"
+    local install_dir="/usr/local/${node_file}"
+    local tarball_url="https://unofficial-builds.nodejs.org/download/release/${node_ver}/${node_file}.tar.xz"
+
+    echo "⚠️  系统 glibc 过低，官方 Node 包无法运行，改用官方 glibc-217 非官方构建: $node_ver"
+
+    if [ ! -x "$install_dir/bin/node" ]; then
+        ensure_cmd curl xz
+        echo "⬇️  正在下载 Node.js $node_ver ..."
+        if ! curl -fSL "$tarball_url" -o /tmp/node-glibc217.tar.xz; then
+            echo "❌ 下载失败，请检查网络后重试"
+            exit 1
+        fi
+        echo "📦 正在解压安装到 $install_dir ..."
+        sudo mkdir -p /usr/local
+        sudo tar -xJf /tmp/node-glibc217.tar.xz -C /usr/local || { echo "❌ 解压失败" && exit 1; }
+        rm -f /tmp/node-glibc217.tar.xz
+    else
+        echo "✅ 检测到已安装: $install_dir"
+    fi
+
+    for bin in node npm npx; do
+        sudo ln -sf "$install_dir/bin/$bin" "/usr/local/bin/$bin"
+    done
+    echo "🔗 已将 node/npm/npx 链接到 /usr/local/bin"
+}
+
+install_node() {
+    local current_node_version=$(node --version 2>/dev/null || echo "未安装")
+    [ "$current_node_version" != "未安装" ] && echo "📦 Node.js 当前版本: $current_node_version，正在升级..." || echo "📦 Node.js 未安装，正在安装..."
+
+    detect_glibc_version
+    echo "🧪 系统 glibc 版本: $GLIBC_VERSION"
+
+    if glibc_supported "2.28"; then
+        echo "✅ glibc >= 2.28，可安装官方 Node.js"
+        install_node_from_nodesource
+    else
+        echo "⚠️  glibc < 2.28（如 CentOS 7），官方 Node.js 包无法运行，改用兼容构建"
+        install_node_from_unofficial
     fi
 
     if ! command -v node &> /dev/null || ! command -v npm &> /dev/null; then
@@ -127,6 +212,7 @@ install_dependencies() {
     [ $node_check_result -ne 0 ] && install_node && check_node_installed && [ $? -ne 0 ] && exit 1
 
     echo "📦 正在安装项目依赖..."
+    [ -n "$NPM_REGISTRY" ] && npm config set registry "$NPM_REGISTRY" && echo "   npm 镜像: $NPM_REGISTRY"
     npm install
     echo "✅ 项目依赖安装完成"
 }
@@ -390,9 +476,8 @@ deploy_with_nginx() {
 
 main() {
     parse_args "$@"
-    shift $((OPTIND - 1))
 
-    case "$1" in
+    case "$COMMAND" in
         install)
             echo "=== 📦 安装项目依赖 ==="
             install_dependencies
@@ -480,14 +565,20 @@ main() {
             echo "  --skip-deps     - 跳过依赖安装"
             echo "  --skip-build    - 跳过项目构建"
             echo ""
+            echo "  --skip-deps / --skip-build 可放在命令前或命令后，例如: $0 --skip-build prod"
+            echo "  NPM_REGISTRY 环境变量可指定 npm 镜像源，例如: NPM_REGISTRY=https://registry.npmmirror.com $0 prod"
+            echo ""
+            echo "  Node.js 自动安装说明: glibc >= 2.28 走 NodeSource 官方源；"
+            echo "  CentOS 7 等旧系统（glibc < 2.28）自动改用官方 glibc-217 兼容构建"
+            echo ""
             echo "示例:"
             echo "  $0 prod              # 一键部署"
             echo "  $0 prod --skip-build # 跳过构建"
             echo "  $0 restart           # 重启服务器"
             ;;
         *)
-            [ -z "$1" ] && { echo "❌ 未指定命令" && echo "💡 快速开始: $0 prod" && exit 1; }
-            echo "❌ 未知命令: $1"
+            [ -z "$COMMAND" ] && { echo "❌ 未指定命令" && echo "💡 快速开始: $0 prod" && exit 1; }
+            echo "❌ 未知命令: $COMMAND"
             echo "使用 '$0 help' 查看可用命令"
             exit 1
             ;;

@@ -13,8 +13,8 @@
         <template v-if="execution.errorMessage">
           <span class="bar-divider">|</span>
           <span class="bar-error-label">错误:</span>
-          <div class="bar-error-preview" @click="emit('openModal', '错误日志', execution.errorMessage)">
-            {{ formatPreview(execution.errorMessage) }}
+          <div class="bar-error-preview" @click="openErrorModal">
+            {{ isBigTextRef(execution.errorMessage) ? '内容较大，点击查看完整内容' : formatPreview(execution.errorMessage) }}
           </div>
         </template>
       </div>
@@ -28,6 +28,7 @@
 <script setup>
 import { computed } from 'vue'
 import { CircleCheck, CircleClose } from '@element-plus/icons-vue'
+import { isBigTextRef, fetchBigText } from '../../composables/workflow/useBigText'
 
 const props = defineProps({
   execution: {
@@ -43,5 +44,14 @@ const failed = computed(() => props.execution?.status === 'FAILED')
 const formatPreview = (text) => {
   if (!text) return '无'
   return text.length > 80 ? text.substring(0, 80) + '...' : text
+}
+
+// 大数据内容懒加载：先取回完整内容再交给父组件展示
+const openErrorModal = async () => {
+  let content = props.execution?.errorMessage
+  if (isBigTextRef(content)) {
+    content = await fetchBigText(content)
+  }
+  emit('openModal', '错误日志', content)
 }
 </script>
